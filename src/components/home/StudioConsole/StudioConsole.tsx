@@ -21,8 +21,11 @@ export const StudioConsole: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
+  const [totalDuration, setTotalDuration] = useState<number>(14);
+  const [fileName, setFileName] = useState<string>('Minh_Khang_Audio_Dubbing.mp3');
   const [hasAudioRing, setHasAudioRing] = useState<boolean>(false);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState<boolean>(false);
+  const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -31,7 +34,7 @@ export const StudioConsole: React.FC = () => {
     if (isPlaying) {
       timerRef.current = setInterval(() => {
         setCurrentTime((prev) => {
-          if (prev >= 14) {
+          if (prev >= totalDuration) {
             setIsPlaying(false);
             if (timerRef.current) clearInterval(timerRef.current);
             return 0;
@@ -50,21 +53,54 @@ export const StudioConsole: React.FC = () => {
         clearInterval(timerRef.current);
       }
     };
-  }, [isPlaying]);
+  }, [isPlaying, totalDuration]);
 
   const handleTogglePlay = () => {
     setIsPlaying((prev) => !prev);
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     setIsGenerating(true);
-    setTimeout(() => {
-      setIsGenerating(false);
-      setHasAudioRing(true);
+    setStatusMessage(null);
+
+    try {
+      const res = await fetch('/api/tts/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          voiceId: selectedVoice.id,
+          voiceName: selectedVoice.name,
+          speed,
+          emotion: selectedEmotion,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setStatusMessage({ text: data.error || 'Tạo âm thanh thất bại', type: 'error' });
+        setIsGenerating(false);
+        return;
+      }
+
+      setFileName(data.fileName || `${selectedVoice.name}_Audio_Dubbing.mp3`);
+      setTotalDuration(data.durationSec || Math.max(5, Math.round(text.length / 15)));
       setCurrentTime(0);
+      setHasAudioRing(true);
       setIsPlaying(true);
-      setTimeout(() => setHasAudioRing(false), 1500);
-    }, 900);
+      setStatusMessage({
+        text: `Tạo âm thanh thành công! Đã trừ ${data.creditsDeducted.toLocaleString('vi-VN')} Credits.`,
+        type: 'success',
+      });
+
+      setTimeout(() => setHasAudioRing(false), 2000);
+    } catch (err) {
+      console.error(err);
+      setStatusMessage({ text: 'Lỗi kết nối máy chủ. Vui lòng thử lại.', type: 'error' });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -79,6 +115,22 @@ export const StudioConsole: React.FC = () => {
 
           {/* Mode Switcher Tabs */}
           <ModeTabs activeTab={activeTab} onTabChange={setActiveTab} />
+
+          {/* Status Message Notification */}
+          {statusMessage && (
+            <div
+              className={`mb-space-sm p-3 rounded-xl flex items-center gap-2 font-body-sm text-body-sm ${
+                statusMessage.type === 'success'
+                  ? 'bg-signal-success/15 border border-signal-success/30 text-signal-success'
+                  : 'bg-signal-danger/15 border border-signal-danger/30 text-signal-danger'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                {statusMessage.type === 'success' ? 'check_circle' : 'error'}
+              </span>
+              <span>{statusMessage.text}</span>
+            </div>
+          )}
 
           {/* Main Studio Workspace Container */}
           <div className="rounded-xl bg-surface-container-lowest p-space-md flex flex-col gap-space-md shadow-inner">
@@ -103,8 +155,8 @@ export const StudioConsole: React.FC = () => {
             isPlaying={isPlaying}
             onTogglePlay={handleTogglePlay}
             currentTime={currentTime}
-            totalDuration={14}
-            fileName={`${selectedVoice.name.replace(/\s+/g, '_')}_Audio_Dubbing.mp3`}
+            totalDuration={totalDuration}
+            fileName={fileName}
             hasAudioRing={hasAudioRing}
           />
         </div>
