@@ -1,0 +1,327 @@
+# PROCESSES.PRD — LỘ TRÌNH PHÁT TRIỂN DỰ ÁN DUBBINGSTATION
+## Product Requirements Document — Phiên bản 1.0
+
+---
+
+## MỤC LỤC
+1. [Tổng Quan Dự Án](#1-tổng-quan-dự-án)
+2. [Kiến Trúc Kỹ Thuật Tổng Quan](#2-kiến-trúc-kỹ-thuật-tổng-quan)
+3. [Lộ Trình 7 Phase Phát Triển](#3-lộ-trình-7-phase-phát-triển)
+   - [Phase 0: Foundation & Infrastructure Setup](#phase-0-foundation--infrastructure-setup)
+   - [Phase 1: Authentication, User System & Dashboard Shell](#phase-1-authentication-user-system--dashboard-shell)
+   - [Phase 2: Core AI Service — Text to Speech (TTS) Engine](#phase-2-core-ai-service--text-to-speech-tts-engine)
+   - [Phase 3: Core AI Service — Subtitle Video Dubbing Pipeline](#phase-3-core-ai-service--subtitle-video-dubbing-pipeline)
+   - [Phase 4: Core AI Service — Speech to Text (STT) & Voice Cloning](#phase-4-core-ai-service--speech-to-text-stt--voice-cloning)
+   - [Phase 5: 22 Client-Side WASM Audio Tools Suite](#phase-5-22-client-side-wasm-audio-tools-suite)
+   - [Phase 6: Unified Credit Economy, Pricing, Payment & Subscription](#phase-6-unified-credit-economy-pricing-payment--subscription)
+   - [Phase 7: Developer API, Optimization, Analytics & Launch Readiness](#phase-7-developer-api-optimization-analytics--launch-readiness)
+4. [Bảng Phụ Thuộc Giữa Các Phase](#4-bảng-phụ-thuộc-giữa-các-phase)
+5. [Tiêu Chí Chấp Nhận & Chất Lượng (QA Checklist)](#5-tiêu-chí-chấp-nhận--chất-lượng)
+
+---
+
+## 1. TỔNG QUAN DỰ ÁN
+
+| Mục | Giá Trị |
+| :--- | :--- |
+| **Tên sản phẩm** | DubbingStation — All-in-One AI Voice Studio |
+| **Tầm nhìn** | Nền tảng SaaS đa năng hàng đầu cho tổng hợp giọng nói AI, lồng tiếng video tự động, nhận dạng giọng nói và nhân bản giọng đọc, kèm bộ 22 công cụ xử lý audio miễn phí trên trình duyệt. |
+| **Ngôn ngữ giao diện** | Tiếng Việt (mặc định) & Tiếng Anh (i18n). |
+| **Đối tượng mục tiêu** | Content Creator (YouTube, TikTok, Podcast), E-Learning Instructor, Studio phim/nhạc vừa và nhỏ, Đội ngũ Marketing, Nhà phát triển tích hợp API. |
+| **Thị trường chính** | Việt Nam → Mở rộng Đông Nam Á → Toàn cầu. |
+| **Mô hình kinh doanh** | Freemium SaaS + Unified Credit System (5 Tiers: Free, Lite, Starter, Growth, Pro). |
+
+---
+
+## 2. KIẾN TRÚC KỸ THUẬT TỔNG QUAN
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                       CLIENT LAYER                       │
+│  Next.js / React + TailwindCSS + WebAssembly (FFmpeg)   │
+│  ┌───────────┐ ┌──────────────┐ ┌───────────────────┐  │
+│  │ Pages/UI  │ │ 22 WASM Tools│ │ Audio Player/Wave │  │
+│  └───────────┘ └──────────────┘ └───────────────────┘  │
+├─────────────────────────────────────────────────────────┤
+│                     API GATEWAY                          │
+│              Node.js / Express / tRPC                    │
+├─────────────────────────────────────────────────────────┤
+│                    SERVICE LAYER                         │
+│  ┌──────┐ ┌───────┐ ┌──────────┐ ┌─────────────────┐  │
+│  │ TTS  │ │  DUB  │ │   STT    │ │  VOICE CLONING  │  │
+│  │Engine│ │Pipeline│ │(Whisper) │ │  (Zero/Few-Shot) │  │
+│  └──────┘ └───────┘ └──────────┘ └─────────────────┘  │
+├─────────────────────────────────────────────────────────┤
+│                    DATA & STORAGE                        │
+│  PostgreSQL │ Redis │ S3 (Audio/Video) │ CDN (CloudFront)│
+├─────────────────────────────────────────────────────────┤
+│                    INFRASTRUCTURE                        │
+│  Docker / Kubernetes │ GPU Nodes (A100/T4) │ CI/CD      │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 3. LỘ TRÌNH 7 PHASE PHÁT TRIỂN
+
+---
+
+### PHASE 0: FOUNDATION & INFRASTRUCTURE SETUP
+> **Mục tiêu**: Thiết lập nền tảng dự án, môi trường phát triển, hệ thống CI/CD và cơ sở hạ tầng máy chủ.
+> **Trạng thái**: 🟡 Đang Triển Khai
+
+#### Danh Sách Công Việc
+
+| STT | Task ID | Tên Công Việc | Mô Tả | Ưu Tiên | Trạng Thái |
+| :---: | :--- | :--- | :--- | :---: | :---: |
+| 1 | `P0-01` | Khởi tạo Monorepo & Project Structure | Tạo monorepo (Turborepo/Nx), cấu trúc workspace: `apps/web`, `apps/api`, `packages/ui`, `packages/shared`. | P0 | ✅ Done |
+| 2 | `P0-02` | Setup Tailwind Design Token System | Cấu hình color tokens, typography scale, spacing tokens tùy chỉnh theo thiết kế DubbingStation (dark theme primary). | P0 | ✅ Done |
+| 3 | `P0-03` | Landing Page / Trang Chủ (UI) | Xây dựng toàn bộ giao diện trang chủ (Main Page) bao gồm Header, Hero, Studio Console, Pricing, FAQ, CTA, Footer. | P0 | ✅ Done |
+| 4 | `P0-04` | Setup Database Schema (PostgreSQL) | Thiết kế ERD (Entity Relationship Diagram): Users, Subscriptions, Credits, VoiceModels, AudioFiles, Projects, Transactions. | P0 | 🔲 Pending |
+| 5 | `P0-05` | Containerization & Docker Compose | Đóng gói các service: Web App, API Server, TTS Worker, STT Worker, PostgreSQL, Redis. | P0 | 🔲 Pending |
+| 6 | `P0-06` | CI/CD Pipeline (GitHub Actions) | Pipeline tự động: Lint → Test → Build → Deploy Staging → Smoke Test → Deploy Production. | P1 | 🔲 Pending |
+| 7 | `P0-07` | Cloud Infrastructure Provisioning | Provisioning AWS/GCP: EC2/GKE GPU instances (T4/A100), S3 bucket, CloudFront CDN, RDS, ElastiCache Redis. | P1 | 🔲 Pending |
+| 8 | `P0-08` | API Gateway & Rate Limiting | Setup Express/tRPC API Gateway, cấu hình rate limiting (100 req/min Free, 500 req/min Pro), CORS, Helmet. | P1 | 🔲 Pending |
+
+#### Kết Quả Giao Phó (Deliverables)
+- [x] Landing page hoàn chỉnh (`index.html`) với đầy đủ 9 sections giao diện.
+- [ ] Database ERD approved & migrations ready.
+- [ ] Docker Compose chạy được toàn bộ stack trong 1 lệnh.
+- [ ] CI/CD pipeline xanh ổn định trên GitHub Actions.
+
+---
+
+### PHASE 1: AUTHENTICATION, USER SYSTEM & DASHBOARD SHELL
+> **Mục tiêu**: Hệ thống đăng ký/đăng nhập, quản lý phiên người dùng, và khung Dashboard chính.
+> **Phụ thuộc**: Phase 0 (Database Schema, API Gateway)
+
+#### Danh Sách Công Việc
+
+| STT | Task ID | Tên Công Việc | Mô Tả | Ưu Tiên |
+| :---: | :--- | :--- | :--- | :---: |
+| 1 | `P1-01` | Auth System: Email/Password + OAuth (Google) | Đăng ký/đăng nhập bằng Email (confirm link) và Google OAuth 2.0. Sử dụng NextAuth.js / Lucia Auth. | P0 |
+| 2 | `P1-02` | Free Credits Onboarding Flow | Tự động nạp 50.000 Credits vào tài khoản mới tạo thành công. Hiển thị onboarding welcome modal. | P0 |
+| 3 | `P1-03` | Dashboard Shell & Navigation | Layout Dashboard chính: Sidebar trái (menu điều hướng các service), Header bar (credit balance, profile), Main content area. | P0 |
+| 4 | `P1-04` | User Profile Management | Trang cập nhật ảnh đại diện, tên hiển thị, email, ngôn ngữ ưu tiên (VI/EN), đổi mật khẩu. | P1 |
+| 5 | `P1-05` | Session & Token Management | JWT Access/Refresh token flow, Redis session store, auto-logout sau 7 ngày không hoạt động. | P1 |
+| 6 | `P1-06` | Role-Based Access Control (RBAC) | Phân quyền: `Free User`, `Paid User (Lite/Starter/Growth/Pro)`, `Admin`, `API Developer`. | P1 |
+| 7 | `P1-07` | i18n Localization Engine (VI/EN) | Hệ thống đa ngôn ngữ dùng `next-intl` hoặc `react-i18next`: Toàn bộ text giao diện có bản dịch VI/EN. | P2 |
+
+#### Kết Quả Giao Phó
+- [ ] Đăng ký + Đăng nhập hoạt động (Email + Google).
+- [ ] Tài khoản mới tạo có sẵn 50.000 Credits.
+- [ ] Dashboard Shell responsive với sidebar navigation.
+- [ ] Giao diện chuyển đổi ngôn ngữ VI/EN mượt mà.
+
+---
+
+### PHASE 2: CORE AI SERVICE — TEXT TO SPEECH (TTS) ENGINE
+> **Mục tiêu**: Xây dựng engine chuyển đổi văn bản thành giọng nói AI chất lượng cao — tính năng cốt lõi #1.
+> **Phụ thuộc**: Phase 1 (Auth & Dashboard)
+
+#### Danh Sách Công Việc
+
+| STT | Task ID | Tên Công Việc | Mô Tả | Ưu Tiên |
+| :---: | :--- | :--- | :--- | :---: |
+| 1 | `P2-01` | TTS API Integration & Model Selection | Tích hợp các TTS Engine: Google Cloud TTS, Microsoft Azure Neural TTS, ElevenLabs, PlayHT. Thiết lập fallback chain khi một provider lỗi. | P0 |
+| 2 | `P2-02` | Voice Library Backend & Database | Xây dựng CSDL danh mục 3.000+ giọng đọc: ID, Name, Language, Gender, Accent, Tags, Sample URL, Provider, Tier (Free/Premium). | P0 |
+| 3 | `P2-03` | TTS Workspace Page (Full Feature) | Hoàn thiện trang giao diện workspace TTS đầy đủ chức năng: Textarea input, Voice selector, Emotion chips, Speed slider, SSML tags, Credit calculator. | P0 |
+| 4 | `P2-04` | Audio Generation Queue & Processing | Hệ thống hàng đợi xử lý tạo audio (BullMQ/Redis Queue): Submit job → Process → Store S3 → Return URL. | P0 |
+| 5 | `P2-05` | Audio Player & Waveform Renderer | Trình phát audio tương tác: Play/Pause, Seek bar, Waveform trực quan (WaveSurfer.js), thông tin định dạng/chất lượng. | P0 |
+| 6 | `P2-06` | Voice Library Search & Filter UI | Trang Voices Library: Bộ lọc Language, Gender, Age, Style, Provider. Nghe thử từng giọng, đánh dấu yêu thích. | P1 |
+| 7 | `P2-07` | TTS History & File Manager | Lịch sử các file audio đã tạo: Nghe lại, Tải xuống, Xóa, Đổi tên. | P1 |
+| 8 | `P2-08` | Long Text Chunking & Batch Render | Tự động chia văn bản dài > 5.000 ký tự thành nhiều segment → Render song song → Ghép thành 1 file. | P2 |
+| 9 | `P2-09` | SSML Advanced Editor | Editor trực quan chèn thẻ SSML nâng cao: `<break>`, `<emphasis>`, `<prosody>`, `<phoneme>` cho chuyên gia. | P2 |
+
+#### Kết Quả Giao Phó
+- [ ] Người dùng nhập văn bản → Chọn giọng → Tạo audio → Nghe/Download thành công.
+- [ ] Voices Library search/filter hoạt động mượt mà.
+- [ ] Credits tự động trừ theo công thức `1 ký tự = 1 credit`.
+
+---
+
+### PHASE 3: CORE AI SERVICE — SUBTITLE VIDEO DUBBING PIPELINE
+> **Mục tiêu**: Xây dựng pipeline tự động lồng tiếng cho video từ phụ đề/subtitle.
+> **Phụ thuộc**: Phase 2 (TTS Engine đã hoạt động)
+
+#### Danh Sách Công Việc
+
+| STT | Task ID | Tên Công Việc | Mô Tả | Ưu Tiên |
+| :---: | :--- | :--- | :--- | :---: |
+| 1 | `P3-01` | Subtitle Parser (SRT/VTT/ASS) | Module parse tệp phụ đề: Trích xuất Cue ID, Start Time, End Time, Text Content, Speaker (nếu có). | P0 |
+| 2 | `P3-02` | Multi-Speaker Voice Assignment UI | Giao diện gán giọng đọc cho từng nhân vật trong phụ đề (Character 1 → Giọng A, Character 2 → Giọng B). | P0 |
+| 3 | `P3-03` | Per-Cue TTS Rendering Pipeline | Pipeline render từng cue phụ đề thành audio segment riêng, sử dụng TTS Engine từ Phase 2. | P0 |
+| 4 | `P3-04` | Timeline Alignment & Time-Stretching | Thuật toán auto-stretch: Nén/giãn tốc độ audio segment sao cho vừa khít khoảng thời gian (cue duration) trong video gốc. | P0 |
+| 5 | `P3-05` | FFmpeg Video Compositing Worker | Worker FFmpeg (server-side): Overlay các audio segments đã rendered lên video gốc, giữ nguyên nhạc nền/BGM. | P0 |
+| 6 | `P3-06` | Video Upload & Dubbing Workspace UI | Trang workspace Dubbing: Upload video → Upload/Nhập SRT → Preview timeline → Assign voices → Generate dubbed video. | P0 |
+| 7 | `P3-07` | Dubbed Video Preview & Export | Xem trước video đã lồng tiếng trong trình duyệt. Tải xuống định dạng MP4 (720p / 1080p / 4K). | P1 |
+| 8 | `P3-08` | Background Music Separation (Bonus) | (Tùy chọn) Tách BGM gốc → Lồng giọng AI → Trộn lại cùng BGM. | P2 |
+
+#### Kết Quả Giao Phó
+- [ ] Upload video + SRT → Gán giọng cho từng nhân vật → Tạo video dubbed → Tải về.
+- [ ] Audio segments khớp timeline trong phạm vi ±100ms.
+- [ ] Credits trừ theo công thức `100 credits / giây video`.
+
+---
+
+### PHASE 4: CORE AI SERVICE — SPEECH TO TEXT (STT) & VOICE CLONING
+> **Mục tiêu**: Hoàn thiện 2 phân hệ AI còn lại.
+> **Phụ thuộc**: Phase 1 (Auth), Phase 2 (File Manager)
+
+#### Danh Sách Công Việc
+
+| STT | Task ID | Tên Công Việc | Mô Tả | Ưu Tiên |
+| :---: | :--- | :--- | :--- | :---: |
+| 1 | `P4-01` | STT Engine Integration (Whisper API) | Tích hợp OpenAI Whisper Large-V3 hoặc self-hosted Faster-Whisper: Upload audio → Transcribe → Return text + timestamps. | P0 |
+| 2 | `P4-02` | STT Workspace UI | Trang workspace STT: Upload audio/video, chọn ngôn ngữ (hoặc auto-detect), hiển thị kết quả transcript realtime, chỉnh sửa tay. | P0 |
+| 3 | `P4-03` | Speaker Diarization | Phân biệt người nói: Speaker 1, Speaker 2... với nhãn màu sắc phân biệt trong transcript. | P1 |
+| 4 | `P4-04` | Export Transcript (SRT/VTT/TXT/DOCX) | Xuất file phụ đề/transcript theo đa định dạng với timestamp chính xác. | P1 |
+| 5 | `P4-05` | Voice Clone — Instant Clone | Tính năng nhân bản giọng nhanh: Upload file audio 10-30s → Train model → Có thể sử dụng ngay trong TTS. | P0 |
+| 6 | `P4-06` | Voice Clone — Professional Clone | Upload bộ audio 5-30 phút → Fine-tuning model deep → Chất lượng cao hơn, nhiều biểu cảm hơn. | P1 |
+| 7 | `P4-07` | My Custom Voices Dashboard | Trang quản lý giọng nhân bản cá nhân: Xem danh sách, Nghe thử, Xóa, Sử dụng trong TTS/Dubbing. | P1 |
+| 8 | `P4-08` | Voice Clone Security & Consent | Hệ thống xác thực đồng ý (consent form): Người tải lên phải xác nhận quyền sở hữu giọng nói. | P0 |
+
+#### Kết Quả Giao Phó
+- [ ] Upload audio → Nhận transcript với timestamp + speaker identification.
+- [ ] Nhân bản giọng nói từ file 10 giây hoạt động chính xác.
+- [ ] Trang "My Custom Voices" quản lý đầy đủ lifecycle giọng clone.
+
+---
+
+### PHASE 5: 22 CLIENT-SIDE WASM AUDIO TOOLS SUITE
+> **Mục tiêu**: Xây dựng bộ 22 công cụ xử lý âm thanh chạy 100% Client-Side (WebAssembly), không tốn credit.
+> **Phụ thuộc**: Phase 0 (Frontend đã setup)
+
+#### Danh Sách Công Việc
+
+| STT | Task ID | Tên Công Việc | Mô Tả | Ưu Tiên |
+| :---: | :--- | :--- | :--- | :---: |
+| 1 | `P5-01` | FFmpeg.wasm Core Integration | Tích hợp thư viện `@ffmpeg/ffmpeg` (WebAssembly), quản lý loading, memory, worker threads. | P0 |
+| 2 | `P5-02` | Web Audio API Core Module | Khởi tạo AudioContext, decoding, realtime audio processing pipeline cho các hiệu ứng EQ/Reverb/Pitch. | P0 |
+| 3 | `P5-03` | Tool Hub Landing Page (22 Tools Grid) | Trang chỉ mục hiển thị tất cả 22 công cụ dạng lưới card (như đã có trên trang chủ nhưng đầy đủ hơn). | P0 |
+| 4 | `P5-04` | Batch 1 — Xử Lý File Cơ Bản (6 tools) | Cắt âm thanh, Ghép nối, Đổi định dạng, Trích xuất audio từ video, Nén tệp, Ghi âm mic. | P0 |
+| 5 | `P5-05` | Batch 2 — Tối Ưu Âm Thanh (6 tools) | Khuếch đại âm lượng, Thay đổi tốc độ, Xóa khoảng lặng, Lọc ồn tạp âm, Chuẩn hóa LUFS, Thay đổi cao độ. | P1 |
+| 6 | `P5-06` | Batch 3 — Tách & Trộn (4 tools) | Tách lời hát (Vocal Remover), Tách 4-stems, Trình trộn đa track (Audio Mixer), Equalizer 5-băng tần. | P1 |
+| 7 | `P5-07` | Batch 4 — Hiệu Ứng & Sáng Tạo (4 tools) | Đảo ngược audio, Reverb/Echo, Voice Changer (Robot/Chipmunk), Metadata/ID3 Tag Editor. | P2 |
+| 8 | `P5-08` | Batch 5 — Video & Đặc Biệt (2 tools) | Nhạc chuông điện thoại (Ringtone Maker), Sóng âm video (Audiogram Generator) cho TikTok/YouTube. | P2 |
+| 9 | `P5-09` | Shared Waveform Visualizer Component | Component hiển thị sóng âm thanh tái sử dụng xuyên suốt tất cả 22 tools. | P0 |
+| 10 | `P5-10` | Drag-and-Drop File Zone + Progress Bar | Component kéo-thả file đa năng, thanh tiến trình xử lý WASM (% completion). | P0 |
+
+#### Kết Quả Giao Phó
+- [ ] Tất cả 22 tools hoạt động 100% trong trình duyệt (không gọi server).
+- [ ] Không trừ bất kỳ Credit nào.
+- [ ] File âm thanh không rời khỏi máy người dùng (bảo mật 100%).
+
+---
+
+### PHASE 6: UNIFIED CREDIT ECONOMY, PRICING, PAYMENT & SUBSCRIPTION
+> **Mục tiêu**: Triển khai hệ thống kinh tế tín dụng thống nhất, cổng thanh toán và quản lý đăng ký gói cước.
+> **Phụ thuộc**: Phase 1 (Auth), Phase 2 (TTS), Phase 3 (Dubbing)
+
+#### Danh Sách Công Việc
+
+| STT | Task ID | Tên Công Việc | Mô Tả | Ưu Tiên |
+| :---: | :--- | :--- | :--- | :---: |
+| 1 | `P6-01` | Credit Wallet Service | Microservice quản lý số dư credit: Nạp, trừ, kiểm tra, cảnh báo hết credits. Đảm bảo ACID transaction. | P0 |
+| 2 | `P6-02` | Dynamic Credit Deduction Engine | Engine tính toán và trừ credit theo từng dịch vụ: TTS (1 char = 1 credit), Audio Dub (50/s), Video Dub (100/s), STT (30/s). | P0 |
+| 3 | `P6-03` | Subscription Tier Management | CRUD 5 gói cước (Free/Lite/Starter/Growth/Pro), giới hạn credit/tháng, giới hạn ký tự/request, số giọng clone. | P0 |
+| 4 | `P6-04` | Stripe Payment Integration | Tích hợp Stripe Checkout: Thanh toán thẻ quốc tế, recurring subscription monthly/annual, Webhook billing. | P0 |
+| 5 | `P6-05` | Local Payment Gateway (VietQR/Momo/VNPay) | Tích hợp thanh toán nội địa Việt Nam cho thị trường local. | P1 |
+| 6 | `P6-06` | Pricing Page (Interactive) | Trang bảng giá tương tác: Toggle Monthly/Annual (chiết khấu 30%), Highlight gói Growth ("Khuyên dùng nhất"), Promo code input. | P0 |
+| 7 | `P6-07` | Credit Usage Dashboard & Analytics | Biểu đồ (chart) thống kê mức tiêu thụ credits theo ngày/tuần/tháng, phân tách theo dịch vụ (TTS/Dub/STT). | P1 |
+| 8 | `P6-08` | Invoice & Receipt System | Tự động xuất hóa đơn VAT (PDF) cho khách hàng doanh nghiệp Việt Nam. | P2 |
+| 9 | `P6-09` | Referral / Promo Code Engine | Hệ thống mã giới thiệu (`LAUNCH50`) và chương trình Affiliate: Giới thiệu bạn bè → Nhận thêm credits. | P2 |
+
+#### Kết Quả Giao Phó
+- [ ] Thanh toán thẻ quốc tế hoạt động (Stripe).
+- [ ] Credits trừ chính xác theo từng service call.
+- [ ] Upgrade/Downgrade subscription mượt mà.
+- [ ] Dashboard hiển thị lịch sử tiêu thụ credits trực quan.
+
+---
+
+### PHASE 7: DEVELOPER API, OPTIMIZATION, ANALYTICS & LAUNCH READINESS
+> **Mục tiêu**: Hoàn thiện API cho nhà phát triển, tối ưu hiệu năng, monitoring, SEO và sẵn sàng ra mắt sản phẩm.
+> **Phụ thuộc**: Tất cả các Phase trước
+
+#### Danh Sách Công Việc
+
+| STT | Task ID | Tên Công Việc | Mô Tả | Ưu Tiên |
+| :---: | :--- | :--- | :--- | :---: |
+| 1 | `P7-01` | Public REST API (v1) | API endpoints công khai: `/v1/tts/generate`, `/v1/dubbing/create`, `/v1/stt/transcribe`, `/v1/voices/list`. | P0 |
+| 2 | `P7-02` | API Key Management Dashboard | Trang tạo/quản lý API Keys: Tạo mới, Thu hồi, Xem thống kê sử dụng theo key. | P0 |
+| 3 | `P7-03` | Webhook Notification System | Webhook callback khi render hoàn tất (TTS/Dubbing/STT): Gửi JSON `{event, status, download_url}` tới URL khách hàng đăng ký. | P1 |
+| 4 | `P7-04` | API Documentation Portal | Trang tài liệu API (Swagger/OpenAPI Spec hoặc Mintlify Docs): Ví dụ code Python/JS/curl, Bảng tham số, Error codes. | P0 |
+| 5 | `P7-05` | Performance Optimization | CDN edge caching audio files, Image/font lazy loading, Code splitting, Lighthouse score ≥ 90 trên mọi danh mục. | P1 |
+| 6 | `P7-06` | SEO & Schema Markup | Structured data (SoftwareApplication, FAQPage, Product), sitemap.xml, robots.txt, meta tags đa ngôn ngữ. | P1 |
+| 7 | `P7-07` | Analytics & Monitoring | Google Analytics 4, Hotjar/Clarity heatmaps, Sentry error tracking, Uptime monitoring (Better Uptime/Pingdom). | P1 |
+| 8 | `P7-08` | Admin Dashboard | Trang quản trị: Quản lý người dùng, Thống kê doanh thu, Giám sát GPU usage, Quản lý giọng đọc cơ sở dữ liệu. | P1 |
+| 9 | `P7-09` | Security Audit & Penetration Testing | Rà soát OWASP Top 10, CSRF/XSS protection, Rate limiting stress test, Pen test với công cụ chuyên dụng. | P0 |
+| 10 | `P7-10` | Legal Pages & Compliance | Soạn thảo hoàn chỉnh: Điều khoản dịch vụ, Chính sách quyền riêng tư, Chính sách hoàn tiền, Cookie Policy. | P0 |
+| 11 | `P7-11` | End-to-End Testing (E2E) | Bộ test tự động toàn luồng (Playwright/Cypress): Đăng ký → Nạp credit → TTS → Download → Đánh giá chất lượng. | P1 |
+| 12 | `P7-12` | Staging → Production Release | Checklist production readiness: DNS, SSL, CDN warm-up, Database backup schedule, Monitoring alerts, Status page. | P0 |
+
+#### Kết Quả Giao Phó
+- [ ] API v1 public hoạt động ổn định với tài liệu hướng dẫn đầy đủ.
+- [ ] Hệ thống theo dõi lỗi và hiệu suất hoạt động 24/7.
+- [ ] Lighthouse score ≥ 90, SEO đạt chuẩn.
+- [ ] Sẵn sàng public launch.
+
+---
+
+## 4. BẢNG PHỤ THUỘC GIỮA CÁC PHASE
+
+```
+Phase 0 ──┬──→ Phase 1 ──┬──→ Phase 2 ──→ Phase 3
+           │              │
+           │              └──→ Phase 4
+           │
+           └──→ Phase 5 (Chạy song song, độc lập backend)
+
+                Phase 1 + 2 + 3 ──→ Phase 6 (Credits & Payment)
+
+                All Phases ──→ Phase 7 (API, Optimization, Launch)
+```
+
+| Phase | Phụ Thuộc Bắt Buộc | Có Thể Chạy Song Song Với |
+| :---: | :--- | :--- |
+| **Phase 0** | Không (Khởi điểm) | — |
+| **Phase 1** | Phase 0 (DB, API Gateway) | Phase 5 (WASM Tools) |
+| **Phase 2** | Phase 1 (Auth, Dashboard) | Phase 5 (WASM Tools) |
+| **Phase 3** | Phase 2 (TTS Engine) | Phase 4 (STT & Clone) |
+| **Phase 4** | Phase 1 (Auth) | Phase 3 (Dubbing), Phase 5 (WASM) |
+| **Phase 5** | Phase 0 (Frontend setup) | Phase 1, 2, 3, 4 (Tất cả backend phases) |
+| **Phase 6** | Phase 1 + 2 + 3 (Core services phải hoạt động) | Phase 7 (một phần) |
+| **Phase 7** | Tất cả (Final integration) | — |
+
+---
+
+## 5. TIÊU CHÍ CHẤP NHẬN & CHẤT LƯỢNG (QA CHECKLIST)
+
+### Tiêu Chí Chấp Nhận Chung
+
+- [ ] Mọi trang responsive từ Mobile (360px) → Tablet (768px) → Desktop (1440px).
+- [ ] Dark theme nhất quán xuyên suốt, tuân theo hệ thống Design Token đã thiết lập.
+- [ ] Thời gian tải trang < 3 giây (LCP) với CDN.
+- [ ] Accessibility: WCAG 2.1 Level AA (contrast ratio, keyboard navigation, ARIA labels).
+- [ ] Bảo mật: HTTPS, CSP headers, SQL injection prevention, XSS protection.
+- [ ] Logging & Monitoring: Mọi API call được log, error được track bởi Sentry.
+- [ ] Credits trừ chính xác 100% — Không bao giờ trừ sai hoặc trừ trùng.
+
+### Tiêu Chí Cụ Thể Theo Service
+
+| Service | Metric | Mục Tiêu |
+| :--- | :--- | :--- |
+| TTS | Độ trễ trả kết quả (< 5.000 ký tự) | < 8 giây |
+| TTS | Chất lượng audio | ≥ 24kHz, MOS Score ≥ 4.0/5.0 |
+| Dubbing | Độ lệch timeline audio/video | ≤ ±100ms |
+| STT | Độ chính xác nhận dạng tiếng Việt | ≥ 95% WER |
+| STT | Độ chính xác nhận dạng tiếng Anh | ≥ 98% WER |
+| Voice Clone | Thời gian huấn luyện Instant Clone | < 60 giây |
+| WASM Tools | Tốc độ xử lý file 10MB | < 15 giây (trên Chrome Desktop) |
+| Payment | Tỷ lệ thanh toán thành công | ≥ 99.5% |
+| System | Uptime | ≥ 99.9% |
+
+---
+
+*Tài liệu này được tổng hợp dựa trên phân tích giao diện landing page `index.html` đã hoàn thiện và bổ sung các module backend, infrastructure, payment, API theo chuẩn SaaS production-ready. Tham chiếu chéo với `Functions.md` để đối chiếu tính năng chi tiết.*

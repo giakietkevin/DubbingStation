@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="vi"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><title>DubbingStation - All-in-One AI Voice Studio</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: 'class', theme: { extend: { colors: { 'text-muted': '#64748B', 'tertiary': '#ecfaff', 'error-container': '#93000a', 'border-active-cyan': 'rgba(0, 242, 254, 0.4)', 'background': '#0b1326', 'on-error-container': '#ffdad6', 'on-primary-container': '#006a70', 'surface': '#0b1326', 'on-primary-fixed-variant': '#004f53', 'border-glass': 'rgba(255, 255, 255, 0.08)', 'surface-container-highest': '#2d3449', 'secondary': '#d0bcff', 'inverse-surface': '#dae2fd', 'surface-bright': '#31394d', 'secondary-fixed': '#e9ddff', 'inverse-on-surface': '#283044', 'surface-tint': '#00dce6', 'error': '#ffb4ab', 'on-secondary-fixed-variant': '#5516be', 'outline': '#849495', 'surface-glass': 'rgba(15, 23, 42, 0.72)', 'on-tertiary-fixed': '#001f26', 'on-surface-variant': '#b9cacb', 'secondary-fixed-dim': '#d0bcff', 'signal-warning': '#FBBF24', 'tertiary-fixed-dim': '#4cd7f6', 'primary': '#e0fdff', 'on-background': '#dae2fd', 'on-surface': '#dae2fd', 'on-tertiary-fixed-variant': '#004e5c', 'primary-fixed-dim': '#00dce6', 'on-tertiary': '#003640', 'on-error': '#690005', 'on-primary-fixed': '#002022', 'surface-variant': '#2d3449', 'on-secondary-container': '#c4abff', 'on-secondary': '#3c0091', 'signal-danger': '#EF4444', 'on-primary': '#00373a', 'primary-fixed': '#6ff6ff', 'text-secondary': '#94A3B8', 'tertiary-fixed': '#acedff', 'surface-container-lowest': '#060e20', 'surface-container': '#171f33', 'signal-success': '#10B981', 'outline-variant': '#3a494b', 'text-primary': '#F8FAFC', 'primary-container': '#00f2fe', 'secondary-container': '#571bc1', 'accent-violet-bright': '#A855F7', 'on-tertiary-container': '#00697c', 'canvas-base': '#090D16', 'surface-container-high': '#222a3d', 'surface-dim': '#0b1326', 'tertiary-container': '#91e8ff', 'on-secondary-fixed': '#23005c', 'inverse-primary': '#00696f', 'surface-container-low': '#131b2e', 'surface-card': '#0F172A', 'border-active-violet': 'rgba(139, 92, 246, 0.4)' }, borderRadius: { 'DEFAULT': '0.25rem', 'lg': '0.5rem', 'xl': '0.75rem', 'full': '9999px' }, spacing: { 'space-sm': '0.75rem', 'space-xs': '0.5rem', 'space-md': '1rem', 'gutter-mobile': '1rem', 'gutter-desktop': '1.5rem', 'space-xl': '2rem', 'margin-desktop': '3rem', 'space-2xs': '0.25rem', 'space-lg': '1.5rem', 'margin-tablet': '2rem', 'space-2xl': '3rem', 'space-3xl': '4.5rem', 'margin-mobile': '1rem', 'max-width-content': '1280px' }, fontFamily: { 'code-xs': ['JetBrains Mono'], 'body-md': ['Inter'], 'headline-lg': ['Plus Jakarta Sans'], 'label-md': ['Plus Jakarta Sans'], 'headline-sm': ['Plus Jakarta Sans'], 'body-sm': ['Inter'], 'display-xl-mobile': ['Plus Jakarta Sans'], 'code-sm': ['JetBrains Mono'], 'body-lg': ['Inter'], 'headline-md': ['Plus Jakarta Sans'], 'label-sm': ['Plus Jakarta Sans'], 'display-xl': ['Plus Jakarta Sans'], 'headline-lg-mobile': ['Plus Jakarta Sans'] }, fontSize: { 'code-xs': ['10px', { lineHeight: '14px', letterSpacing: '0.04em', fontWeight: '500' }], 'body-md': ['14px', { lineHeight: '22px', letterSpacing: '0em', fontWeight: '400' }], 'headline-lg': ['36px', { lineHeight: '44px', letterSpacing: '-0.02em', fontWeight: '700' }], 'label-md': ['13px', { lineHeight: '18px', letterSpacing: '0.02em', fontWeight: '600' }], 'headline-sm': ['18px', { lineHeight: '26px', letterSpacing: '-0.005em', fontWeight: '600' }], 'body-sm': ['12px', { lineHeight: '18px', letterSpacing: '0.01em', fontWeight: '400' }], 'display-xl-mobile': ['36px', { lineHeight: '44px', letterSpacing: '-0.02em', fontWeight: '800' }], 'code-sm': ['12px', { lineHeight: '16px', letterSpacing: '0em', fontWeight: '500' }], 'body-lg': ['16px', { lineHeight: '26px', letterSpacing: '0em', fontWeight: '400' }], 'headline-md': ['24px', { lineHeight: '32px', letterSpacing: '-0.01em', fontWeight: '600' }], 'label-sm': ['11px', { lineHeight: '14px', letterSpacing: '0.05em', fontWeight: '700' }], 'display-xl': ['56px', { lineHeight: '64px', letterSpacing: '-0.03em', fontWeight: '800' }], 'headline-lg-mobile': ['26px', { lineHeight: '34px', letterSpacing: '-0.015em', fontWeight: '700' }] } } } };</script></head><body class="bg-canvas-base font-body-md text-body-md text-on-surface antialiased min-h-screen"><header class="fixed top-0 left-0 right-0 z-50 bg-surface-glass backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.5)]"><div class="h-16 max-w-[1440px] mx-auto px-gutter-desktop flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-xl"><a class="flex items-center gap-space-xs transition-opacity hover:opacity-90" data-path="ai-voice-studio" href="#"><img alt="DubbingStation Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1V-UY2Vq84aP1TGSemuRsNV1QLsuv0qyihz872V7JRpt1zfIbe9cIcDboSo_rWDyuvk8eaaPBuLPjwDmmAsaaZvwip7xi_08PfNZjMWz5P5yUyrTzfJFlgXqv7qhNxrukI8RmCWfvAHRvGZAsCvXTne6arYNyYhnqHk_h9YjyTPddJTATjRAp7gdgsIk7ua_L9M7OHLBE2KOTx9F295HOnIl8F6D8O5IqMVcDOtVMA8Yy6MFVFWnIprww"/><span class="font-headline-sm text-headline-sm tracking-tight text-primary font-bold">DubbingStation</span></a><nav class="hidden xl:flex items-center gap-space-xs" data-active-classes="bg-surface-container-high text-primary font-bold rounded-lg"><div class="relative group"><button class="flex items-center gap-1 px-space-sm py-space-xs rounded-lg font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" type="button"><span>AI Voice Studio</span><span class="material-symbols-outlined text-[16px] text-text-muted transition-transform group-hover:rotate-180">expand_more</span></button><div class="absolute left-0 top-full mt-1 w-64 p-space-xs bg-surface-card/95 backdrop-blur-2xl rounded-xl shadow-[0_12px_32px_-4px_rgba(0,0,0,0.8)] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all transform origin-top-left flex flex-col gap-1"><a aria-current="page" class="px-space-sm py-space-xs transition-colors bg-surface-container-high text-primary font-bold rounded-lg" data-path="text-to-speech" href="#">Text to Speech</a><a class="px-space-sm py-space-xs rounded-lg font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="subtitle-video-dubbing" href="#">Subtitle Video Dubbing</a><a class="px-space-sm py-space-xs rounded-lg font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="speech-to-text" href="#">Speech to Text</a><a class="px-space-sm py-space-xs rounded-lg font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="voice-cloning" href="#">Voice Cloning</a></div></div><a class="flex items-center gap-space-2xs px-space-sm py-space-xs rounded-lg font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="free-audio-tools" href="#"><span>22 Free Audio Tools</span><span class="px-1.5 py-0.5 rounded font-label-sm text-[9px] uppercase tracking-wider bg-surface-container-high text-primary-container">100% Free</span></a><a class="flex items-center gap-space-2xs px-space-sm py-space-xs rounded-lg font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="voices-library" href="#"><span>Voices Library</span><span class="px-1.5 py-0.5 rounded font-code-xs text-code-xs text-secondary bg-secondary-container/40">3,000+</span></a><a class="px-space-sm py-space-xs rounded-lg font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="pricing-and-credits" href="#">Pricing &amp; Credits</a><a class="px-space-sm py-space-xs rounded-lg font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" data-path="api-and-docs" href="#">API &amp; Docs</a></nav></div><div class="flex items-center gap-space-sm"><div class="hidden sm:flex items-center gap-space-xs px-space-sm py-1 rounded-full bg-surface-container-high text-on-surface"><span class="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span><span class="font-code-sm text-code-sm font-medium text-primary">50,000</span><span class="font-label-sm text-label-sm uppercase tracking-wide text-text-muted">Credits Free</span></div><div class="flex items-center p-0.5 rounded-lg bg-surface-container"><button class="px-2 py-1 rounded font-code-xs text-code-xs font-bold text-on-surface bg-surface-container-highest transition-all" type="button">VI</button><button class="px-2 py-1 rounded font-code-xs text-code-xs font-bold text-on-surface-variant hover:text-on-surface transition-all" type="button">EN</button></div><a class="hidden md:inline-flex items-center justify-center px-space-md py-space-xs rounded-lg font-label-md text-label-md text-canvas-base font-bold bg-gradient-to-r from-primary-container to-accent-violet-bright shadow-[0_0_24px_rgba(0,242,254,0.35)] hover:shadow-[0_0_32px_rgba(0,242,254,0.5)] hover:scale-[1.02] active:scale-[0.98] transition-all" data-path="pricing-and-credits" href="#">Nâng cấp Pro</a><div class="flex items-center gap-space-xs pl-space-xs"><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-2 ring-primary-container/40" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7l3IJYQWPZd4mRl9C5Xm8eXoqUOx6vZYeD9WkHsOcj7hDs62fhhLabPagjDMU9coVPUdYQTPmO4H21Bt5wzyv4UZAXOUvw9QiGZOJz7y1oEKqzNqdt3fDMAR52m6D4qwzYoNDtzEzj8TO_UViG8dygHuaKDM-vBJ3iWt0nY3YNfxOL40v0zQAWXKuEka4DTWBNmm_cDNrm9cz1rHw0dj8JZXG0bVoGOJSr99besWP9Firi1mbTTsM"/></div></div></div></header><main class="w-full pt-16 bg-canvas-base"><div class="flex flex-col w-full">
+<!-- 1. Top Promo Announcement Rail -->
+<aside class="w-full bg-surface-container-low shadow-[0_2px_12px_rgba(0,0,0,0.4)]">
+<div class="max-w-max-width-content mx-auto px-gutter-desktop py-2.5 flex flex-wrap items-center justify-between gap-space-xs text-body-sm font-body-sm">
+<div class="flex items-center gap-space-xs text-text-primary">
+<span aria-hidden="true" class="flex h-2 w-2 rounded-full bg-signal-warning animate-ping"></span>
+<span class="px-2 py-0.5 rounded-full bg-signal-warning/15 text-signal-warning font-label-sm text-label-sm uppercase tracking-wider font-bold">Launch Offer</span>
+<span class="text-on-surface">Tặng ngay <strong class="text-primary font-bold">50.000 Credits</strong> khi tạo tài khoản hôm nay • Sử dụng mã <code class="px-1.5 py-0.5 rounded bg-surface-container font-code-xs text-code-xs text-primary-container font-semibold">LAUNCH50</code> để giảm 50% tháng đầu tiên</span>
+</div>
+<a class="inline-flex items-center gap-1 font-label-sm text-label-sm text-primary-container hover:text-primary transition-colors" href="#pricing-section">
+<span>Xem biểu phí &amp; Nhận ưu đãi</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</a>
+</div>
+</aside>
+<!-- 2. Hero Header Block -->
+<section class="relative w-full overflow-hidden pt-space-xl pb-space-lg">
+<!-- Ambient Radial Glows -->
+<div aria-hidden="true" class="absolute -top-24 left-1/2 -translate-x-1/2 w-[700px] h-[340px] bg-gradient-to-b from-primary-container/15 via-secondary-container/10 to-transparent blur-[110px] pointer-events-none -z-10"></div>
+<div class="max-w-max-width-content mx-auto px-gutter-desktop flex flex-col items-center text-center">
+<!-- Tag Pill -->
+<div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface-container-high text-on-surface shadow-[0_0_20px_rgba(0,242,254,0.12)]">
+<span aria-hidden="true" class="material-symbols-outlined text-primary-container text-[18px]">auto_awesome</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-text-primary font-semibold">Nền tảng All-in-One AI Voice Studio thế hệ mới</span>
+<span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+</div>
+<!-- Main Headline -->
+<h1 class="mt-space-md max-w-4xl font-headline-lg text-headline-lg lg:text-display-xl lg:font-display-xl text-text-primary tracking-tight">
+        Tạo Giọng Nói AI Đỉnh Cao &amp; Lồng Tiếng Video <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary-container via-primary to-accent-violet-bright">Chuyên Nghiệp</span>
+</h1>
+<!-- Subtitle -->
+<p class="mt-space-sm max-w-3xl font-body-lg text-body-lg text-text-secondary leading-relaxed">
+        Chuyển văn bản thành giọng nói tự nhiên chân thực với hơn 3.000+ giọng đọc chuẩn bản ngữ trên 100+ quốc gia. Tự động lồng tiếng video theo mốc thời gian, nhân bản giọng nói và bộ 22 công cụ âm thanh hoàn toàn miễn phí trên trình duyệt.
+      </p>
+</div>
+</section>
+<!-- 3. Interactive Studio Demo Console (Yupvox-inspired center stage) -->
+<section class="relative w-full pb-space-2xl">
+<div class="max-w-max-width-content mx-auto px-gutter-desktop">
+<div class="relative w-full rounded-xl bg-surface-card/90 backdrop-blur-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.85)] p-space-sm sm:p-space-md">
+<!-- Console Edge Gradient Accent -->
+<div aria-hidden="true" class="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary-container to-secondary-container rounded-t-xl"></div>
+<!-- Mode Switcher Tabs -->
+<div class="flex flex-wrap items-center justify-between gap-space-xs pb-space-sm">
+<div aria-label="Studio Mode Tabs" class="inline-flex p-1 rounded-lg bg-surface-container-low" role="tablist">
+<button class="flex items-center gap-2 px-space-md py-2 rounded-lg font-label-md text-label-md font-bold bg-surface-container-highest text-primary shadow-[0_2px_8px_rgba(0,242,254,0.15)] transition-all" id="tab-tts" type="button">
+<span aria-hidden="true" class="material-symbols-outlined text-[18px]">record_voice_over</span>
+<span>Text to Voice</span>
+</button>
+<button class="flex items-center gap-2 px-space-md py-2 rounded-lg font-label-md text-label-md text-text-secondary hover:text-on-surface transition-colors" id="tab-dubbing" type="button">
+<span aria-hidden="true" class="material-symbols-outlined text-[18px]">movie_edit</span>
+<span>Subtitle to Video</span>
+</button>
+<button class="flex items-center gap-2 px-space-md py-2 rounded-lg font-label-md text-label-md text-text-secondary hover:text-on-surface transition-colors" id="tab-stt" type="button">
+<span aria-hidden="true" class="material-symbols-outlined text-[18px]">transcribe</span>
+<span>Audio to Text</span>
+</button>
+<button class="flex items-center gap-2 px-space-md py-2 rounded-lg font-label-md text-label-md text-text-secondary hover:text-on-surface transition-colors" id="tab-clone" type="button">
+<span aria-hidden="true" class="material-symbols-outlined text-[18px]">graphic_eq</span>
+<span>Clone Voice</span>
+</button>
+</div>
+<div class="flex items-center gap-2">
+<span class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high text-primary font-code-xs text-code-xs font-semibold">
+<span aria-hidden="true" class="w-1.5 h-1.5 rounded-full bg-signal-success"></span>
+<span>Whisper &amp; Neural V3 Ready</span>
+</span>
+<span class="hidden sm:inline-flex px-3 py-1 rounded-full bg-secondary-container/30 text-secondary font-label-sm text-label-sm">
+              3,000+ VOICES
+            </span>
+</div>
+</div>
+<!-- Main Workspace Workspace Area -->
+<div class="rounded-xl bg-surface-container-lowest p-space-md flex flex-col gap-space-md shadow-inner">
+<!-- Text Input Area -->
+<div class="flex flex-col gap-space-xs">
+<label class="sr-only" for="tts-source-text">Nội dung văn bản chuyển đổi</label>
+<textarea class="w-full bg-transparent resize-none font-body-lg text-body-lg text-text-primary placeholder:text-text-muted focus:outline-none leading-relaxed" id="tts-source-text" placeholder="Nhập hoặc dán văn bản của bạn tại đây để chuyển thành giọng nói nhân bản AI..." rows="5">Chào mừng bạn đến với DubbingStation! Nền tảng phòng thu giọng nói AI đa năng với khả năng lồng tiếng chân thực, chuyển đổi cảm xúc linh hoạt và trích xuất phụ đề video tự động chỉ trong tích tắc.</textarea>
+<!-- Contextual insertion helper tools -->
+<div class="flex flex-wrap items-center justify-between gap-space-xs pt-space-xs">
+<div class="flex flex-wrap items-center gap-1.5">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-text-muted mr-1">Chèn hiệu ứng:</span>
+<button class="insert-pause-btn px-2.5 py-1 rounded-md bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-code-xs text-code-xs transition-colors" data-pause="[pause 0.5s]" type="button">
+                  + Nghỉ 0.5s
+                </button>
+<button class="insert-pause-btn px-2.5 py-1 rounded-md bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-code-xs text-code-xs transition-colors" data-pause="[pause 1.0s]" type="button">
+                  + Nghỉ 1.0s
+                </button>
+<button class="insert-pause-btn px-2.5 py-1 rounded-md bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-code-xs text-code-xs transition-colors" data-pause="[nhấn_mạnh]" type="button">
+                  + Nhấn giọng
+                </button>
+<button class="insert-pause-btn px-2.5 py-1 rounded-md bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-code-xs text-code-xs transition-colors" data-pause="[thì_thầm]" type="button">
+                  + Thì thầm
+                </button>
+</div>
+<div class="flex items-center gap-space-xs font-code-xs text-code-xs text-text-muted">
+<span class="text-text-secondary font-medium" id="char-counter">174 / 5.000 ký tự</span>
+<span aria-hidden="true" class="w-1 h-1 rounded-full bg-text-muted"></span>
+<span>Tiêu tốn: <strong class="text-primary font-bold" id="credit-estimate">174</strong> Credits</span>
+</div>
+</div>
+</div>
+<!-- Bottom Control Deck inside Workspace -->
+<div class="pt-space-sm flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-space-md">
+<!-- Voice Selector Pill & Emotion Selector -->
+<div class="flex flex-wrap items-center gap-space-xs">
+<!-- Active Voice Card Button -->
+<button class="flex items-center gap- space-xs p-1.5 pr-3.5 rounded-full bg-surface-container hover:bg-surface-container-high transition-all text-left shadow-sm" id="open-voice-modal-btn" type="button">
+<span class="w-9 h-9 rounded-full bg-gradient-to-tr from-primary-container to-secondary-container flex items-center justify-center font-headline-sm text-headline-sm text-canvas-base font-black">
+                  MK
+                </span>
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="font-label-md text-label-md font-bold text-text-primary">Minh Khang</span>
+<span class="px-1.5 py-0.2 rounded font-code-xs text-[10px] bg-primary-container/20 text-primary-container font-semibold">VIỆT NAM</span>
+</div>
+<span class="font-body-sm text-[11px] text-text-muted">Tự nhiên • Trầm ấm • Đọc truyện</span>
+</div>
+<span aria-hidden="true" class="material-symbols-outlined text-text-muted text-[20px] ml-1">keyboard_arrow_down</span>
+</button>
+<!-- Emotion Presets -->
+<div class="hidden sm:flex items-center gap-1 p-1 rounded-lg bg-surface-container">
+<button class="emotion-chip px-2.5 py-1 rounded-md font-label-sm text-label-sm bg-surface-container-highest text-primary font-semibold" type="button">Tự nhiên</button>
+<button class="emotion-chip px-2.5 py-1 rounded-md font-label-sm text-label-sm text-text-secondary hover:text-on-surface" type="button">Truyền cảm</button>
+<button class="emotion-chip px-2.5 py-1 rounded-md font-label-sm text-label-sm text-text-secondary hover:text-on-surface" type="button">Hào hứng</button>
+<button class="emotion-chip px-2.5 py-1 rounded-md font-label-sm text-label-sm text-text-secondary hover:text-on-surface" type="button">Bản tin</button>
+</div>
+<!-- Speed Mini Dial -->
+<div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container text-body-sm font-body-sm">
+<span aria-hidden="true" class="material-symbols-outlined text-[16px] text-text-muted">speed</span>
+<label class="text-text-muted font-label-sm text-label-sm" for="speed-slider">Tốc độ:</label>
+<input class="w-16 accent-primary-container h-1 bg-surface-container-highest rounded-lg cursor-pointer" id="speed-slider" max="2.0" min="0.5" step="0.1" type="range" value="1.0"/>
+<span class="font-code-xs text-code-xs text-primary font-bold" id="speed-val">1.0x</span>
+</div>
+</div>
+<!-- Primary Generate Voice Trigger -->
+<div class="flex items-center gap-space-xs">
+<button class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-space-lg py-3 rounded-xl font-label-md text-label-md font-bold text-canvas-base bg-gradient-to-r from-primary-container via-primary-fixed to-accent-violet-bright shadow-[0_0_28px_rgba(0,242,254,0.4)] hover:shadow-[0_0_36px_rgba(0,242,254,0.6)] hover:scale-[1.02] active:scale-[0.98] transition-all" id="generate-audio-btn" type="button">
+<span aria-hidden="true" class="material-symbols-outlined text-[20px]">play_arrow</span>
+<span>Tạo âm thanh ngay (Generate Voice)</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Integrated Waveform Audio Player Deck -->
+<div class="mt-space-sm rounded-xl bg-surface-container-low p-space-sm flex flex-col md:flex-row items-center justify-between gap-space-md shadow-md" id="demo-player">
+<div class="flex items-center gap-space-sm w-full md:w-auto">
+<!-- Audio Play/Pause Button -->
+<button aria-label="Phát âm thanh demo" class="w-11 h-11 rounded-full bg-primary-container text-canvas-base flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_16px_rgba(0,242,254,0.4)]" id="playback-btn" type="button">
+<span class="material-symbols-outlined text-[24px]" id="playback-icon" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<!-- Timers -->
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-bold text-text-primary">Minh_Khang_Audio_Dubbing.mp3</span>
+<div class="flex items-center gap-2 font-code-xs text-code-xs text-text-muted">
+<span class="text-primary font-medium" id="player-time-current">00:00</span>
+<span>/</span>
+<span>00:14</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-highest text-text-secondary uppercase">24kHz Neural</span>
+</div>
+</div>
+</div>
+<!-- Waveform SVG Visualization Track -->
+<div class="flex-1 w-full max-w-xl mx-2 flex items-center gap-1 h-9 px-3 rounded-lg bg-surface-container-lowest overflow-hidden">
+<!-- Simulated Waveform Bars -->
+<div class="w-1 h-3 rounded-full bg-primary-container animate-pulse"></div>
+<div class="w-1 h-5 rounded-full bg-primary-container"></div>
+<div class="w-1 h-7 rounded-full bg-primary-container"></div>
+<div class="w-1 h-4 rounded-full bg-primary-container"></div>
+<div class="w-1 h-8 rounded-full bg-primary-container/90"></div>
+<div class="w-1 h-6 rounded-full bg-primary-container/80"></div>
+<div class="w-1 h-9 rounded-full bg-primary-container"></div>
+<div class="w-1 h-5 rounded-full bg-primary-container/70"></div>
+<div class="w-1 h-4 rounded-full bg-primary-container/80"></div>
+<div class="w-1 h-7 rounded-full bg-primary-container"></div>
+<div class="w-1 h-3 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-6 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-8 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-5 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-7 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-4 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-6 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-9 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-5 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-3 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-6 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-8 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-4 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-7 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-3 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-5 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-8 rounded-full bg-surface-container-highest"></div>
+<div class="w-1 h-4 rounded-full bg-surface-container-highest"></div>
+</div>
+<!-- Utility Export Actions -->
+<div class="flex items-center gap-space-xs w-full md:w-auto justify-end">
+<button class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-sm text-label-sm font-semibold transition-colors" title="Tải xuống tệp MP3" type="button">
+<span aria-hidden="true" class="material-symbols-outlined text-[16px] text-primary-container">download</span>
+<span>Tải MP3</span>
+</button>
+<button class="p-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-text-secondary hover:text-on-surface transition-colors" title="Lưu trữ đám mây" type="button">
+<span aria-hidden="true" class="material-symbols-outlined text-[18px]">cloud_sync</span>
+</button>
+<button class="p-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-text-secondary hover:text-on-surface transition-colors" title="Chia sẻ liên kết audio" type="button">
+<span aria-hidden="true" class="material-symbols-outlined text-[18px]">share</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 4. Key Value Metrics Grid (4 Pillars as in Yupvox) -->
+<section class="w-full py-space-xl bg-surface-container-lowest">
+<div class="max-w-max-width-content mx-auto px-gutter-desktop">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
+<!-- Pillar 1 -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-sm hover:bg-surface-container transition-all flex flex-col gap-space-xs group">
+<div class="w-12 h-12 rounded-xl bg-primary-container/10 flex items-center justify-center text-primary-container group-hover:scale-110 transition-transform">
+<span aria-hidden="true" class="material-symbols-outlined text-[28px]">volume_up</span>
+</div>
+<span class="mt-space-xs font-headline-lg text-headline-lg font-bold text-text-primary tracking-tight">3.000+</span>
+<span class="font-headline-sm text-headline-sm font-semibold text-primary">Giọng AI Premium</span>
+<p class="font-body-sm text-body-sm text-text-muted">Đa dạng ngữ điệu, đầy đủ độ tuổi, giới tính và cảm xúc tự nhiên không thể phân biệt với người thật.</p>
+</div>
+<!-- Pillar 2 -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-sm hover:bg-surface-container transition-all flex flex-col gap-space-xs group">
+<div class="w-12 h-12 rounded-xl bg-secondary-container/20 flex items-center justify-center text-secondary group-hover:scale-110 transition-transform">
+<span aria-hidden="true" class="material-symbols-outlined text-[28px]">public</span>
+</div>
+<span class="mt-space-xs font-headline-lg text-headline-lg font-bold text-text-primary tracking-tight">100+</span>
+<span class="font-headline-sm text-headline-sm font-semibold text-secondary">Ngôn ngữ &amp; Bản địa</span>
+<p class="font-body-sm text-body-sm text-text-muted">Phủ sóng hơn 100 quốc gia với trọng âm địa phương chuẩn xác từ Bắc, Trung, Nam cho tới tiếng Anh, Nhật, Hàn, Pháp.</p>
+</div>
+<!-- Pillar 3 -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-sm hover:bg-surface-container transition-all flex flex-col gap-space-xs group">
+<div class="w-12 h-12 rounded-xl bg-signal-success/10 flex items-center justify-center text-signal-success group-hover:scale-110 transition-transform">
+<span aria-hidden="true" class="material-symbols-outlined text-[28px]">construction</span>
+</div>
+<span class="mt-space-xs font-headline-lg text-headline-lg font-bold text-text-primary tracking-tight">22</span>
+<span class="font-headline-sm text-headline-sm font-semibold text-signal-success">Free Audio Tools</span>
+<p class="font-body-sm text-body-sm text-text-muted">Bộ công cụ xử lý âm thanh chuyên nghiệp chạy trực tiếp trên trình duyệt bằng WebAssembly, hoàn toàn 0 tốn credit.</p>
+</div>
+<!-- Pillar 4 -->
+<div class="p-space-lg rounded-xl bg-surface-container-low shadow-sm hover:bg-surface-container transition-all flex flex-col gap-space-xs group">
+<div class="w-12 h-12 rounded-xl bg-signal-warning/10 flex items-center justify-center text-signal-warning group-hover:scale-110 transition-transform">
+<span aria-hidden="true" class="material-symbols-outlined text-[28px]">token</span>
+</div>
+<span class="mt-space-xs font-headline-lg text-headline-lg font-bold text-text-primary tracking-tight">50.000</span>
+<span class="font-headline-sm text-headline-sm font-semibold text-signal-warning">Free Credits</span>
+<p class="font-body-sm text-body-sm text-text-muted">Nhận ngay khi đăng ký tài khoản mới. Không yêu cầu nhập thẻ tín dụng, trải nghiệm toàn bộ tính năng cao cấp tức thì.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- 5. Core AI Services Showcase (4 Cards matching PRD Architecture) -->
+<section class="w-full py-space-2xl">
+<div class="max-w-max-width-content mx-auto px-gutter-desktop">
+<!-- Section Header -->
+<div class="flex flex-col items-center text-center max-w-3xl mx-auto mb-space-xl">
+<span class="px-3 py-1 rounded-full bg-secondary-container/20 text-secondary font-code-xs text-code-xs font-bold uppercase tracking-wider">
+          AI Voice Studio Ecosystem
+        </span>
+<h2 class="mt-space-xs font-headline-lg text-headline-lg text-text-primary font-bold">
+          4 Trụ Cột Công Nghệ Giọng Nói Đỉnh Cao
+        </h2>
+<p class="mt-space-2xs font-body-md text-body-md text-text-muted">
+          Tích hợp các mô hình trí tuệ nhân tạo hiện đại nhất hiện nay phục vụ sản xuất video, podcast, giáo dục và thương mại hóa toàn cầu.
+        </p>
+</div>
+<!-- 4 Core Service Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-md">
+<!-- Card 1: Text to Speech -->
+<div class="p-space-lg rounded-xl bg-surface-card shadow-lg hover:shadow-[0_8px_30px_rgba(0,242,254,0.15)] transition-all flex flex-col justify-between group">
+<div class="flex flex-col">
+<div class="flex items-center justify-between">
+<div class="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-primary group-hover:text-primary-container transition-colors">
+<span aria-hidden="true" class="material-symbols-outlined text-[26px]">record_voice_over</span>
+</div>
+<span class="px-2 py-0.5 rounded font-label-sm text-[10px] uppercase font-bold bg-signal-warning/15 text-signal-warning">Popular</span>
+</div>
+<h3 class="mt-space-md font-headline-sm text-headline-sm font-bold text-text-primary">Text to Speech (TTS)</h3>
+<p class="mt-space-xs font-body-sm text-body-sm text-text-muted leading-relaxed">
+              Biến đổi kịch bản văn bản thành giọng nói chuẩn phòng thu với độ trễ thấp, hỗ trợ đa sắc thái biểu cảm và chèn khoảng lặng thông minh.
+            </p>
+</div>
+<div class="pt-space-md mt-space-md flex items-center justify-between">
+<span class="font-code-xs text-code-xs text-text-muted">3,000+ Voices • 100+ Lăng</span>
+<a class="font-label-sm text-label-sm font-bold text-primary-container group-hover:translate-x-1 transition-transform inline-flex items-center gap-1" href="#demo-player">
+<span>Trải nghiệm</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Card 2: Subtitle Video Dubbing -->
+<div class="p-space-lg rounded-xl bg-surface-card shadow-lg hover:shadow-[0_8px_30px_rgba(139,92,246,0.18)] transition-all flex flex-col justify-between group">
+<div class="flex flex-col">
+<div class="flex items-center justify-between">
+<div class="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary group-hover:text-secondary-fixed transition-colors">
+<span aria-hidden="true" class="material-symbols-outlined text-[26px]">subtitles</span>
+</div>
+<span class="px-2 py-0.5 rounded font-label-sm text-[10px] uppercase font-bold bg-primary-container/15 text-primary-container">Auto-Sync</span>
+</div>
+<h3 class="mt-space-md font-headline-sm text-headline-sm font-bold text-text-primary">Subtitle Video Dubbing</h3>
+<p class="mt-space-xs font-body-sm text-body-sm text-text-muted leading-relaxed">
+              Tải lên tệp SRT/VTT hoặc video trực tiếp. Hệ thống tự động căn chỉnh khung hình chính xác theo từng mili-giây, gộp nhiều nhân vật trong 1 video.
+            </p>
+</div>
+<div class="pt-space-md mt-space-md flex items-center justify-between">
+<span class="font-code-xs text-code-xs text-text-muted">SRT / VTT • 4K Video Output</span>
+<a class="font-label-sm text-label-sm font-bold text-secondary group-hover:translate-x-1 transition-transform inline-flex items-center gap-1" href="#demo-player">
+<span>Lồng tiếng ngay</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Card 3: Speech to Text (STT) -->
+<div class="p-space-lg rounded-xl bg-surface-card shadow-lg hover:shadow-[0_8px_30px_rgba(0,242,254,0.15)] transition-all flex flex-col justify-between group">
+<div class="flex flex-col">
+<div class="flex items-center justify-between">
+<div class="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-primary group-hover:text-primary-container transition-colors">
+<span aria-hidden="true" class="material-symbols-outlined text-[26px]">transcribe</span>
+</div>
+<span class="px-2 py-0.5 rounded font-label-sm text-[10px] uppercase font-bold bg-signal-success/15 text-signal-success">Whisper AI</span>
+</div>
+<h3 class="mt-space-md font-headline-sm text-headline-sm font-bold text-text-primary">Speech to Text (STT)</h3>
+<p class="mt-space-xs font-body-sm text-body-sm text-text-muted leading-relaxed">
+              Trích xuất phụ đề video và chuyển băng ghi âm hội họp thành văn bản với độ chính xác trên 99.2%, nhận diện rõ người nói và ngắt dấu câu chuẩn mực.
+            </p>
+</div>
+<div class="pt-space-md mt-space-md flex items-center justify-between">
+<span class="font-code-xs text-code-xs text-text-muted">Độ chính xác 99.2%</span>
+<a class="font-label-sm text-label-sm font-bold text-primary-container group-hover:translate-x-1 transition-transform inline-flex items-center gap-1" href="#demo-player">
+<span>Chuyển âm thanh</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Card 4: Voice Cloning -->
+<div class="p-space-lg rounded-xl bg-surface-card shadow-lg hover:shadow-[0_8px_30px_rgba(208,188,255,0.2)] transition-all flex flex-col justify-between group">
+<div class="flex flex-col">
+<div class="flex items-center justify-between">
+<div class="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-accent-violet-bright group-hover:text-secondary transition-colors">
+<span aria-hidden="true" class="material-symbols-outlined text-[26px]">fingerprint</span>
+</div>
+<span class="px-2 py-0.5 rounded font-label-sm text-[10px] uppercase font-bold bg-accent-violet-bright/20 text-accent-violet-bright">Exclusive</span>
+</div>
+<h3 class="mt-space-md font-headline-sm text-headline-sm font-bold text-text-primary">Custom Voice Cloning</h3>
+<p class="mt-space-xs font-body-sm text-body-sm text-text-muted leading-relaxed">
+              Nhân bản giọng đọc cá nhân chỉ với 10-30 giây mẫu thu âm. Tái tạo chân thực độ ấm, âm sắc và phong cách đặc trưng phục vụ phát triển nội dung số.
+            </p>
+</div>
+<div class="pt-space-md mt-space-md flex items-center justify-between">
+<span class="font-code-xs text-code-xs text-text-muted">Chỉ cần mẫu 10 giây</span>
+<a class="font-label-sm text-label-sm font-bold text-accent-violet-bright group-hover:translate-x-1 transition-transform inline-flex items-center gap-1" href="#demo-player">
+<span>Tạo giọng của bạn</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 6. 22 Free Browser-Based Audio Tools (WASM Suite as in PRD) -->
+<section class="w-full py-space-2xl bg-surface-container-lowest">
+<div class="max-w-max-width-content mx-auto px-gutter-desktop">
+<!-- Section Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-space-md mb-space-xl">
+<div class="flex flex-col gap-space-xs">
+<div class="inline-flex items-center gap-2">
+<span class="px-3 py-1 rounded-full bg-signal-success/15 text-signal-success font-code-xs text-code-xs font-bold uppercase tracking-wider">
+              100% Free • 0 Credit • WebAssembly in Browser
+            </span>
+</div>
+<h2 class="font-headline-lg text-headline-lg font-bold text-text-primary">
+            Bộ 22 Công Cụ Âm Thanh Miễn Phí Trên Trình Duyệt
+          </h2>
+<p class="font-body-md text-body-md text-text-muted max-w-2xl">
+            Toàn bộ quá trình xử lý diễn ra trực tiếp ngay trên máy tính của bạn thông qua WebAssembly. Không cần cài đặt phần mềm, bảo mật 100% tệp cá nhân và không trừ credit.
+          </p>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="px-3 py-1.5 rounded-lg bg-surface-container-high text-on-surface font-code-xs text-code-xs">
+            Client-Side Computing: <strong class="text-signal-success">Active</strong>
+</span>
+</div>
+</div>
+<!-- Matrix of 12 Featured Tools from 22 Suite -->
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-space-sm">
+<!-- Tool 1 -->
+<div class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-container">
+<span aria-hidden="true" class="material-symbols-outlined text-[22px]">content_cut</span>
+</div>
+<span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] bg-signal-success/20 text-signal-success font-bold">FREE</span>
+</div>
+<div class="mt-space-sm">
+<h4 class="font-label-md text-label-md font-bold text-text-primary group-hover:text-primary transition-colors">Cắt Âm Thanh (Audio Trim)</h4>
+<p class="mt-1 font-body-sm text-[11px] text-text-muted">Cắt ghép đoạn nhạc với độ chính xác từng 10ms.</p>
+</div>
+<a class="mt-space-sm font-label-sm text-label-sm text-text-secondary group-hover:text-primary inline-flex items-center gap-1" href="#">
+<span>Sử dụng</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+<!-- Tool 2 -->
+<div class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary">
+<span aria-hidden="true" class="material-symbols-outlined text-[22px]">voice_over_off</span>
+</div>
+<span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] bg-signal-success/20 text-signal-success font-bold">FREE</span>
+</div>
+<div class="mt-space-sm">
+<h4 class="font-label-md text-label-md font-bold text-text-primary group-hover:text-secondary transition-colors">Tách Lời Hát (Vocal Remover)</h4>
+<p class="mt-1 font-body-sm text-[11px] text-text-muted">Tách giọng hát và nền nhạc Beat làm Karaoke chất lượng cao.</p>
+</div>
+<a class="mt-space-sm font-label-sm text-label-sm text-text-secondary group-hover:text-secondary inline-flex items-center gap-1" href="#">
+<span>Sử dụng</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+<!-- Tool 3 -->
+<div class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-container">
+<span aria-hidden="true" class="material-symbols-outlined text-[22px]">instant_mix</span>
+</div>
+<span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] bg-signal-success/20 text-signal-success font-bold">FREE</span>
+</div>
+<div class="mt-space-sm">
+<h4 class="font-label-md text-label-md font-bold text-text-primary group-hover:text-primary transition-colors">Tách 4-Stems Nhạc Cụ</h4>
+<p class="mt-1 font-body-sm text-[11px] text-text-muted">Tách riêng lẻ trống, bass, vocal và hợp âm piano.</p>
+</div>
+<a class="mt-space-sm font-label-sm text-label-sm text-text-secondary group-hover:text-primary inline-flex items-center gap-1" href="#">
+<span>Sử dụng</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+<!-- Tool 4 -->
+<div class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-signal-warning">
+<span aria-hidden="true" class="material-symbols-outlined text-[22px]">hearing_disabled</span>
+</div>
+<span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] bg-signal-success/20 text-signal-success font-bold">FREE</span>
+</div>
+<div class="mt-space-sm">
+<h4 class="font-label-md text-label-md font-bold text-text-primary group-hover:text-signal-warning transition-colors">Lọc Ồn Tạp Âm (Noise Reducer)</h4>
+<p class="mt-1 font-body-sm text-[11px] text-text-muted">Khử tiếng quạt, gió rít, tiếng xe cộ và tiếng rè microphone.</p>
+</div>
+<a class="mt-space-sm font-label-sm text-label-sm text-text-secondary group-hover:text-signal-warning inline-flex items-center gap-1" href="#">
+<span>Sử dụng</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+<!-- Tool 5 -->
+<div class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-container">
+<span aria-hidden="true" class="material-symbols-outlined text-[22px]">volume_up</span>
+</div>
+<span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] bg-signal-success/20 text-signal-success font-bold">FREE</span>
+</div>
+<div class="mt-space-sm">
+<h4 class="font-label-md text-label-md font-bold text-text-primary group-hover:text-primary transition-colors">Khuếch Đại Âm Lượng (300%)</h4>
+<p class="mt-1 font-body-sm text-[11px] text-text-muted">Tăng âm thanh video và audio nhỏ tiếng lên gấp 3 lần không vỡ.</p>
+</div>
+<a class="mt-space-sm font-label-sm text-label-sm text-text-secondary group-hover:text-primary inline-flex items-center gap-1" href="#">
+<span>Sử dụng</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+<!-- Tool 6 -->
+<div class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary">
+<span aria-hidden="true" class="material-symbols-outlined text-[22px]">pace</span>
+</div>
+<span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] bg-signal-success/20 text-signal-success font-bold">FREE</span>
+</div>
+<div class="mt-space-sm">
+<h4 class="font-label-md text-label-md font-bold text-text-primary group-hover:text-secondary transition-colors">Thay Đổi Tốc Độ (0.25x - 3.0x)</h4>
+<p class="mt-1 font-body-sm text-[11px] text-text-muted">Tăng giảm tốc độ phát mà vẫn giữ nguyên cao độ giọng nói.</p>
+</div>
+<a class="mt-space-sm font-label-sm text-label-sm text-text-secondary group-hover:text-secondary inline-flex items-center gap-1" href="#">
+<span>Sử dụng</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+<!-- Tool 7 -->
+<div class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-signal-success">
+<span aria-hidden="true" class="material-symbols-outlined text-[22px]">do_not_disturb_on</span>
+</div>
+<span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] bg-signal-success/20 text-signal-success font-bold">FREE</span>
+</div>
+<div class="mt-space-sm">
+<h4 class="font-label-md text-label-md font-bold text-text-primary group-hover:text-signal-success transition-colors">Xóa Khoảng Lặng Tự Động</h4>
+<p class="mt-1 font-body-sm text-[11px] text-text-muted">Tự động loại bỏ các đoạn im lặng thừa trong tệp podcast.</p>
+</div>
+<a class="mt-space-sm font-label-sm text-label-sm text-text-secondary group-hover:text-signal-success inline-flex items-center gap-1" href="#">
+<span>Sử dụng</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+<!-- Tool 8 -->
+<div class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-container">
+<span aria-hidden="true" class="material-symbols-outlined text-[22px]">transform</span>
+</div>
+<span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] bg-signal-success/20 text-signal-success font-bold">FREE</span>
+</div>
+<div class="mt-space-sm">
+<h4 class="font-label-md text-label-md font-bold text-text-primary group-hover:text-primary transition-colors">Đổi Định Dạng Âm Thanh</h4>
+<p class="mt-1 font-body-sm text-[11px] text-text-muted">Chuyển qua lại giữa MP3, WAV, AAC, FLAC, OGG tốc độ cao.</p>
+</div>
+<a class="mt-space-sm font-label-sm text-label-sm text-text-secondary group-hover:text-primary inline-flex items-center gap-1" href="#">
+<span>Sử dụng</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+<!-- Tool 9 -->
+<div class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-accent-violet-bright">
+<span aria-hidden="true" class="material-symbols-outlined text-[22px]">mic</span>
+</div>
+<span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] bg-signal-success/20 text-signal-success font-bold">FREE</span>
+</div>
+<div class="mt-space-sm">
+<h4 class="font-label-md text-label-md font-bold text-text-primary group-hover:text-accent-violet-bright transition-colors">Ghi Âm Mic Trực Tiếp</h4>
+<p class="mt-1 font-body-sm text-[11px] text-text-muted">Ghi âm trực tiếp qua mic không nén, có waveform hiển thị.</p>
+</div>
+<a class="mt-space-sm font-label-sm text-label-sm text-text-secondary group-hover:text-accent-violet-bright inline-flex items-center gap-1" href="#">
+<span>Sử dụng</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+<!-- Tool 10 -->
+<div class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-signal-warning">
+<span aria-hidden="true" class="material-symbols-outlined text-[22px]">equalizer</span>
+</div>
+<span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] bg-signal-success/20 text-signal-success font-bold">FREE</span>
+</div>
+<div class="mt-space-sm">
+<h4 class="font-label-md text-label-md font-bold text-text-primary group-hover:text-signal-warning transition-colors">Equalizer 5-Băng Tần</h4>
+<p class="mt-1 font-body-sm text-[11px] text-text-muted">Cân chỉnh Bass, Mid, Treble trực quan như mixer chuyên nghiệp.</p>
+</div>
+<a class="mt-space-sm font-label-sm text-label-sm text-text-secondary group-hover:text-signal-warning inline-flex items-center gap-1" href="#">
+<span>Sử dụng</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+<!-- Tool 11 -->
+<div class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-container">
+<span aria-hidden="true" class="material-symbols-outlined text-[22px]">call_merge</span>
+</div>
+<span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] bg-signal-success/20 text-signal-success font-bold">FREE</span>
+</div>
+<div class="mt-space-sm">
+<h4 class="font-label-md text-label-md font-bold text-text-primary group-hover:text-primary transition-colors">Ghép Nối Âm Thanh (Audio Joiner)</h4>
+<p class="mt-1 font-body-sm text-[11px] text-text-muted">Ghép nhiều đoạn audio thành 1 bản ghi liền mạch duy nhất.</p>
+</div>
+<a class="mt-space-sm font-label-sm text-label-sm text-text-secondary group-hover:text-primary inline-flex items-center gap-1" href="#">
+<span>Sử dụng</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+<!-- Tool 12 -->
+<div class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary">
+<span aria-hidden="true" class="material-symbols-outlined text-[22px]">video_file</span>
+</div>
+<span class="px-1.5 py-0.5 rounded font-label-sm text-[10px] bg-signal-success/20 text-signal-success font-bold">FREE</span>
+</div>
+<div class="mt-space-sm">
+<h4 class="font-label-md text-label-md font-bold text-text-primary group-hover:text-secondary transition-colors">Trích Xuất Audio Từ Video</h4>
+<p class="mt-1 font-body-sm text-[11px] text-text-muted">Lấy nhạc nền từ tệp MP4, MKV mà không làm giảm chất lượng.</p>
+</div>
+<a class="mt-space-sm font-label-sm text-label-sm text-text-secondary group-hover:text-secondary inline-flex items-center gap-1" href="#">
+<span>Sử dụng</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Browse All 22 CTA Button -->
+<div class="mt-space-xl flex justify-center">
+<a class="inline-flex items-center gap-2 px-space-lg py-3 rounded-xl font-label-md text-label-md font-bold bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-all shadow-md" href="#demo-player">
+<span aria-hidden="true" class="material-symbols-outlined text-[20px] text-signal-success">grid_view</span>
+<span>Khám phá trọn bộ 22 công cụ âm thanh (Xem tất cả)</span>
+</a>
+</div>
+</div>
+</section>
+<!-- 7. Pricing & Unified Credit System (5 Tiers from PRD & Screenshot) -->
+<section class="w-full py-space-3xl" id="pricing-section">
+<div class="max-w-max-width-content mx-auto px-gutter-desktop">
+<!-- Pricing Header -->
+<div class="flex flex-col items-center text-center max-w-3xl mx-auto mb-space-xl">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-signal-warning/10 text-signal-warning font-label-sm text-label-sm font-bold">
+<span aria-hidden="true" class="material-symbols-outlined text-[16px]">local_fire_department</span>
+<span>Launch Offer: 50% OFF Tháng Đầu Tiên • Mã: LAUNCH50</span>
+</div>
+<h2 class="mt-space-xs font-headline-lg text-headline-lg font-bold text-text-primary">
+          Bảng Giá Linh Hoạt • Hệ Thống Unified Credits
+        </h2>
+<p class="mt-space-2xs font-body-md text-body-md text-text-muted">
+          Sử dụng 1 quỹ credits chung duy nhất cho toàn bộ các dịch vụ: TTS, Video Dubbing và Speech to Text. Nâng cấp hoặc hủy bất kỳ lúc nào.
+        </p>
+<!-- Monthly / Annual Switcher -->
+<div class="mt-space-md p-1 rounded-full bg-surface-container-low inline-flex items-center">
+<button class="px-space-md py-1.5 rounded-full font-label-md text-label-md font-bold bg-surface-container-highest text-primary transition-all" type="button">
+            Hàng Tháng
+          </button>
+<button class="flex items-center gap-1.5 px-space-md py-1.5 rounded-full font-label-md text-label-md text-text-muted hover:text-on-surface transition-all" type="button">
+<span>Hàng Năm</span>
+<span class="px-2 py-0.5 rounded-full bg-signal-success/20 text-signal-success font-code-xs text-code-xs font-bold">Tiết kiệm 30%</span>
+</button>
+</div>
+</div>
+<!-- 5 Tiers Grid (Free, Lite, Starter, Growth, Pro) -->
+<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-space-sm items-stretch">
+<!-- Tier 1: Free -->
+<div class="p-space-md rounded-xl bg-surface-card flex flex-col justify-between shadow-md">
+<div class="flex flex-col">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm font-bold text-text-primary">Free</span>
+<span class="px-2 py-0.5 rounded font-label-sm text-[10px] uppercase bg-surface-container-high text-text-muted">Vĩnh viễn</span>
+</div>
+<div class="mt-space-sm flex items-baseline gap-1">
+<span class="font-headline-lg text-headline-lg font-bold text-text-primary">$0</span>
+<span class="font-body-sm text-body-sm text-text-muted">/tháng</span>
+</div>
+<div class="mt-2 p-2 rounded-lg bg-surface-container-lowest font-code-xs text-code-xs text-primary font-bold">
+              50.000 Credits tặng sẵn
+            </div>
+<!-- Features -->
+<ul class="mt-space-md flex flex-col gap-2 font-body-sm text-body-sm text-text-secondary">
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>~50.000 ký tự Text</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>~16.6 phút Audio Dubbing</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>Tối đa 3.000 ký tự/lần</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>300+ Giọng đọc tiêu chuẩn</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>22 Công cụ Audio WASM</span>
+</li>
+</ul>
+</div>
+<button class="mt-space-lg w-full py-2.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-sm text-label-sm font-bold transition-all" type="button">
+            Bắt đầu miễn phí
+          </button>
+</div>
+<!-- Tier 2: Lite -->
+<div class="p-space-md rounded-xl bg-surface-card flex flex-col justify-between shadow-md">
+<div class="flex flex-col">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm font-bold text-text-primary">Lite</span>
+<span class="px-2 py-0.5 rounded font-label-sm text-[10px] uppercase bg-primary-container/15 text-primary-container font-bold">Cá nhân</span>
+</div>
+<div class="mt-space-sm flex items-baseline gap-1">
+<span class="font-headline-lg text-headline-lg font-bold text-text-primary">$1.0</span>
+<span class="font-body-sm text-body-sm text-text-muted line-through">$2.0</span>
+<span class="font-body-sm text-body-sm text-text-muted">/th</span>
+</div>
+<div class="mt-2 p-2 rounded-lg bg-surface-container-lowest font-code-xs text-code-xs text-primary font-bold">
+              99.000 Credits / tháng
+            </div>
+<!-- Features -->
+<ul class="mt-space-md flex flex-col gap-2 font-body-sm text-body-sm text-text-secondary">
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>~99.000 ký tự Text</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>~33 phút Audio Dubbing</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>50.000 ký tự/yêu cầu</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>Tạo tới 20 giọng nhân bản</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>Mở khóa 3.000+ Voices</span>
+</li>
+</ul>
+</div>
+<button class="mt-space-lg w-full py-2.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-sm text-label-sm font-bold transition-all" type="button">
+            Chọn gói Lite
+          </button>
+</div>
+<!-- Tier 3: Starter -->
+<div class="p-space-md rounded-xl bg-surface-card flex flex-col justify-between shadow-md">
+<div class="flex flex-col">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm font-bold text-text-primary">Starter</span>
+<span class="px-2 py-0.5 rounded font-label-sm text-[10px] uppercase bg-secondary-container/20 text-secondary font-bold">Creator</span>
+</div>
+<div class="mt-space-sm flex items-baseline gap-1">
+<span class="font-headline-lg text-headline-lg font-bold text-text-primary">$4.5</span>
+<span class="font-body-sm text-body-sm text-text-muted line-through">$9.0</span>
+<span class="font-body-sm text-body-sm text-text-muted">/th</span>
+</div>
+<div class="mt-2 p-2 rounded-lg bg-surface-container-lowest font-code-xs text-code-xs text-primary font-bold">
+              999.000 Credits / tháng
+            </div>
+<!-- Features -->
+<ul class="mt-space-md flex flex-col gap-2 font-body-sm text-body-sm text-text-secondary">
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>~1 triệu ký tự Text (~20h)</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>~333 phút Audio Dubbing</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>100.000 ký tự/yêu cầu</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>100 Custom Cloned Voices</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>Tốc độ render ưu tiên cao</span>
+</li>
+</ul>
+</div>
+<button class="mt-space-lg w-full py-2.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-sm text-label-sm font-bold transition-all" type="button">
+            Chọn gói Starter
+          </button>
+</div>
+<!-- Tier 4: Growth (MOST POPULAR HIGHLIGHTED) -->
+<div class="relative p-space-md rounded-xl bg-surface-container-high flex flex-col justify-between shadow-[0_0_35px_rgba(0,242,254,0.25)] transform lg:-translate-y-2">
+<!-- Top Badge -->
+<div class="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gradient-to-r from-primary-container to-accent-violet-bright font-label-sm text-label-sm text-canvas-base font-extrabold uppercase tracking-wider shadow-md">
+            Khuyên dùng nhất
+          </div>
+<div class="flex flex-col">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm font-bold text-text-primary">Growth</span>
+<span class="px-2 py-0.5 rounded font-label-sm text-[10px] uppercase bg-primary-container text-canvas-base font-extrabold">Best Value</span>
+</div>
+<div class="mt-space-sm flex items-baseline gap-1">
+<span class="font-headline-lg text-headline-lg font-bold text-primary-container">$9.5</span>
+<span class="font-body-sm text-body-sm text-text-muted line-through">$19.0</span>
+<span class="font-body-sm text-body-sm text-text-muted">/th</span>
+</div>
+<div class="mt-2 p-2 rounded-lg bg-surface-container-lowest font-code-xs text-code-xs text-primary-container font-extrabold shadow-inner">
+              2.499.000 Credits / tháng
+            </div>
+<!-- Features -->
+<ul class="mt-space-md flex flex-col gap-2 font-body-sm text-body-sm text-on-surface">
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container text-[16px]">check</span>
+<span><strong>2.5M ký tự Text</strong> (~50h audio)</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container text-[16px]">check</span>
+<span><strong>~833 phút</strong> (~13.8h) Audio Dub</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container text-[16px]">check</span>
+<span><strong>~416.5 phút</strong> (~6.9h) Video Dub</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container text-[16px]">check</span>
+<span>500 Custom Cloned Voices</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container text-[16px]">check</span>
+<span>Auto Subtitle &amp; Video Dubbing tool</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container text-[16px]">check</span>
+<span>Top Priority Rendering Server</span>
+</li>
+</ul>
+</div>
+<button class="mt-space-lg w-full py-3 rounded-lg bg-gradient-to-r from-primary-container to-accent-violet-bright hover:shadow-[0_0_24px_rgba(0,242,254,0.5)] text-canvas-base font-label-md text-label-md font-extrabold transition-all" type="button">
+            Nâng Cấp Growth Ngay
+          </button>
+</div>
+<!-- Tier 5: Pro / Enterprise -->
+<div class="p-space-md rounded-xl bg-surface-card flex flex-col justify-between shadow-md">
+<div class="flex flex-col">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm font-bold text-text-primary">Pro</span>
+<span class="px-2 py-0.5 rounded font-label-sm text-[10px] uppercase bg-secondary-container/30 text-secondary font-bold">Studio</span>
+</div>
+<div class="mt-space-sm flex items-baseline gap-1">
+<span class="font-headline-lg text-headline-lg font-bold text-text-primary">$14.5</span>
+<span class="font-body-sm text-body-sm text-text-muted line-through">$29.0</span>
+<span class="font-body-sm text-body-sm text-text-muted">/th</span>
+</div>
+<div class="mt-2 p-2 rounded-lg bg-surface-container-lowest font-code-xs text-code-xs text-primary font-bold">
+              3.999.000 Credits / tháng
+            </div>
+<!-- Features -->
+<ul class="mt-space-md flex flex-col gap-2 font-body-sm text-body-sm text-text-secondary">
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>4 triệu ký tự Text (~80h)</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>~1.333 phút Audio Dubbing</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>~666.5 phút Video Dubbing</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>1.000 Custom Cloned Voices</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>Toàn quyền API Access &amp; Webhook</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-signal-success text-[16px]">check</span>
+<span>Hỗ trợ kỹ thuật riêng 1-on-1</span>
+</li>
+</ul>
+</div>
+<button class="mt-space-lg w-full py-2.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-sm text-label-sm font-bold transition-all" type="button">
+            Chọn gói Pro
+          </button>
+</div>
+</div>
+<!-- Unified Credit Conversion Formula Matrix Box -->
+<div class="mt-space-xl p-space-lg rounded-xl bg-surface-container-low shadow-sm">
+<div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-space-md pb-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary-container text-[24px]">calculate</span>
+<div class="flex flex-col">
+<h3 class="font-headline-sm text-headline-sm font-bold text-text-primary">Công Thức Quy Đổi Unified Credits Minh Bạch</h3>
+<p class="font-body-sm text-body-sm text-text-muted">1 gói cước dùng chung cho cả TTS, Lồng tiếng Audio và Video Dubbing</p>
+</div>
+</div>
+<div class="flex items-center gap-2 font-code-xs text-code-xs text-primary">
+<span class="w-2 h-2 rounded-full bg-signal-success"></span>
+<span>Tự động tối ưu hóa tài nguyên theo thời gian thực</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md pt-space-md">
+<div class="p-space-sm rounded-lg bg-surface-container-lowest">
+<div class="flex items-center gap-2 text-primary font-label-md text-label-md font-bold">
+<span class="material-symbols-outlined text-[18px]">record_voice_over</span>
+<span>Text to Speech (TTS)</span>
+</div>
+<p class="mt-1 font-code-xs text-code-xs text-text-secondary"><strong>1 Ký tự = 1 Credit</strong></p>
+<p class="font-body-sm text-[12px] text-text-muted mt-1">99.000 credits ≈ 99.000 ký tự (~16.500 từ, ~25 trang sách hoặc ~2 giờ phát liên tục).</p>
+</div>
+<div class="p-space-sm rounded-lg bg-surface-container-lowest">
+<div class="flex items-center gap-2 text-secondary font-label-md text-label-md font-bold">
+<span class="material-symbols-outlined text-[18px]">graphic_eq</span>
+<span>Audio Dubbing</span>
+</div>
+<p class="mt-1 font-code-xs text-code-xs text-text-secondary"><strong>50 Credits / 1 giây (~3.000/phút)</strong></p>
+<p class="font-body-sm text-[12px] text-text-muted mt-1">99.000 credits ≈ 33 phút lồng tiếng đa nhân vật bằng AI bản địa cảm xúc.</p>
+</div>
+<div class="p-space-sm rounded-lg bg-surface-container-lowest">
+<div class="flex items-center gap-2 text-accent-violet-bright font-label-md text-label-md font-bold">
+<span class="material-symbols-outlined text-[18px]">video_camera_front</span>
+<span>Video Dubbing &amp; Sub</span>
+</div>
+<p class="mt-1 font-code-xs text-code-xs text-text-secondary"><strong>100 Credits / 1 giây (~6.000/phút)</strong></p>
+<p class="font-body-sm text-[12px] text-text-muted mt-1">99.000 credits ≈ 16.5 phút khớp frame video tự động, lồng tiếng phụ đề và xuất MP4.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 8. FAQ Section -->
+<section class="w-full py-space-2xl bg-surface-container-lowest">
+<div class="max-w-3xl mx-auto px-gutter-desktop">
+<div class="text-center mb-space-xl">
+<span class="px-3 py-1 rounded-full bg-surface-container-high text-primary font-code-xs text-code-xs font-bold uppercase tracking-wider">
+          Giải đáp thắc mắc
+        </span>
+<h2 class="mt-space-xs font-headline-lg text-headline-lg font-bold text-text-primary">
+          Câu Hỏi Thường Gặp
+        </h2>
+<p class="font-body-md text-body-md text-text-muted mt-1">Mọi thông tin về bản quyền thương mại, cơ chế tính credit và bảo mật âm thanh.</p>
+</div>
+<!-- Accordion items -->
+<div class="flex flex-col gap-space-xs" id="faq-accordion">
+<!-- FAQ 1 -->
+<div class="rounded-xl bg-surface-container-low overflow-hidden transition-colors">
+<button class="faq-toggle w-full p-space-md flex items-center justify-between text-left font-headline-sm text-headline-sm font-semibold text-text-primary" type="button">
+<span>Tôi có quyền thương mại hóa (kiếm tiền YouTube, TikTok, quảng cáo) không?</span>
+<span class="material-symbols-outlined text-text-muted text-[22px] transition-transform faq-icon">expand_more</span>
+</button>
+<div class="faq-content px-space-md pb-space-md font-body-md text-body-md text-text-secondary hidden leading-relaxed">
+            HOÀN TOÀN CÓ. Toàn bộ các file âm thanh và video bạn tạo trên DubbingStation đều thuộc 100% sở hữu bản quyền của bạn. Bạn được phép bật kiếm tiền trên YouTube, phân phối bài học trực tuyến, chạy quảng cáo Facebook/TikTok mà không lo bị vi phạm bản quyền.
+          </div>
+</div>
+<!-- FAQ 2 -->
+<div class="rounded-xl bg-surface-container-low overflow-hidden transition-colors">
+<button class="faq-toggle w-full p-space-md flex items-center justify-between text-left font-headline-sm text-headline-sm font-semibold text-text-primary" type="button">
+<span>50.000 Credits miễn phí khi đăng ký có thực sự miễn phí không?</span>
+<span class="material-symbols-outlined text-text-muted text-[22px] transition-transform faq-icon">expand_more</span>
+</button>
+<div class="faq-content px-space-md pb-space-md font-body-md text-body-md text-text-secondary hidden leading-relaxed">
+            Chính xác! Ngay khi hoàn tất đăng ký tài khoản mới bằng Email hoặc Google, tài khoản của bạn sẽ được nạp sẵn 50.000 Credits. Không yêu cầu liên kết thẻ tín dụng, không tự động gia hạn.
+          </div>
+</div>
+<!-- FAQ 3 -->
+<div class="rounded-xl bg-surface-container-low overflow-hidden transition-colors">
+<button class="faq-toggle w-full p-space-md flex items-center justify-between text-left font-headline-sm text-headline-sm font-semibold text-text-primary" type="button">
+<span>Tính năng nhân bản giọng đọc (Voice Cloning) hoạt động như thế nào?</span>
+<span class="material-symbols-outlined text-text-muted text-[22px] transition-transform faq-icon">expand_more</span>
+</button>
+<div class="faq-content px-space-md pb-space-md font-body-md text-body-md text-text-secondary hidden leading-relaxed">
+            Bạn chỉ cần tải lên một mẫu giọng nói rõ ràng của chính mình dài từ 10 đến 30 giây (hoặc sử dụng công cụ ghi âm trực tiếp của chúng tôi). Neural Voice Engine sẽ phân tích đặc tính âm sắc, cao độ và lưu trữ thành mô hình riêng chỉ trong vài chục giây.
+          </div>
+</div>
+<!-- FAQ 4 -->
+<div class="rounded-xl bg-surface-container-low overflow-hidden transition-colors">
+<button class="faq-toggle w-full p-space-md flex items-center justify-between text-left font-headline-sm text-headline-sm font-semibold text-text-primary" type="button">
+<span>Bộ 22 Audio Tools có giới hạn dung lượng tệp không?</span>
+<span class="material-symbols-outlined text-text-muted text-[22px] transition-transform faq-icon">expand_more</span>
+</button>
+<div class="faq-content px-space-md pb-space-md font-body-md text-body-md text-text-secondary hidden leading-relaxed">
+            Vì 22 công cụ xử lý hoàn toàn trên phần cứng của bạn bằng công nghệ WebAssembly, không có giới hạn ngặt nghèo về dung lượng tệp gửi lên máy chủ. Bạn có thể cắt ghép, khuếch đại âm thanh và tách giọng mà không phải đợi tải file lên mạng.
+          </div>
+</div>
+</div>
+</div>
+</section>
+<!-- 9. High-Impact Converting CTA Banner -->
+<section class="relative w-full py-space-3xl overflow-hidden">
+<div class="max-w-max-width-content mx-auto px-gutter-desktop">
+<div class="relative rounded-2xl bg-gradient-to-br from-surface-card via-surface-container-high to-surface-container-lowest p-space-xl sm:p-space-3xl text-center flex flex-col items-center shadow-[0_24px_80px_-15px_rgba(0,0,0,0.9)] overflow-hidden">
+<!-- Decorative Ambient Flare -->
+<div aria-hidden="true" class="absolute -top-32 left-1/2 -translate-x-1/2 w-96 h-96 bg-primary-container/20 rounded-full blur-[90px] pointer-events-none"></div>
+<div aria-hidden="true" class="absolute -bottom-32 right-1/4 w-80 h-80 bg-accent-violet-bright/20 rounded-full blur-[90px] pointer-events-none"></div>
+<span class="relative px-3 py-1 rounded-full bg-primary-container/15 text-primary font-code-xs text-code-xs font-bold uppercase tracking-wider">
+          Bắt đầu trong 10 giây • 0 rủi ro
+        </span>
+<h2 class="relative mt-space-md max-w-2xl font-headline-lg text-headline-lg lg:text-display-xl lg:font-display-xl font-black text-text-primary tracking-tight">
+          Sẵn Sàng Tạo Giọng Đọc AI &amp; Lồng Tiếng Đỉnh Cao?
+        </h2>
+<p class="relative mt-space-sm max-w-xl font-body-lg text-body-lg text-text-secondary leading-relaxed">
+          Đăng ký miễn phí ngay hôm nay để nhận 50.000 Credits trải nghiệm kho 3.000+ giọng nói và bộ công cụ AI audio không giới hạn.
+        </p>
+<div class="relative mt-space-xl flex flex-wrap items-center justify-center gap-space-md">
+<a class="inline-flex items-center justify-center gap-2 px-space-xl py-3.5 rounded-xl font-label-md text-label-md font-extrabold text-canvas-base bg-gradient-to-r from-primary-container via-primary-fixed to-accent-violet-bright shadow-[0_0_32px_rgba(0,242,254,0.4)] hover:shadow-[0_0_40px_rgba(0,242,254,0.6)] hover:scale-105 active:scale-95 transition-all" href="#demo-player">
+<span>Tạo Giọng Nói Ngay Miễn Phí</span>
+<span aria-hidden="true" class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</a>
+<a class="inline-flex items-center justify-center gap-2 px-space-lg py-3.5 rounded-xl font-label-md text-label-md font-bold bg-surface-container hover:bg-surface-container-highest text-on-surface transition-all" href="#pricing-section">
+<span aria-hidden="true" class="material-symbols-outlined text-[20px] text-secondary">sell</span>
+<span>Xem Các Gói Ưu Đãi</span>
+</a>
+</div>
+<div class="relative mt-space-lg flex items-center justify-center gap-space-lg text-text-muted font-body-sm text-body-sm">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-signal-success text-[18px]">verified</span>
+<span>Không cần thẻ tín dụng</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-signal-success text-[18px]">shield</span>
+<span>Bảo mật chuẩn mã hóa</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Interactive Client-side Script -->
+<script>
+  (function() {
+    // 1. Textarea Character & Credit Counter
+    const textarea = document.getElementById('tts-source-text');
+    const charCounter = document.getElementById('char-counter');
+    const creditEstimate = document.getElementById('credit-estimate');
+
+    if (textarea && charCounter && creditEstimate) {
+      textarea.addEventListener('input', () => {
+        const len = textarea.value.length;
+        charCounter.textContent = `${len.toLocaleString('vi-VN')} / 5.000 ký tự`;
+        creditEstimate.textContent = len.toLocaleString('vi-VN');
+      });
+    }
+
+    // 2. Insert Pause Helper Buttons
+    const pauseBtns = document.querySelectorAll('.insert-pause-btn');
+    pauseBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!textarea) return;
+        const tag = btn.getAttribute('data-pause') || '[pause 0.5s]';
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+        textarea.value = text.substring(0, start) + ' ' + tag + ' ' + text.substring(end);
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = start + tag.length + 2;
+        textarea.dispatchEvent(new Event('input'));
+      });
+    });
+
+    // 3. Speed slider dynamic readout
+    const speedSlider = document.getElementById('speed-slider');
+    const speedVal = document.getElementById('speed-val');
+    if (speedSlider && speedVal) {
+      speedSlider.addEventListener('input', (e) => {
+        speedVal.textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+      });
+    }
+
+    // 4. Mode switcher active states
+    const tabs = ['tab-tts', 'tab-dubbing', 'tab-stt', 'tab-clone'];
+    tabs.forEach(tabId => {
+      const el = document.getElementById(tabId);
+      if (el) {
+        el.addEventListener('click', () => {
+          tabs.forEach(t => {
+            const btn = document.getElementById(t);
+            if (btn) {
+              btn.className = 'flex items-center gap-2 px-space-md py-2 rounded-lg font-label-md text-label-md text-text-secondary hover:text-on-surface transition-colors';
+            }
+          });
+          el.className = 'flex items-center gap-2 px-space-md py-2 rounded-lg font-label-md text-label-md font-bold bg-surface-container-highest text-primary shadow-[0_2px_8px_rgba(0,242,254,0.15)] transition-all';
+        });
+      }
+    });
+
+    // 5. Simulated Audio Playback state
+    const playbackBtn = document.getElementById('playback-btn');
+    const playbackIcon = document.getElementById('playback-icon');
+    const playerTimeCurrent = document.getElementById('player-time-current');
+    let isPlaying = false;
+    let timer = null;
+    let seconds = 0;
+
+    if (playbackBtn && playbackIcon) {
+      playbackBtn.addEventListener('click', () => {
+        isPlaying = !isPlaying;
+        if (isPlaying) {
+          playbackIcon.textContent = 'pause';
+          timer = setInterval(() => {
+            seconds++;
+            if (seconds > 14) {
+              seconds = 0;
+              isPlaying = false;
+              playbackIcon.textContent = 'play_arrow';
+              clearInterval(timer);
+            }
+            const secStr = seconds < 10 ? '0' + seconds : seconds;
+            if (playerTimeCurrent) playerTimeCurrent.textContent = `00:${secStr}`;
+          }, 1000);
+        } else {
+          playbackIcon.textContent = 'play_arrow';
+          clearInterval(timer);
+        }
+      });
+    }
+
+    // 6. FAQ Accordion Toggle
+    const faqToggles = document.querySelectorAll('.faq-toggle');
+    faqToggles.forEach(toggle => {
+      toggle.addEventListener('click', () => {
+        const content = toggle.nextElementSibling;
+        const icon = toggle.querySelector('.faq-icon');
+        const isHidden = content.classList.contains('hidden');
+        
+        // close all
+        document.querySelectorAll('.faq-content').forEach(c => c.classList.add('hidden'));
+        document.querySelectorAll('.faq-icon').forEach(i => i.classList.remove('rotate-180'));
+
+        if (isHidden) {
+          content.classList.remove('hidden');
+          if (icon) icon.classList.add('rotate-180');
+        }
+      });
+    });
+
+    // 7. Generate voice trigger micro-interaction
+    const generateBtn = document.getElementById('generate-audio-btn');
+    if (generateBtn) {
+      generateBtn.addEventListener('click', () => {
+        const originalText = generateBtn.innerHTML;
+        generateBtn.innerHTML = `
+          <span class="w-4 h-4 rounded-full border-2 border-canvas-base border-t-transparent animate-spin"></span>
+          <span>Đang tổng hợp giọng nói...</span>
+        `;
+        setTimeout(() => {
+          generateBtn.innerHTML = originalText;
+          if (playbackBtn) {
+            playbackBtn.classList.add('ring-4', 'ring-primary-container');
+            setTimeout(() => playbackBtn.classList.remove('ring-4', 'ring-primary-container'), 1200);
+          }
+        }, 800);
+      });
+    }
+  })();
+</script></main><footer class="w-full bg-surface-container-lowest pt-space-3xl pb-space-2xl text-on-surface-variant shadow-[0_-1px_12px_rgba(0,0,0,0.6)]"><div class="max-w-max-width-content mx-auto px-gutter-desktop"><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-space-2xl pb-space-2xl"><div class="lg:col-span-2 flex flex-col gap-space-md"><div class="flex items-center gap-space-xs"><img alt="DubbingStation Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1V-UY2Vq84aP1TGSemuRsNV1QLsuv0qyihz872V7JRpt1zfIbe9cIcDboSo_rWDyuvk8eaaPBuLPjwDmmAsaaZvwip7xi_08PfNZjMWz5P5yUyrTzfJFlgXqv7qhNxrukI8RmCWfvAHRvGZAsCvXTne6arYNyYhnqHk_h9YjyTPddJTATjRAp7gdgsIk7ua_L9M7OHLBE2KOTx9F295HOnIl8F6D8O5IqMVcDOtVMA8Yy6MFVFWnIprww"/><span class="font-headline-sm text-headline-sm tracking-tight text-primary font-bold">DubbingStation</span></div><p class="font-body-md text-body-md text-text-muted max-w-sm">Nền tảng phòng thu AI cao cấp tổng hợp giọng nói, chuyển đổi phụ đề tự động và nhân bản giọng đọc thế hệ mới cho các nhà sáng tạo kỹ thuật số.</p><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-signal-success text-[18px]">verified</span><span class="font-label-sm text-label-sm uppercase tracking-wide text-text-secondary">Bản quyền thương mại 100% vĩnh viễn</span></div></div><div class="flex flex-col gap-space-sm"><span class="font-label-md text-label-md text-on-surface uppercase tracking-wider font-bold">Sản phẩm</span><div class="flex flex-col gap-space-xs"><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" data-path="text-to-speech" href="#">Text to Speech</a><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" data-path="subtitle-video-dubbing" href="#">Video Dubbing</a><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" data-path="voice-cloning" href="#">Voice Cloning</a><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" data-path="free-audio-tools" href="#">22 Free Audio Tools</a></div></div><div class="flex flex-col gap-space-sm"><span class="font-label-md text-label-md text-on-surface uppercase tracking-wider font-bold">Tài nguyên</span><div class="flex flex-col gap-space-xs"><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" data-path="api-and-docs" href="#">Hướng dẫn sử dụng</a><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" data-path="api-and-docs" href="#">API Docs &amp; SDK</a><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" data-path="voices-library" href="#">Thư viện giọng đọc</a><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" data-path="free-audio-tools" href="#">Kho tài liệu Studio</a></div></div><div class="flex flex-col gap-space-sm"><span class="font-label-md text-label-md text-on-surface uppercase tracking-wider font-bold">Công ty</span><div class="flex flex-col gap-space-xs"><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" data-path="about" href="#">Về DubbingStation</a><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" data-path="terms-of-service" href="#">Điều khoản dịch vụ</a><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" data-path="privacy-policy" href="#">Chính sách bảo mật</a><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" data-path="pricing-and-credits" href="#">Chính sách hoàn tiền</a></div></div></div><div class="pt-space-lg flex flex-col md:flex-row items-center justify-between gap-space-md"><p class="font-body-sm text-body-sm text-text-muted">© 2024 DubbingStation AI Studio. Tất cả quyền được bảo lưu. Giấy phép thương mại tự do 100%.</p><div class="flex items-center gap-space-md"><span class="font-code-xs text-code-xs text-text-muted uppercase">System Status: <span class="text-signal-success font-bold">Operational 99.99%</span></span></div></div></div></footer></body></html>
