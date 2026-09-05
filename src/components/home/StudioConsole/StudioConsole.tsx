@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import type { StudioMode, Voice } from '@/types';
-import { defaultVoice } from '@/data/voices';
+import { defaultVoice, voices } from '@/data/voices';
 import { ModeTabs } from './ModeTabs';
 import { TextInputArea } from './TextInputArea';
 import { ControlDeck } from './ControlDeck';
@@ -10,6 +11,7 @@ import { AudioPlayerDeck } from './AudioPlayerDeck';
 import { VoiceModal } from './VoiceModal';
 
 export const StudioConsole: React.FC = () => {
+  const searchParams = useSearchParams();
   // State
   const [activeTab, setActiveTab] = useState<StudioMode>('tts');
   const [text, setText] = useState<string>(
@@ -28,6 +30,17 @@ export const StudioConsole: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync voice from URL query param if present (e.g. ?voice=mai-anh)
+  useEffect(() => {
+    const voiceParam = searchParams.get('voice');
+    if (voiceParam) {
+      const found = voices.find((v) => v.id === voiceParam);
+      if (found) {
+        setSelectedVoice(found);
+      }
+    }
+  }, [searchParams]);
 
   // Playback timer effect
   useEffect(() => {

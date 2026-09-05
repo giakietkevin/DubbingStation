@@ -11,6 +11,8 @@ export interface Voice {
   tags: string[];
   previewUrl?: string;
   isPremium?: boolean;
+  age?: 'young' | 'adult' | 'senior';
+  useCase?: string;
 }
 
 export interface PricingPlan {
