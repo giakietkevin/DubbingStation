@@ -76,8 +76,11 @@ export const StudioConsole: React.FC = () => {
     setIsGenerating(true);
     setStatusMessage(null);
 
+    const isBatch = text.trim().length > 5000;
+    const endpoint = isBatch ? '/api/tts/batch' : '/api/tts/generate';
+
     try {
-      const res = await fetch('/api/tts/generate', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -97,15 +100,25 @@ export const StudioConsole: React.FC = () => {
         return;
       }
 
-      setFileName(data.fileName || `${selectedVoice.name}_Audio_Dubbing.mp3`);
-      setTotalDuration(data.durationSec || Math.max(5, Math.round(text.length / 15)));
+      if (data.mode === 'batch') {
+        setFileName(`${selectedVoice.name}_Batch_${data.totalChunks}Chunks.mp3`);
+        setTotalDuration(data.estimatedTotalSec || 60);
+        setStatusMessage({
+          text: `Batch Render thành công! Đã chia ${data.totalChunks} đoạn và trừ ${data.creditsDeducted.toLocaleString('vi-VN')} Credits. Các phần đã được lưu vào Lịch sử tệp.`,
+          type: 'success',
+        });
+      } else {
+        setFileName(data.fileName || `${selectedVoice.name}_Audio_Dubbing.mp3`);
+        setTotalDuration(data.durationSec || Math.max(5, Math.round(text.length / 15)));
+        setStatusMessage({
+          text: `Tạo âm thanh thành công! Đã trừ ${data.creditsDeducted.toLocaleString('vi-VN')} Credits.`,
+          type: 'success',
+        });
+      }
+
       setCurrentTime(0);
       setHasAudioRing(true);
       setIsPlaying(true);
-      setStatusMessage({
-        text: `Tạo âm thanh thành công! Đã trừ ${data.creditsDeducted.toLocaleString('vi-VN')} Credits.`,
-        type: 'success',
-      });
 
       setTimeout(() => setHasAudioRing(false), 2000);
     } catch (err) {

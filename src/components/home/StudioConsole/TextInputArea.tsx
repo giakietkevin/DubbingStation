@@ -85,9 +85,14 @@ export const TextInputArea: React.FC<TextInputAreaProps> = ({
           </button>
         </div>
 
-        <div className="flex items-center gap-space-xs font-code-xs text-code-xs text-text-muted">
+        <div className="flex items-center gap-space-xs font-code-xs text-code-xs text-text-muted flex-wrap">
+          {currentLength > 5000 && (
+            <span className="px-2 py-0.5 rounded bg-primary-container/20 text-primary-container font-semibold">
+              ⚡ Batch Mode ({Math.ceil(currentLength / 3000)} chunks)
+            </span>
+          )}
           <span className="text-text-secondary font-medium">
-            {currentLength.toLocaleString('vi-VN')} / {maxChars.toLocaleString('vi-VN')} ký tự
+            {currentLength.toLocaleString('vi-VN')} ký tự
           </span>
           <span aria-hidden="true" className="w-1 h-1 rounded-full bg-text-muted" />
           <span>
