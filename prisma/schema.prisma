@@ -7,30 +7,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-enum Role {
-  FREE_USER
-  PAID_USER
-  ADMIN
-  API_DEVELOPER
-}
-
-enum SubscriptionTier {
-  FREE
-  LITE
-  STARTER
-  GROWTH
-  PRO
-}
-
-enum TransactionType {
-  FREE_ONBOARDING
-  SUBSCRIPTION_RENEWAL
-  TTS_USAGE
-  DUBBING_USAGE
-  STT_USAGE
-  ADMIN_ADJUSTMENT
-}
-
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -38,7 +14,7 @@ model User {
   emailVerified DateTime?
   image         String?
   passwordHash  String?
-  role          String    @default("FREE_USER")
+  role          String    @default("FREE_USER") // FREE_USER, PAID_USER, ADMIN, API_DEVELOPER
   language      String    @default("vi")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -100,29 +76,29 @@ model CreditWallet {
 }
 
 model CreditTransaction {
-  id          String   @id @default(cuid())
-  walletId    String
-  amount      Int      // Dương nếu nạp, Âm nếu tiêu thụ
+  id           String   @id @default(cuid())
+  walletId     String
+  amount       Int      // Dương nếu nạp, Âm nếu tiêu thụ
   balanceAfter Int
-  type        String
-  description String
-  createdAt   DateTime @default(now())
+  type         String   // FREE_ONBOARDING, SUBSCRIPTION_RENEWAL, TTS_USAGE, DUBBING_USAGE, STT_USAGE, ADMIN_ADJUSTMENT
+  description  String
+  createdAt    DateTime @default(now())
 
-  wallet      CreditWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  wallet       CreditWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
 }
 
 model Subscription {
-  id             String    @id @default(cuid())
-  userId         String    @unique
-  tier           String    @default("FREE")
-  status         String    @default("ACTIVE") // ACTIVE, CANCELLED, PAST_DUE
-  currentPeriodStart DateTime @default(now())
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  tier               String    @default("FREE") // FREE, LITE, STARTER, GROWTH, PRO
+  status             String    @default("ACTIVE") // ACTIVE, CANCELLED, PAST_DUE
+  currentPeriodStart DateTime  @default(now())
   currentPeriodEnd   DateTime
-  cancelAtPeriodEnd  Boolean  @default(false)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  cancelAtPeriodEnd  Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AudioProject {

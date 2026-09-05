@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { Providers } from '@/components/Providers';
 
 export const metadata: Metadata = {
   title: 'DubbingStation - All-in-One AI Voice Studio',
@@ -30,7 +31,7 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-canvas-base font-body-md text-body-md text-on-surface antialiased min-h-screen">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
