@@ -82,12 +82,13 @@ export async function GET(req: Request) {
     const pitchShift = 0.9 + (hash % 20) / 50;
 
     const wavBuffer = generateToneWav(baseFreq, 2.0, pitchShift);
+    const uint8Array = new Uint8Array(wavBuffer);
 
-    return new NextResponse(wavBuffer, {
+    return new NextResponse(uint8Array, {
       status: 200,
       headers: {
         'Content-Type': 'audio/wav',
-        'Content-Length': wavBuffer.length.toString(),
+        'Content-Length': uint8Array.byteLength.toString(),
         'Cache-Control': 'public, max-age=86400, immutable',
       },
     });
