@@ -13,6 +13,7 @@
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
+    "edge-tts-universal": "^1.4.0",
     "lucide-react": "^0.441.0",
     "next": "^14.2.11",
     "next-auth": "^4.24.15",
