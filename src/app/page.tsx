@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { PromoRail } from '@/components/home/PromoRail';
@@ -24,7 +24,9 @@ export default function HomePage() {
           <Hero />
 
           {/* 3. Interactive Studio Demo Console */}
-          <StudioConsole />
+          <Suspense fallback={<div className="h-96 flex items-center justify-center text-text-muted">Đang tải Studio Console...</div>}>
+            <StudioConsole />
+          </Suspense>
 
           {/* 4. Key Value Metrics Grid */}
           <MetricsGrid />

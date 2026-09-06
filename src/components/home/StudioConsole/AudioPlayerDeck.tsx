@@ -9,6 +9,7 @@ interface AudioPlayerDeckProps {
   totalDuration?: number;
   fileName?: string;
   hasAudioRing?: boolean;
+  onDownload?: () => void;
 }
 
 export const AudioPlayerDeck: React.FC<AudioPlayerDeckProps> = ({
@@ -18,6 +19,7 @@ export const AudioPlayerDeck: React.FC<AudioPlayerDeckProps> = ({
   totalDuration = 14,
   fileName = 'Minh_Khang_Audio_Dubbing.mp3',
   hasAudioRing = false,
+  onDownload,
 }) => {
   const formatTime = (secs: number) => {
     const s = Math.floor(secs);
@@ -43,7 +45,7 @@ export const AudioPlayerDeck: React.FC<AudioPlayerDeckProps> = ({
           aria-label={isPlaying ? 'Tạm dừng demo' : 'Phát âm thanh demo'}
           onClick={onTogglePlay}
           className={`w-11 h-11 rounded-full bg-primary-container text-canvas-base flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_16px_rgba(0,242,254,0.4)] ${
-            hasAudioRing ? 'ring-4 ring-primary-container' : ''
+            hasAudioRing ? 'ring-4 ring-primary-container animate-pulse' : ''
           }`}
         >
           <span
@@ -73,17 +75,19 @@ export const AudioPlayerDeck: React.FC<AudioPlayerDeckProps> = ({
       {/* Waveform Visualization */}
       <div className="flex-1 w-full max-w-xl mx-2 flex items-center gap-1 h-9 px-3 rounded-lg bg-surface-container-lowest overflow-hidden">
         {barHeights.map((h, i) => {
-          const progressFraction = currentTime / totalDuration;
+          const progressFraction = totalDuration > 0 ? currentTime / totalDuration : 0;
           const barFraction = i / barHeights.length;
           const isPassed = barFraction <= progressFraction;
 
           return (
             <div
               key={i}
-              style={{ height: `${h * 3.5}px` }}
-              className={`w-1 rounded-full transition-all duration-200 ${
+              style={{
+                height: isPlaying ? `${Math.max(4, (h * 3.5) * (0.6 + Math.random() * 0.8))}px` : `${h * 3.5}px`,
+              }}
+              className={`w-1 rounded-full transition-all duration-150 ${
                 isPassed
-                  ? `bg-primary-container ${isPlaying ? 'animate-pulse' : ''}`
+                  ? 'bg-primary-container'
                   : 'bg-surface-container-highest'
               }`}
             />
@@ -95,7 +99,8 @@ export const AudioPlayerDeck: React.FC<AudioPlayerDeckProps> = ({
       <div className="flex items-center gap-space-xs w-full md:w-auto justify-end">
         <button
           type="button"
-          title="Tải xuống tệp MP3"
+          onClick={onDownload}
+          title="Tải xuống tệp MP3/WAV"
           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-sm text-label-sm font-semibold transition-colors"
         >
           <span

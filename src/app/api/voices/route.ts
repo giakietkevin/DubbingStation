@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { voices } from '@/data/voices';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
