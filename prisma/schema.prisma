@@ -25,6 +25,21 @@ model User {
   subscription  Subscription?
   audioProjects AudioProject[]
   customVoices  CustomVoice[]
+  apiKeys       ApiKey[]
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String    @default("Default API Key")
+  keyHash     String    @unique // Mã băm hoặc key token dạng ds_live_xxxx
+  maskedKey   String    // Hiển thị rút gọn ds_live_...xxxx
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {
@@ -80,7 +95,7 @@ model CreditTransaction {
   walletId     String
   amount       Int      // Dương nếu nạp, Âm nếu tiêu thụ
   balanceAfter Int
-  type         String   // FREE_ONBOARDING, SUBSCRIPTION_RENEWAL, TTS_USAGE, DUBBING_USAGE, STT_USAGE, ADMIN_ADJUSTMENT
+  type         String   // FREE_ONBOARDING, SUBSCRIPTION_RENEWAL, TTS_USAGE, DUBBING_USAGE, STT_USAGE, ADMIN_ADJUSTMENT, API_USAGE
   description  String
   createdAt    DateTime @default(now())
 
@@ -105,7 +120,7 @@ model AudioProject {
   id          String   @id @default(cuid())
   userId      String
   name        String
-  type        String   // TTS, DUBBING, STT, WASM_TOOL
+  type        String   // TTS, DUBBING, STT, WASM_TOOL, API_V1
   inputData   String?
   outputUrl   String?
   durationSec Float?
