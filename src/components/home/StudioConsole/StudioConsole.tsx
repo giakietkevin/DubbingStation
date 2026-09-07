@@ -159,7 +159,8 @@ export const StudioConsole: React.FC = () => {
 
       const streamEndpoint = `/api/tts/stream?text=${encodeURIComponent(cleanTextForSpeech(text))}&voiceId=${selectedVoice.id}&speed=${speed}&provider=${provider}`;
       setAudioUrl(streamEndpoint);
-      setFileName(`${selectedVoice.name}_${provider}_${Date.now()}.mp3`);
+      const ext = provider === 'piper' ? 'wav' : 'mp3';
+      setFileName(`${selectedVoice.name}_${provider}_${Date.now()}.${ext}`);
 
       if (data.mode === 'batch') {
         setStatusMessage({

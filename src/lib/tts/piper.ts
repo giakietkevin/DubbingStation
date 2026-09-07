@@ -1,5 +1,5 @@
 import { spawn } from 'child_process';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 export interface PiperTTSOptions {
@@ -15,8 +15,37 @@ export interface PiperTTSOptions {
 
 export interface PiperTTSResult {
   audio: Buffer;
+  rawPcm: Buffer;
+  sampleRate: number;
   durationMs: number;
   model: string;
+}
+
+export function createWavHeader(
+  dataLength: number,
+  sampleRate: number = 22050,
+  channels: number = 1,
+  bitsPerSample: number = 16
+): Buffer {
+  const header = Buffer.alloc(44);
+  const byteRate = sampleRate * channels * (bitsPerSample / 8);
+  const blockAlign = channels * (bitsPerSample / 8);
+
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + dataLength, 4);
+  header.write('WAVE', 8);
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20); // PCM format
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(dataLength, 40);
+
+  return header;
 }
 
 const MODELS_DIR = join(process.cwd(), 'models', 'piper');
@@ -48,21 +77,50 @@ export async function synthesizeWithPiper(options: PiperTTSOptions): Promise<Pip
 
   ensureModelsDir();
 
-  if (!existsSync(modelPath)) {
-    console.error('[Piper TTS] Model not found:', modelPath);
-    return null;
+  let resolvedModelPath = modelPath;
+  if (!existsSync(resolvedModelPath)) {
+    const candidateInModels = join(MODELS_DIR, modelPath);
+    if (existsSync(candidateInModels)) {
+      resolvedModelPath = candidateInModels;
+    } else {
+      const isVietnamese =
+        modelPath.toLowerCase().includes('vi') ||
+        /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(text);
+      const defaultVietnamese = join(MODELS_DIR, 'vi_VN-25hours_single-low.onnx');
+      const defaultEnglish = join(MODELS_DIR, 'en_US-lessac-medium.onnx');
+
+      if (isVietnamese && existsSync(defaultVietnamese)) {
+        resolvedModelPath = defaultVietnamese;
+      } else if (existsSync(defaultEnglish)) {
+        resolvedModelPath = defaultEnglish;
+      } else {
+        console.error('[Piper TTS] Model not found and no fallback available:', modelPath);
+        return null;
+      }
+    }
   }
 
-  const configPath = modelPath.replace(/\.onnx$/i, '.onnx.json');
+  const configPath = resolvedModelPath.replace(/\.onnx$/i, '.onnx.json');
   if (!existsSync(configPath)) {
     console.error('[Piper TTS] Config not found:', configPath);
     return null;
   }
 
+  let sampleRate = 22050;
+  try {
+    const rawConfig = readFileSync(configPath, 'utf8');
+    const parsedConfig = JSON.parse(rawConfig);
+    if (parsedConfig.audio?.sample_rate) {
+      sampleRate = parsedConfig.audio.sample_rate;
+    }
+  } catch (err) {
+    console.warn('[Piper TTS] Failed to parse config sample_rate, defaulting to 22050', err);
+  }
+
   const piperCmd = getPiperCommand();
   const args = [
     '-m', 'piper',
-    '--model', modelPath,
+    '--model', resolvedModelPath,
     '--config', configPath,
     '--output-raw',
     '--length-scale', String(lengthScale),
@@ -83,7 +141,7 @@ export async function synthesizeWithPiper(options: PiperTTSOptions): Promise<Pip
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
-    child.stdin.write(text);
+    child.stdin.write(text + '\n');
     child.stdin.end();
 
     child.stdout.on('data', (chunk) => {
@@ -110,13 +168,19 @@ export async function synthesizeWithPiper(options: PiperTTSOptions): Promise<Pip
       return null;
     }
 
-    const audioBuffer = Buffer.concat(audioChunks);
+    const rawPcm = Buffer.concat(audioChunks);
+    const audioBuffer =
+      outputFormat === 'wav'
+        ? Buffer.concat([createWavHeader(rawPcm.length, sampleRate), rawPcm])
+        : rawPcm;
     const durationMs = Date.now() - startTime;
 
     return {
       audio: audioBuffer,
+      rawPcm,
+      sampleRate,
       durationMs,
-      model: modelPath,
+      model: resolvedModelPath,
     };
   } catch (error) {
     console.error('[Piper TTS] Synthesis failed:', error);

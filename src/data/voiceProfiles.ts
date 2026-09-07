@@ -1,5 +1,3 @@
-import { join } from 'path';
-
 export interface VoicePersonaConfig {
   neuralModel: string;
   pitch: string; // VD: '-45Hz', '+65Hz'
@@ -283,7 +281,7 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     volume: '+0%',
     samplePhrase: 'Hello, this is Lessac from Piper TTS. A natural, clear voice for narration.',
     provider: 'piper',
-    piperModel: join(MODELS_DIR, 'en_US-lessac-medium.onnx'),
+    piperModel: 'en_US-lessac-medium.onnx',
   },
   'piper-ryan': {
     neuralModel: 'en_US-ryan-medium',
@@ -292,7 +290,7 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     volume: '+0%',
     samplePhrase: 'Hi there, I am Ryan. A deep, resonant voice perfect for storytelling.',
     provider: 'piper',
-    piperModel: join(MODELS_DIR, 'en_US-ryan-medium.onnx'),
+    piperModel: 'en_US-ryan-medium.onnx',
   },
   'piper-amy': {
     neuralModel: 'en_US-amy-medium',
@@ -301,7 +299,7 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     volume: '+0%',
     samplePhrase: 'Hello, I am Amy. A warm, friendly female voice for any content.',
     provider: 'piper',
-    piperModel: join(MODELS_DIR, 'en_US-amy-medium.onnx'),
+    piperModel: 'en_US-amy-medium.onnx',
   },
   'piper-john': {
     neuralModel: 'en_US-john-medium',
@@ -310,6 +308,24 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     volume: '+0%',
     samplePhrase: 'Greetings, I am John. A balanced, professional voice for narration.',
     provider: 'piper',
-    piperModel: join(MODELS_DIR, 'en_US-john-medium.onnx'),
+    piperModel: 'en_US-john-medium.onnx',
+  },
+  'piper-vivos': {
+    neuralModel: 'vi_VN-vivos-x_low',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+0%',
+    samplePhrase: 'Xin chào, đây là giọng đọc tiếng Việt offline Vivos từ Piper TTS.',
+    provider: 'piper',
+    piperModel: 'vi_VN-vivos-x_low.onnx',
+  },
+  'piper-25h': {
+    neuralModel: 'vi_VN-25hours_single-low',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+0%',
+    samplePhrase: 'Xin chào, đây là giọng đọc tiếng Việt offline 25 Hours từ Piper TTS.',
+    provider: 'piper',
+    piperModel: 'vi_VN-25hours_single-low.onnx',
   },
 };
