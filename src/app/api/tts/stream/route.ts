@@ -175,17 +175,18 @@ export async function GET(req: Request) {
 
     const fullBuffer = Buffer.concat(audioBuffers);
     const uint8 = new Uint8Array(fullBuffer);
+    const isWav = provider === 'piper';
 
     return new NextResponse(uint8, {
       status: 200,
       headers: {
-        'Content-Type': 'audio/mpeg',
+        'Content-Type': isWav ? 'audio/wav' : 'audio/mpeg',
         'Content-Length': uint8.byteLength.toString(),
         'Accept-Ranges': 'bytes',
         'Cache-Control': 'public, max-age=3600',
         'X-Voice-Profile': voiceId,
         'X-Provider': provider,
-        'X-Engine': provider === 'openai' ? 'OpenAI-TTS-HD' : 'Microsoft-Azure-Neural-TTS',
+        'X-Engine': provider === 'openai' ? 'OpenAI-TTS-HD' : provider === 'piper' ? 'Piper-Offline-Neural' : 'Microsoft-Azure-Neural-TTS',
       },
     });
   } catch (error) {

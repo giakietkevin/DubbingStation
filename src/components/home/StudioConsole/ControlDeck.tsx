@@ -64,7 +64,7 @@ export const ControlDeck: React.FC<ControlDeckProps> = ({
 
         {/* Provider Selector */}
         <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-container">
-          {(['microsoft', 'openai'] as const).map((p) => {
+          {(['microsoft', 'openai', 'piper'] as const).map((p) => {
             const isActive = provider === p;
             return (
               <button
@@ -77,7 +77,7 @@ export const ControlDeck: React.FC<ControlDeckProps> = ({
                     : 'text-text-secondary hover:text-on-surface'
                 }`}
               >
-                {p === 'openai' ? 'OpenAI HD' : 'Microsoft'}
+                {p === 'openai' ? 'OpenAI HD' : p === 'piper' ? 'Piper Free' : 'Microsoft'}
               </button>
             );
           })}
