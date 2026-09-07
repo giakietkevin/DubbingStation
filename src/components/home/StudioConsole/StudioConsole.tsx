@@ -20,6 +20,7 @@ export const StudioConsole: React.FC = () => {
   const [selectedVoice, setSelectedVoice] = useState<Voice>(defaultVoice);
   const [selectedEmotion, setSelectedEmotion] = useState<string>('Tự nhiên');
   const [speed, setSpeed] = useState<number>(1.0);
+  const [provider, setProvider] = useState<'microsoft' | 'openai' | 'piper'>('microsoft');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
@@ -57,7 +58,7 @@ export const StudioConsole: React.FC = () => {
   const playAudio = () => {
     const targetUrl =
       audioUrl ||
-      `/api/tts/stream?text=${encodeURIComponent(cleanTextForSpeech(text))}&voiceId=${selectedVoice.id}&speed=${speed}`;
+      `/api/tts/stream?text=${encodeURIComponent(cleanTextForSpeech(text))}&voiceId=${selectedVoice.id}&speed=${speed}&provider=${provider}`;
 
     if (!audioRef.current) {
       audioRef.current = new Audio(targetUrl);
@@ -117,7 +118,7 @@ export const StudioConsole: React.FC = () => {
   const handleDownload = () => {
     const downloadLink =
       audioUrl ||
-      `/api/tts/stream?text=${encodeURIComponent(cleanTextForSpeech(text))}&voiceId=${selectedVoice.id}&speed=${speed}`;
+      `/api/tts/stream?text=${encodeURIComponent(cleanTextForSpeech(text))}&voiceId=${selectedVoice.id}&speed=${speed}&provider=${provider}`;
 
     const a = document.createElement('a');
     a.href = downloadLink;
@@ -144,6 +145,7 @@ export const StudioConsole: React.FC = () => {
           voiceName: selectedVoice.name,
           speed,
           emotion: selectedEmotion,
+          provider,
         }),
       });
 
@@ -155,9 +157,9 @@ export const StudioConsole: React.FC = () => {
         return;
       }
 
-      const streamEndpoint = `/api/tts/stream?text=${encodeURIComponent(cleanTextForSpeech(text))}&voiceId=${selectedVoice.id}&speed=${speed}`;
+      const streamEndpoint = `/api/tts/stream?text=${encodeURIComponent(cleanTextForSpeech(text))}&voiceId=${selectedVoice.id}&speed=${speed}&provider=${provider}`;
       setAudioUrl(streamEndpoint);
-      setFileName(`${selectedVoice.name}_Audio_${Date.now()}.mp3`);
+      setFileName(`${selectedVoice.name}_${provider}_${Date.now()}.mp3`);
 
       if (data.mode === 'batch') {
         setStatusMessage({
@@ -165,8 +167,9 @@ export const StudioConsole: React.FC = () => {
           type: 'success',
         });
       } else {
+        const providerLabel = provider === 'openai' ? 'OpenAI HD' : provider === 'piper' ? 'Piper Free' : 'Neural Studio';
         setStatusMessage({
-          text: `Tạo âm thanh thành công! Đang phát giọng đọc Neural Studio của "${selectedVoice.name}"...`,
+          text: `Tạo âm thanh thành công! Đang phát giọng đọc ${providerLabel} của "${selectedVoice.name}"...`,
           type: 'success',
         });
       }
@@ -231,6 +234,8 @@ export const StudioConsole: React.FC = () => {
               onSpeedChange={setSpeed}
               isGenerating={isGenerating}
               onGenerate={handleGenerate}
+              provider={provider}
+              onProviderChange={setProvider}
             />
           </div>
 

@@ -27,6 +27,7 @@ export async function POST(req: Request) {
 
     const trimmedText = text.trim();
     const totalChars = trimmedText.length;
+    const provider = (body as any).provider || 'microsoft';
 
     // Batch chỉ cho phép khi đã đăng nhập
     if (!session?.user?.email) {
@@ -36,8 +37,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Credits = 1 char = 1 credit cho toàn bộ văn bản
-    const requiredCredits = totalChars;
+    const creditRate = provider === 'openai' ? 3 : 1;
+    const requiredCredits = totalChars * creditRate;
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
@@ -71,12 +72,12 @@ export async function POST(req: Request) {
         balance: newBalance,
         totalConsumed: user.wallet.totalConsumed + requiredCredits,
         transactions: {
-          create: {
-            amount: -requiredCredits,
-            balanceAfter: newBalance,
-            type: 'TTS_USAGE',
-            description: `Batch TTS (${voiceName || voiceId}, ${chunkResult.totalChunks} chunks, ${totalChars.toLocaleString('vi-VN')} ký tự)`,
-          },
+              create: {
+                amount: -requiredCredits,
+                balanceAfter: newBalance,
+                type: 'TTS_USAGE',
+                description: `Batch TTS (${voiceName || voiceId}, ${provider}, ${chunkResult.totalChunks} chunks, ${totalChars.toLocaleString('vi-VN')} ký tự)`,
+              },
         },
       },
     });
@@ -95,13 +96,13 @@ export async function POST(req: Request) {
       const project = await prisma.audioProject.create({
         data: {
           userId: user.id,
-          name: `${voiceName || 'Batch'}_Part${chunk.index}_${Date.now()}.mp3`,
+          name: `${voiceName || 'Batch'}_${provider}_Part${chunk.index}_${Date.now()}.mp3`,
           type: 'TTS',
           inputData: chunk.text,
           outputUrl: 'https://actions.google.com/sounds/v1/speech/greeting_male.ogg',
           charCount: chunk.charCount,
           durationSec: chunk.estimatedSec,
-          creditsUsed: chunk.charCount,
+          creditsUsed: chunk.charCount * creditRate,
           status: 'COMPLETED',
         },
       });
@@ -124,6 +125,7 @@ export async function POST(req: Request) {
       estimatedTotalSec: chunkResult.estimatedTotalSec,
       creditsDeducted: requiredCredits,
       remainingCredits: updatedWallet.balance,
+      provider,
       segments,
     });
   } catch (error: any) {

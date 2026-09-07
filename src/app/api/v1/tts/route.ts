@@ -3,6 +3,7 @@ import { authenticateApiKey } from '@/lib/apiAuth';
 import { prisma } from '@/lib/prisma';
 import { Communicate } from 'edge-tts-universal';
 import { voicePersonaProfiles } from '@/data/voiceProfiles';
+import { synthesizeWithOpenAI } from '@/lib/tts/openai';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic';
  * POST /api/v1/tts
  * Public REST API: Chuyển đổi văn bản thành giọng nói AI cho Developer
  * Header: Authorization: Bearer ds_live_xxxx
- * Body: { text: string, voiceId?: string, speed?: number, responseFormat?: 'json' | 'audio' }
+ * Body: { text: string, voiceId?: string, speed?: number, provider?: 'microsoft' | 'openai', responseFormat?: 'json' | 'audio' }
  */
 export async function POST(req: Request) {
   // 1. Xác thực Developer API Key
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { text, voiceId = 'minh-khang', speed = 1.0, responseFormat = 'audio' } = body;
+    const { text, voiceId = 'minh-khang', speed = 1.0, provider = 'microsoft', responseFormat = 'audio' } = body;
 
     if (!text || typeof text !== 'string' || !text.trim()) {
       return NextResponse.json({ error: 'Nội dung "text" không được để trống.' }, { status: 400 });
@@ -29,7 +30,8 @@ export async function POST(req: Request) {
 
     const cleanText = text.trim();
     const charCount = cleanText.length;
-    const creditsRequired = charCount; // 1 ký tự = 1 Credit
+    const creditRate = provider === 'openai' ? 3 : 1;
+    const creditsRequired = charCount * creditRate;
 
     // 2. Kiểm tra số dư Credits của Developer
     if (auth.user.walletBalance < creditsRequired) {
@@ -50,33 +52,47 @@ export async function POST(req: Request) {
       rate: '+0%',
       volume: '+0%',
       samplePhrase: '',
+      provider: 'microsoft' as const,
     };
+
+    const selectedProvider = provider || profile.provider || 'microsoft';
 
     // 4. Tổng hợp âm thanh qua Neural Engine
     let audioBuffer: Buffer | null = null;
-    try {
-      const comm = new Communicate(cleanText, {
-        voice: profile.neuralModel,
+    if (selectedProvider === 'openai') {
+      const openAIVoice = profile.openAIVoice || 'nova';
+      const result = await synthesizeWithOpenAI({
+        text: cleanText,
+        model: 'tts-1-hd',
+        voice: openAIVoice,
+        speed,
       });
-      const chunks: Buffer[] = [];
-      for await (const chunk of comm.stream()) {
-        if (chunk.type === 'audio' && chunk.data) {
-          chunks.push(chunk.data as Buffer);
+      audioBuffer = result?.buffer || null;
+    } else {
+      try {
+        const comm = new Communicate(cleanText, {
+          voice: profile.neuralModel,
+        });
+        const chunks: Buffer[] = [];
+        for await (const chunk of comm.stream()) {
+          if (chunk.type === 'audio' && chunk.data) {
+            chunks.push(chunk.data as Buffer);
+          }
         }
-      }
-      if (chunks.length > 0) {
-        audioBuffer = Buffer.concat(chunks);
-      }
-    } catch {
-      // Fallback
-      const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
-        cleanText.slice(0, 200)
-      )}&tl=vi&client=tw-ob`;
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-      });
-      if (res.ok) {
-        audioBuffer = Buffer.from(await res.arrayBuffer());
+        if (chunks.length > 0) {
+          audioBuffer = Buffer.concat(chunks);
+        }
+      } catch {
+        // Fallback
+        const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
+          cleanText.slice(0, 200)
+        )}&tl=vi&client=tw-ob`;
+        const res = await fetch(url, {
+          headers: { 'User-Agent': 'Mozilla/5.0' },
+        });
+        if (res.ok) {
+          audioBuffer = Buffer.from(await res.arrayBuffer());
+        }
       }
     }
 
@@ -105,13 +121,13 @@ export async function POST(req: Request) {
             amount: -creditsRequired,
             balanceAfter: newBalance,
             type: 'API_USAGE',
-            description: `Developer API TTS v1: "${voiceId}" (${charCount} ký tự)`,
+            description: `Developer API TTS v1: "${voiceId}" (${charCount} ký tự, ${selectedProvider})`,
           },
         }),
         prisma.audioProject.create({
           data: {
             userId: auth.user.userId,
-            name: `API_TTS_${Date.now()}`,
+            name: `API_TTS_${selectedProvider}_${Date.now()}`,
             type: 'API_V1',
             charCount: charCount,
             creditsUsed: creditsRequired,
@@ -130,6 +146,7 @@ export async function POST(req: Request) {
         charCount,
         creditsDeducted: creditsRequired,
         remainingBalance: auth.user.walletBalance - creditsRequired,
+        provider: selectedProvider,
         audioFormat: 'audio/mpeg',
         audioBase64: base64Audio,
       });
@@ -145,6 +162,7 @@ export async function POST(req: Request) {
         'X-Credits-Deducted': creditsRequired.toString(),
         'X-Remaining-Balance': (auth.user.walletBalance - creditsRequired).toString(),
         'X-Voice-Id': voiceId,
+        'X-Provider': selectedProvider,
       },
     });
   } catch (err) {

@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
 import { Communicate } from 'edge-tts-universal';
 import { voicePersonaProfiles } from '@/data/voiceProfiles';
+import { synthesizeWithOpenAI } from '@/lib/tts/openai';
+import { synthesizeWithPiper } from '@/lib/tts/piper';
+import { join } from 'path';
 
 export const dynamic = 'force-dynamic';
+
+type TTSProvider = 'microsoft' | 'openai' | 'piper';
+
+const MODELS_DIR = join(process.cwd(), 'models', 'piper');
 
 function calculateCombinedRate(personaRateStr: string, speedMultiplier: number): string {
   const personaPercent = parseInt(personaRateStr.replace('%', ''), 10) || 0;
@@ -54,11 +61,6 @@ function cleanAndChunkText(input: string, maxLen = 220): string[] {
   return chunks;
 }
 
-/**
- * Tầng 1: Microsoft Neural TTS với biến thiên âm sắc persona (pitch, rate, volume)
- * Tầng 2: Microsoft Neural TTS nguyên bản (giữ nguyên chất lượng phòng thu gốc)
- * Tầng 3: Dự phòng khẩn cấp
- */
 async function synthesizeWithMicrosoftNeural(
   chunkText: string,
   voice: string,
@@ -66,14 +68,8 @@ async function synthesizeWithMicrosoftNeural(
   rate: string,
   volume: string
 ): Promise<Buffer | null> {
-  // Thử 1: Với đặc tính cá nhân hóa (pitch + rate)
   try {
-    const comm = new Communicate(chunkText, {
-      voice,
-      pitch,
-      rate,
-      volume,
-    });
+    const comm = new Communicate(chunkText, { voice, pitch, rate, volume });
     const audioChunks: Buffer[] = [];
     for await (const ch of comm.stream()) {
       if (ch.type === 'audio' && ch.data) {
@@ -83,50 +79,53 @@ async function synthesizeWithMicrosoftNeural(
     if (audioChunks.length > 0) {
       return Buffer.concat(audioChunks);
     }
-  } catch {
-    // Nếu pitch/rate khiến Microsoft WebSocket từ chối, chuyển ngay sang Thử 2
+    console.error('[TTS] Microsoft stream empty', { voice, pitch, rate, volume });
+  } catch (e) {
+    console.error('[TTS] Microsoft attempt failed', e);
   }
-
-  // Thử 2: Microsoft Neural Voice nguyên bản (hoàn toàn tự nhiên, không phải tiếng robot Google)
-  try {
-    const comm = new Communicate(chunkText, { voice });
-    const audioChunks: Buffer[] = [];
-    for await (const ch of comm.stream()) {
-      if (ch.type === 'audio' && ch.data) {
-        audioChunks.push(ch.data as Buffer);
-      }
-    }
-    if (audioChunks.length > 0) {
-      return Buffer.concat(audioChunks);
-    }
-  } catch {
-    // Dự phòng khi mất kết nối mạng
-  }
-
-  // Thử 3: Fallback Google chỉ khi mất kết nối mạng hoàn toàn
-  try {
-    let lang = 'vi';
-    if (voice.startsWith('en')) lang = 'en';
-    else if (voice.startsWith('ja')) lang = 'ja';
-    else if (voice.startsWith('ko')) lang = 'ko';
-    else if (voice.startsWith('zh')) lang = 'zh-CN';
-
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
-      chunkText.slice(0, 200)
-    )}&tl=${lang}&client=tw-ob`;
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-    });
-    if (res.ok) {
-      const arrayBuffer = await res.arrayBuffer();
-      return Buffer.from(arrayBuffer);
-    }
-  } catch {}
-
   return null;
+}
+
+async function synthesizeChunk(
+  chunkText: string,
+  provider: TTSProvider,
+  profile: any
+): Promise<Buffer | null> {
+  if (provider === 'openai') {
+    const openAIVoice = profile.openAIVoice || 'nova';
+    const result = await synthesizeWithOpenAI({
+      text: chunkText,
+      model: 'tts-1-hd',
+      voice: openAIVoice,
+      speed: 1.0,
+    });
+    return result?.buffer || null;
+  }
+
+  if (provider === 'piper') {
+    const modelPath = profile.piperModel || join(MODELS_DIR, 'en_US-lessac-medium.onnx');
+    const result = await synthesizeWithPiper({
+      text: chunkText,
+      modelPath,
+      outputFormat: 'wav',
+      lengthScale: 1.0,
+    });
+    return result?.audio || null;
+  }
+
+  return synthesizeWithMicrosoftNeural(
+    chunkText,
+    profile.neuralModel,
+    profile.pitch,
+    profile.rate,
+    profile.volume
+  );
+}
+
+function getProvider(voiceId: string, profile: any): TTSProvider {
+  if (profile.provider === 'openai') return 'openai';
+  if (profile.provider === 'piper') return 'piper';
+  return 'microsoft';
 }
 
 export async function GET(req: Request) {
@@ -135,6 +134,7 @@ export async function GET(req: Request) {
     const text = searchParams.get('text') || 'Xin chào, đây là phòng thu giọng nói DubbingStation.';
     const voiceId = searchParams.get('voiceId') || 'minh-khang';
     const speed = parseFloat(searchParams.get('speed') || '1.0');
+    const providerParam = searchParams.get('provider') as TTSProvider | null;
 
     const profile = voicePersonaProfiles[voiceId] || {
       neuralModel: voiceId.includes('female') ? 'vi-VN-HoaiMyNeural' : 'vi-VN-NamMinhNeural',
@@ -142,9 +142,10 @@ export async function GET(req: Request) {
       rate: '+0%',
       volume: '+0%',
       samplePhrase: '',
+      provider: 'microsoft' as TTSProvider,
     };
 
-    const combinedRate = calculateCombinedRate(profile.rate, speed);
+    const provider = providerParam || getProvider(voiceId, profile);
 
     const chunks = cleanAndChunkText(text, 220);
     if (chunks.length === 0) {
@@ -153,20 +154,23 @@ export async function GET(req: Request) {
 
     const audioBuffers: Buffer[] = [];
     for (const chunk of chunks) {
-      const buf = await synthesizeWithMicrosoftNeural(
-        chunk,
-        profile.neuralModel,
-        profile.pitch,
-        combinedRate,
-        profile.volume
-      );
+      const buf = await synthesizeChunk(chunk, provider, profile);
       if (buf && buf.length > 0) {
         audioBuffers.push(buf);
       }
     }
 
     if (audioBuffers.length === 0) {
-      return NextResponse.json({ error: 'Không thể tạo âm thanh' }, { status: 500 });
+      return NextResponse.json(
+        {
+          error: 'Không thể tạo âm thanh. Tất cả chunk đều thất bại.',
+          details: 'Kiểm tra console server.',
+          chunksTried: chunks.length,
+          voice: voiceId,
+          provider,
+        },
+        { status: 500 }
+      );
     }
 
     const fullBuffer = Buffer.concat(audioBuffers);
@@ -180,7 +184,8 @@ export async function GET(req: Request) {
         'Accept-Ranges': 'bytes',
         'Cache-Control': 'public, max-age=3600',
         'X-Voice-Profile': voiceId,
-        'X-Engine': 'Microsoft-Azure-Neural-TTS',
+        'X-Provider': provider,
+        'X-Engine': provider === 'openai' ? 'OpenAI-TTS-HD' : 'Microsoft-Azure-Neural-TTS',
       },
     });
   } catch (error) {

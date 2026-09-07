@@ -18,8 +18,11 @@ export async function POST(req: Request) {
 
     const trimmedText = text.trim();
     const charCount = trimmedText.length;
-    // Công thức Unified Credits cho TTS: 1 ký tự = 1 Credit
-    const requiredCredits = charCount;
+    const provider = (body as any).provider || 'microsoft';
+    
+    // OpenAI HD cost more: 3 credits per char vs 1 credit for Microsoft/Piper
+    const creditRate = provider === 'openai' ? 3 : 1;
+    const requiredCredits = charCount * creditRate;
 
     // Nếu người dùng đã đăng nhập, kiểm tra và trừ credit trong database
     if (session?.user?.email) {
@@ -60,7 +63,7 @@ export async function POST(req: Request) {
                 amount: -requiredCredits,
                 balanceAfter: newBalance,
                 type: 'TTS_USAGE',
-                description: `Tạo giọng đọc AI (${voiceName || voiceId}, ${charCount} ký tự)`,
+                description: `Tạo giọng đọc AI (${voiceName || voiceId}, ${provider}, ${charCount} ký tự)`,
               },
             },
           },
@@ -68,7 +71,7 @@ export async function POST(req: Request) {
         prisma.audioProject.create({
           data: {
             userId: user.id,
-            name: `${voiceName || 'Minh_Khang'}_${Date.now()}.mp3`,
+            name: `${voiceName || 'Voice'}_${provider}_${Date.now()}.mp3`,
             type: 'TTS',
             inputData: trimmedText,
             outputUrl: 'https://actions.google.com/sounds/v1/speech/greeting_male.ogg', // Sample high quality audio URL
@@ -89,6 +92,7 @@ export async function POST(req: Request) {
         charCount,
         creditsDeducted: requiredCredits,
         remainingCredits: updatedWallet.balance,
+        provider,
       });
     }
 
@@ -103,12 +107,13 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       audioUrl: 'https://actions.google.com/sounds/v1/speech/greeting_male.ogg',
-      fileName: `${voiceName || 'Minh_Khang'}_Sample.mp3`,
+      fileName: `${voiceName || 'Voice'}_${provider}_Sample.mp3`,
       durationSec: 14,
       charCount,
       creditsDeducted: requiredCredits,
       remainingCredits: Math.max(0, 50000 - requiredCredits),
       isGuest: true,
+      provider,
     });
   } catch (error: any) {
     console.error('TTS Generation Error:', error);

@@ -18,6 +18,8 @@ const categories = [
   { id: 'news', label: '📺 Thời Sự & E-Learning' },
   { id: 'en', label: '🇺🇸 Tiếng Anh' },
   { id: 'asia', label: '🇯🇵🇰🇷🇨🇳 Nhật • Hàn • Trung' },
+  { id: 'openai', label: '✨ OpenAI HD' },
+  { id: 'piper', label: '🆓 Piper Free' },
 ];
 
 export const VoiceModal: React.FC<VoiceModalProps> = ({
@@ -103,6 +105,12 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
     }
     if (activeCategory === 'asia') {
       return ['ja-JP', 'ko-KR', 'zh-CN'].includes(v.countryCode);
+    }
+    if (activeCategory === 'openai') {
+      return v.tags.includes('OpenAI');
+    }
+    if (activeCategory === 'piper') {
+      return v.tags.includes('Piper');
     }
 
     return true;
@@ -246,7 +254,15 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
                         <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-primary-container/15 text-primary-container">
                           {voice.country}
                         </span>
-                        {voice.isPremium ? (
+                        {voice.tags.includes('OpenAI') ? (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-accent-violet-bright/20 text-accent-violet-bright">
+                            OPENAI HD
+                          </span>
+                        ) : voice.tags.includes('Piper') ? (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-signal-success/20 text-signal-success">
+                            PIPER FREE
+                          </span>
+                        ) : voice.isPremium ? (
                           <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-signal-warning/20 text-signal-warning">
                             PRO
                           </span>

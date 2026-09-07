@@ -13,6 +13,8 @@ interface ControlDeckProps {
   onSpeedChange: (speed: number) => void;
   isGenerating: boolean;
   onGenerate: () => void;
+  provider: 'microsoft' | 'openai' | 'piper';
+  onProviderChange: (provider: 'microsoft' | 'openai' | 'piper') => void;
 }
 
 export const ControlDeck: React.FC<ControlDeckProps> = ({
@@ -24,6 +26,8 @@ export const ControlDeck: React.FC<ControlDeckProps> = ({
   onSpeedChange,
   isGenerating,
   onGenerate,
+  provider,
+  onProviderChange,
 }) => {
   return (
     <div className="pt-space-sm flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-space-md">
@@ -57,6 +61,27 @@ export const ControlDeck: React.FC<ControlDeckProps> = ({
             keyboard_arrow_down
           </span>
         </button>
+
+        {/* Provider Selector */}
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-container">
+          {(['microsoft', 'openai'] as const).map((p) => {
+            const isActive = provider === p;
+            return (
+              <button
+                key={p}
+                type="button"
+                onClick={() => onProviderChange(p)}
+                className={`px-2.5 py-1 rounded-md font-label-sm text-label-sm transition-colors ${
+                  isActive
+                    ? 'bg-surface-container-highest text-primary font-semibold'
+                    : 'text-text-secondary hover:text-on-surface'
+                }`}
+              >
+                {p === 'openai' ? 'OpenAI HD' : 'Microsoft'}
+              </button>
+            );
+          })}
+        </div>
 
         {/* Emotion Chips */}
         <div className="hidden sm:flex items-center gap-1 p-1 rounded-lg bg-surface-container">
