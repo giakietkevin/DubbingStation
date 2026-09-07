@@ -11,10 +11,6 @@ function calculateCombinedRate(personaRateStr: string, speedMultiplier: number):
   return totalPercent >= 0 ? `+${totalPercent}%` : `${totalPercent}%`;
 }
 
-/**
- * Chuẩn hóa văn bản bài báo/truyện dài và chia thành các đoạn nhỏ dưới 250 ký tự
- * Loại bỏ các ký tự rác, dòng trống thừa, đảm bảo TTS server không bị quá tải hay rớt kết nối
- */
 function cleanAndChunkText(input: string, maxLen = 220): string[] {
   const normalized = input
     .replace(/\[pause\s+[0-9.]+s\]/gi, ' ... ')
@@ -59,43 +55,25 @@ function cleanAndChunkText(input: string, maxLen = 220): string[] {
 }
 
 /**
- * Dự phòng tức thì qua Google TTS cho từng câu nếu Edge WebSocket bị ngắt quãng
+ * Tầng 1: Microsoft Neural TTS với biến thiên âm sắc persona (pitch, rate, volume)
+ * Tầng 2: Microsoft Neural TTS nguyên bản (giữ nguyên chất lượng phòng thu gốc)
+ * Tầng 3: Dự phòng khẩn cấp
  */
-async function fetchGoogleTTS(text: string, lang = 'vi'): Promise<Buffer | null> {
-  try {
-    const url =
-      'https://translate.google.com/translate_tts?ie=UTF-8&q=' +
-      encodeURIComponent(text.slice(0, 200)) +
-      '&tl=' +
-      lang +
-      '&client=tw-ob';
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-    });
-    if (!res.ok) return null;
-    const arrayBuffer = await res.arrayBuffer();
-    return Buffer.from(arrayBuffer);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Tạo âm thanh cho 1 chunk đơn lẻ với cơ chế Edge Neural TTS + Google Fallback
- */
-async function synthesizeChunk(
+async function synthesizeWithMicrosoftNeural(
   chunkText: string,
   voice: string,
   pitch: string,
   rate: string,
-  volume: string,
-  lang: string
+  volume: string
 ): Promise<Buffer | null> {
+  // Thử 1: Với đặc tính cá nhân hóa (pitch + rate)
   try {
-    const comm = new Communicate(chunkText, { voice, pitch, rate, volume });
+    const comm = new Communicate(chunkText, {
+      voice,
+      pitch,
+      rate,
+      volume,
+    });
     const audioChunks: Buffer[] = [];
     for await (const ch of comm.stream()) {
       if (ch.type === 'audio' && ch.data) {
@@ -105,17 +83,52 @@ async function synthesizeChunk(
     if (audioChunks.length > 0) {
       return Buffer.concat(audioChunks);
     }
-  } catch (err) {
-    console.warn(`[TTS] Edge chunk fallback for "${chunkText.slice(0, 25)}...":`, err);
+  } catch {
+    // Nếu pitch/rate khiến Microsoft WebSocket từ chối, chuyển ngay sang Thử 2
   }
 
-  // Fallback sang Google TTS
-  return await fetchGoogleTTS(chunkText, lang);
+  // Thử 2: Microsoft Neural Voice nguyên bản (hoàn toàn tự nhiên, không phải tiếng robot Google)
+  try {
+    const comm = new Communicate(chunkText, { voice });
+    const audioChunks: Buffer[] = [];
+    for await (const ch of comm.stream()) {
+      if (ch.type === 'audio' && ch.data) {
+        audioChunks.push(ch.data as Buffer);
+      }
+    }
+    if (audioChunks.length > 0) {
+      return Buffer.concat(audioChunks);
+    }
+  } catch {
+    // Dự phòng khi mất kết nối mạng
+  }
+
+  // Thử 3: Fallback Google chỉ khi mất kết nối mạng hoàn toàn
+  try {
+    let lang = 'vi';
+    if (voice.startsWith('en')) lang = 'en';
+    else if (voice.startsWith('ja')) lang = 'ja';
+    else if (voice.startsWith('ko')) lang = 'ko';
+    else if (voice.startsWith('zh')) lang = 'zh-CN';
+
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
+      chunkText.slice(0, 200)
+    )}&tl=${lang}&client=tw-ob`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    });
+    if (res.ok) {
+      const arrayBuffer = await res.arrayBuffer();
+      return Buffer.from(arrayBuffer);
+    }
+  } catch {}
+
+  return null;
 }
 
-/**
- * Endpoint Streaming Audio: Xử lý mượt mà cả văn bản ngắn và bài báo dài
- */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -133,31 +146,19 @@ export async function GET(req: Request) {
 
     const combinedRate = calculateCombinedRate(profile.rate, speed);
 
-    // Xác định mã ngôn ngữ dự phòng
-    let lang = 'vi';
-    if (profile.neuralModel.startsWith('en')) lang = 'en';
-    else if (profile.neuralModel.startsWith('ja')) lang = 'ja';
-    else if (profile.neuralModel.startsWith('ko')) lang = 'ko';
-    else if (profile.neuralModel.startsWith('zh')) lang = 'zh-CN';
-
-    // Tách văn bản thành các đoạn câu tự nhiên
     const chunks = cleanAndChunkText(text, 220);
-
     if (chunks.length === 0) {
       return NextResponse.json({ error: 'Nội dung văn bản trống' }, { status: 400 });
     }
 
     const audioBuffers: Buffer[] = [];
-
-    // Chạy tổng hợp tuần tự cho từng chunk
     for (const chunk of chunks) {
-      const buf = await synthesizeChunk(
+      const buf = await synthesizeWithMicrosoftNeural(
         chunk,
         profile.neuralModel,
         profile.pitch,
         combinedRate,
-        profile.volume,
-        lang
+        profile.volume
       );
       if (buf && buf.length > 0) {
         audioBuffers.push(buf);
@@ -179,6 +180,7 @@ export async function GET(req: Request) {
         'Accept-Ranges': 'bytes',
         'Cache-Control': 'public, max-age=3600',
         'X-Voice-Profile': voiceId,
+        'X-Engine': 'Microsoft-Azure-Neural-TTS',
       },
     });
   } catch (error) {

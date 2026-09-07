@@ -4,6 +4,43 @@ import { voicePersonaProfiles } from '@/data/voiceProfiles';
 
 export const dynamic = 'force-dynamic';
 
+async function synthesizePreview(text: string, voice: string, pitch: string, rate: string, volume: string): Promise<Buffer | null> {
+  // Thử 1: Với đặc tính cá nhân hóa (pitch + rate)
+  try {
+    const comm = new Communicate(text, {
+      voice,
+      pitch,
+      rate,
+      volume,
+    });
+    const audioChunks: Buffer[] = [];
+    for await (const ch of comm.stream()) {
+      if (ch.type === 'audio' && ch.data) {
+        audioChunks.push(ch.data as Buffer);
+      }
+    }
+    if (audioChunks.length > 0) {
+      return Buffer.concat(audioChunks);
+    }
+  } catch {}
+
+  // Thử 2: Microsoft Neural Voice gốc
+  try {
+    const comm = new Communicate(text, { voice });
+    const audioChunks: Buffer[] = [];
+    for await (const ch of comm.stream()) {
+      if (ch.type === 'audio' && ch.data) {
+        audioChunks.push(ch.data as Buffer);
+      }
+    }
+    if (audioChunks.length > 0) {
+      return Buffer.concat(audioChunks);
+    }
+  } catch {}
+
+  return null;
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -18,26 +55,18 @@ export async function GET(req: Request) {
 
     const sampleText = profile.samplePhrase;
 
-    // Tạo âm thanh Neural TTS đa dạng âm sắc với Pitch, Rate, Volume đặc trưng
-    const comm = new Communicate(sampleText, {
-      voice: profile.neuralModel,
-      pitch: profile.pitch,
-      rate: profile.rate,
-      volume: profile.volume,
-    });
+    const fullBuffer = await synthesizePreview(
+      sampleText,
+      profile.neuralModel,
+      profile.pitch,
+      profile.rate,
+      profile.volume
+    );
 
-    const chunks: Buffer[] = [];
-    for await (const chunk of comm.stream()) {
-      if (chunk.type === 'audio' && chunk.data) {
-        chunks.push(chunk.data as Buffer);
-      }
-    }
-
-    if (chunks.length === 0) {
+    if (!fullBuffer || fullBuffer.length === 0) {
       return NextResponse.json({ error: 'Không nhận được dữ liệu âm thanh' }, { status: 500 });
     }
 
-    const fullBuffer = Buffer.concat(chunks);
     const uint8 = new Uint8Array(fullBuffer);
 
     return new NextResponse(uint8, {
@@ -48,6 +77,7 @@ export async function GET(req: Request) {
         'Accept-Ranges': 'bytes',
         'Cache-Control': 'public, max-age=86400, immutable',
         'X-Voice-Profile': voiceId,
+        'X-Engine': 'Microsoft-Azure-Neural-TTS',
       },
     });
   } catch (error) {
