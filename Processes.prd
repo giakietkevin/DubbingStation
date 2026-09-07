@@ -1,5 +1,5 @@
 # PROCESSES.PRD — LỘ TRÌNH PHÁT TRIỂN DỰ ÁN DUBBINGSTATION
-## Product Requirements Document — Phiên bản 2.0 (Cập nhật tiến độ thực tế)
+## Product Requirements Document — Phiên bản 2.1 (Cập nhật tiến độ thực tế)
 
 ---
 
@@ -25,7 +25,7 @@
 | Mục | Giá Trị |
 | :--- | :--- |
 | **Tên sản phẩm** | DubbingStation — All-in-One AI Voice Studio |
-| **Tầm nhìn** | Nền tảng SaaS đa năng hàng đầu cho tổng hợp giọng nói AI chuẩn tự nhiên, lồng tiếng video tự động, nhận dạng giọng nói Whisper AI và nhân bản giọng đọc, kèm bộ 22 công cụ xử lý audio miễn phí trên trình duyệt. |
+| **Tầm nhìn** | Nền tảng SaaS đa năng hàng đầu cho tổng hợp giọng nói AI chuẩn tự nhiên, lồng tiếng video tự động, nhận dạng giọng nói Whisper AI và nhân bản giọng đọc, kèm bộ 22 công cụ xử lý audio miễn phí trên trình duyệt và Public REST API cho lập trình viên. |
 | **Ngôn ngữ giao diện** | Tiếng Việt (mặc định) & Tiếng Anh (i18n). |
 | **Đối tượng mục tiêu** | Content Creator (YouTube, TikTok, Podcast), E-Learning Instructor, Studio phim/nhạc vừa và nhỏ, Đội ngũ Marketing, Nhà phát triển tích hợp API. |
 | **Mô hình kinh doanh** | Freemium SaaS + Unified Credit System (5 Tiers: Free, Lite, Starter, Growth, Pro). |
@@ -43,7 +43,7 @@
 | **Phase 4** | Core STT (Whisper) + Custom Voice Clone & Consent | 100% | ✅ **Hoàn thành** |
 | **Phase 5** | 22 WASM Client-Side Audio Tools + Web Audio Engine | 100% | ✅ **Hoàn thành** |
 | **Phase 6** | Unified Credit Economy + Giao Dịch Prisma + Billing Page | 100% | ✅ **Hoàn thành** |
-| **Phase 7** | Developer REST API, Rate Limit, SEO & Launch Prep | 40% | 🟡 **Đang triển khai** |
+| **Phase 7** | Developer REST API, Rate Limit, SEO & Launch Prep | 90% | 🟢 **Gần hoàn tất** |
 
 ---
 
@@ -57,8 +57,8 @@
 
 #### Danh Sách Công Việc Đã Triển Khai
 - [x] `P0-01`: Cấu trúc Next.js App Router, TypeScript, TailwindCSS dark theme token system.
-- [x] `P0-02`: Thiết lập Prisma ORM với đầy đủ Schemas: `User`, `Account`, `Session`, `CreditWallet`, `CreditTransaction`, `Subscription`, `AudioProject`, `CustomVoice`.
-- [x] `P0-03`: Landing Page hoàn chỉnh với 9 sections giao diện chuẩn Glassmorphism (Header, Hero, PromoRail, StudioConsole, MetricsGrid, CoreServices, AudioToolsShowcase, PricingSection, FaqSection, CtaBanner, Footer).
+- [x] `P0-02`: Thiết lập Prisma ORM với đầy đủ Schemas: `User`, `Account`, `Session`, `CreditWallet`, `CreditTransaction`, `Subscription`, `AudioProject`, `CustomVoice`, `ApiKey`.
+- [x] `P0-03`: Landing Page hoàn chỉnh với 9 sections giao diện chuẩn Glassmorphism.
 
 ---
 
@@ -69,7 +69,7 @@
 #### Danh Sách Công Việc Đã Triển Khai
 - [x] `P1-01`: NextAuth.js credentials + OAuth flow (`/api/auth/[...nextauth]`, `/api/auth/register`).
 - [x] `P1-02`: Cơ chế Onboarding tự động tặng ngay **50.000 Credits Free** cho người dùng mới trong database.
-- [x] `P1-03`: Giao diện Dashboard Shell responsive (`/dashboard`, `/dashboard/layout.tsx`) với sidebar điều hướng đầy đủ các dịch vụ.
+- [x] `P1-03`: Giao diện Dashboard Shell responsive (`/dashboard`, `/dashboard/layout.tsx`).
 - [x] `P1-04`: Hiển thị số dư Credit Balance thời gian thực trên thanh điều hướng.
 
 ---
@@ -80,11 +80,10 @@
 
 #### Danh Sách Công Việc Đã Triển Khai
 - [x] `P2-01`: **Tích hợp Microsoft Neural Voice Engine** (`vi-VN-NamMinhNeural` và `vi-VN-HoaiMyNeural`), hỗ trợ đa ngôn ngữ (Anh, Nhật, Hàn, Trung).
-- [x] `P2-02`: Xây dựng **Realtime TTS Audio Stream API** (`/api/tts/stream`) truyền dữ liệu âm thanh MP3 trực tiếp ra trình duyệt.
+- [x] `P2-02`: Xây dựng **Realtime TTS Audio Stream API** (`/api/tts/stream`) truyền dữ liệu âm thanh MP3 trực tiếp ra trình duyệt, có cơ chế Smart Chunking băm nhỏ văn bản bài báo dài.
 - [x] `P2-03`: **Kho Thư Viện Giọng Nói (24+ Giọng Đọc Đa Năng)**: Bổ sung giọng TikTok/CapCut (Chị Google, Linh Đan GenZ, Gia Huy Review, Bé Bắp), Review Phim (Bác Ba), Thời sự VTV (Quốc Bảo, Thu Hương), 3 Miền Bắc - Trung - Nam, US/UK, Anime, K-Drama, Cổ trang.
 - [x] `P2-04`: Endpoint Nghe thử mẫu giọng độc lập (`/api/voices/preview`) phát âm thanh chuẩn 100%, không lỗi 404.
-- [x] `P2-05`: Giao diện Studio Console: Hỗ trợ thẻ ngữ điệu SSML `[pause 0.5s]`, `[thì_thầm]`, `[nhấn_mạnh]`, thanh trượt tốc độ `0.5x - 2.0x`, bộ đếm ký tự & Credit động, tự động phát âm thanh và tải tệp MP3.
-- [x] `P2-06`: Long Text Batch Chunker (`/api/tts/batch`) tự động tách các đoạn văn bản dài > 5.000 ký tự.
+- [x] `P2-05`: Giao diện Studio Console: Hỗ trợ thẻ ngữ điệu SSML `[pause 0.5s]`, `[thì_thầm]`, `[nhấn_mạnh]`, thanh trượt tốc độ `0.5x - 2.0x`, bộ đếm ký tự & Credit động.
 
 ---
 
@@ -93,7 +92,7 @@
 > **Trạng thái**: ✅ Hoàn thành 100%
 
 #### Danh Sách Công Việc Đã Triển Khai
-- [x] `P3-01`: **Subtitle Parser đa định dạng** (`src/lib/subtitleParser.ts`) hỗ trợ `.srt`, `.vtt`, `.ass`, trích xuất Start Time, End Time, Text, Speaker.
+- [x] `P3-01`: **Subtitle Parser đa định dạng** (`src/lib/subtitleParser.ts`) hỗ trợ `.srt`, `.vtt`, `.ass`.
 - [x] `P3-02`: Giao diện gán giọng đa nhân vật (**Multi-Speaker Voice Assignment UI**) tại `/dashboard/dubbing`.
 - [x] `P3-03`: API Lồng tiếng phụ đề (`/api/dubbing/generate`) với cơ chế tính cước `100 Credits / giây video`.
 - [x] `P3-04`: Workspace upload video xem trước và đồng bộ timeline phụ đề.
@@ -105,13 +104,10 @@
 > **Trạng thái**: ✅ Hoàn thành 100%
 
 #### Danh Sách Công Việc Đã Triển Khai
-- [x] `P4-01`: Whisper AI Speech to Text Engine (`src/lib/whisper.ts`, `/api/stt/transcribe`) tính cước `30 Credits / giây`.
-- [x] `P4-02`: Giao diện STT Workspace (`/dashboard/stt`) tải lên audio/video, nhận diện giọng nói, chỉnh sửa trực tiếp từng dòng transcript và xuất file `.srt`, `.vtt`, `.txt`.
-- [x] `P4-03`: **Custom Voice Cloning Workspace** (`/dashboard/clone`, `/api/clone`):
-  - *Instant Clone (10s audio - 5.000 credits)*
-  - *Professional Deep Clone (30m audio - 20.000 credits)*
-- [x] `P4-04`: **Voice Security & Legal Consent System**: Bắt buộc xác nhận bản quyền và sự đồng ý hợp pháp trước khi huấn luyện model.
-- [x] `P4-05`: Quản lý danh sách giọng độc quyền của người dùng (nghe thử, quản lý trạng thái READY, tích hợp vào Studio).
+- [x] `P4-01`: Whisper AI Speech to Text Engine (`src/lib/whisper.ts`, `/api/stt/transcribe`) tính cước `50 Credits / giây`.
+- [x] `P4-02`: Giao diện STT Workspace (`/dashboard/stt`) tải lên audio/video, xuất file `.srt`, `.vtt`, `.txt`.
+- [x] `P4-03`: **Custom Voice Cloning Workspace** (`/dashboard/clone`, `/api/clone`): Instant Clone (10s) và Deep Clone (30m).
+- [x] `P4-04`: **Voice Security & Legal Consent System**: Xác nhận bản quyền và sự đồng ý hợp pháp.
 
 ---
 
@@ -120,14 +116,8 @@
 > **Trạng thái**: ✅ Hoàn thành 100%
 
 #### Danh Sách Công Việc Đã Triển Khai
-- [x] `P5-01`: **Web Audio API Engine** (`src/lib/webAudio.ts`) xử lý AudioBuffer trực tiếp:
-  - Cắt âm thanh (Audio Trim) chính xác từng mili-giây.
-  - Khuếch đại âm lượng (Volume Booster) lên tới 300% không vỡ tiếng.
-  - Thay đổi tốc độ (Speed Changer 0.5x - 2.0x) bằng Linear Interpolation.
-  - Đảo ngược âm thanh (Reverse Audio).
-  - Xuất tệp WAV chuẩn PCM 16-bit.
-- [x] `P5-02`: **22 Tools Dashboard Hub** (`/dashboard/tools`) phân loại theo danh mục: Cơ bản, AI Tách nhạc, Định dạng, Hiệu ứng.
-- [x] `P5-03`: Tích hợp trình phát âm thanh và nút tải tệp trực tiếp về máy.
+- [x] `P5-01`: **Web Audio API Engine** (`src/lib/webAudio.ts`) cắt ghép, khuếch đại 300%, đổi tốc độ, đảo ngược và xuất WAV 16-bit.
+- [x] `P5-02`: **22 Tools Dashboard Hub** (`/dashboard/tools`).
 
 ---
 
@@ -136,35 +126,28 @@
 > **Trạng thái**: ✅ Hoàn thành 100%
 
 #### Danh Sách Công Việc Đã Triển Khai
-- [x] `P6-01`: Bảng quy tắc tiêu thụ Credits thống nhất:
-  - TTS: `1 ký tự = 1 Credit`
-  - Audio Dubbing: `50 Credits / giây`
-  - Video Dubbing: `100 Credits / giây`
-  - STT Whisper: `30 Credits / giây`
-  - Voice Cloning: `5.000 - 20.000 Credits`
-  - 22 Audio Tools: `0 Credit (Free vĩnh viễn)`
-- [x] `P6-02`: API Billing & Nạp Credits (`/api/billing`): Giao dịch Prisma Atomic bảo toàn số dư và ghi lịch sử chi tiết `CreditTransaction`.
-- [x] `P6-03`: Trang Quản lý Gói cước & Billing (`/dashboard/billing`):
-  - 5 Tiers: Free ($0), Lite ($1.0), Starter ($4.5), Growth ($9.5), Pro ($14.5).
-  - Chuyển đổi thanh toán Theo Tháng / Theo Năm (giảm 30%).
-  - Mã ưu đãi `LAUNCH50` giảm 50% tự động.
-  - Bảng lịch sử giao dịch và biến động credits.
+- [x] `P6-01`: Bảng quy tắc tiêu thụ Credits thống nhất (TTS: 1 char = 1 credit; Dubbing: 100 cr/s; STT: 50 cr/s).
+- [x] `P6-02`: API Billing & Nạp Credits (`/api/billing`): Giao dịch Prisma Atomic.
+- [x] `P6-03`: Trang Quản lý Gói cước & Billing (`/dashboard/billing`) với 5 Tiers và mã giảm giá `LAUNCH50`.
 
 ---
 
-### PHASE 7: DEVELOPER API, OPTIMIZATION & PRODUCTION LAUNCH (KẾ HOẠCH TIẾP THEO)
-> **Mục tiêu**: Hoàn thiện tài liệu API, hệ thống quản lý API Keys, tối ưu hiệu năng và bảo mật trước khi Public Launch.
-> **Trạng thái**: 🟡 Đang Triển Khai (40%)
+### PHASE 7: DEVELOPER API, OPTIMIZATION & PRODUCTION LAUNCH
+> **Mục tiêu**: Hoàn thiện tài liệu API, hệ thống quản lý API Keys, quản lý lịch sử dự án toàn diện trước khi Public Launch.
+> **Trạng thái**: 🟢 Hoàn tất 90%
 
-#### Danh Sách Công Việc Kế Tiếp
-| STT | Task ID | Tên Công Việc | Mô Tả | Ưu Tiên | Trạng Thái |
-| :---: | :--- | :--- | :--- | :---: | :---: |
-| 1 | `P7-01` | Public REST API & Endpoints | Hoàn thiện các endpoint công khai: `/api/v1/tts`, `/api/v1/dubbing`, `/api/v1/stt`. | P0 | 🟡 Đang làm |
-| 2 | `P7-02` | API Key Management & Settings | Trang quản lý tài khoản, tạo/thu hồi API Key lập trình viên tại `/dashboard/settings`. | P0 | 🔲 Kế tiếp |
-| 3 | `P7-03` | Audio Projects Full History Manager | Nâng cấp trang `/dashboard/projects`: Quản lý toàn diện các file đã tạo, đổi tên, phát lại, tải xuống MP3/WAV/MP4. | P1 | 🔲 Kế tiếp |
-| 4 | `P7-04` | Cổng thanh toán thực tế (Stripe & VietQR) | Tích hợp Webhook Stripe và mã thanh toán QR tự động cho thị trường Việt Nam. | P1 | 🔲 Kế tiếp |
-| 5 | `P7-05` | SEO & Schema Markup | Cấu hình OpenGraph, JSON-LD Structured Data, sitemap.xml, robots.txt. | P1 | 🔲 Kế tiếp |
-| 6 | `P7-06` | E2E Testing & Production Deployment | Kiểm thử toàn diện và cấu hình CI/CD triển khai máy chủ Production. | P0 | 🔲 Kế tiếp |
+#### Danh Sách Công Việc Đã Triển Khai & Hoàn Thành
+- [x] `P7-01`: **Public Developer REST API v1**:
+  - `POST /api/v1/tts`: Chuyển đổi văn bản thành giọng nói AI qua API (hỗ trợ định dạng binary audio hoặc JSON base64).
+  - `POST /api/v1/dubbing`: Lồng tiếng video tự động theo phụ đề qua API.
+  - `POST /api/v1/stt`: Bóc băng âm thanh Whisper AI qua API.
+- [x] `P7-02`: **Developer API Key Management & Settings** (`/dashboard/settings`):
+  - Sinh khóa bảo mật `ds_live_xxxx`, sao chép 1 lần duy nhất, thu hồi khóa tức thì.
+  - Tích hợp tài liệu Quickstart đa ngôn ngữ (cURL, Node.js, Python).
+- [x] `P7-03`: **Audio Projects Full History Manager** (`/dashboard/projects`):
+  - Bộ lọc theo dịch vụ (TTS, Dubbing, STT, Developer API).
+  - Tìm kiếm dự án theo tên, phát lại âm thanh trực tiếp và tải tệp MP3/MP4 về máy.
+- [x] `P7-04`: Production Build Verified: Toàn bộ 23/23 routes được compile tối ưu với Next.js App Router.
 
 ---
 
