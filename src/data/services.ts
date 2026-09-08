@@ -10,6 +10,7 @@ export const metricPillars: MetricPillar[] = [
     title: 'Giọng AI Premium',
     titleColorClass: 'text-primary',
     description: 'Đa dạng ngữ điệu, đầy đủ độ tuổi, giới tính và cảm xúc tự nhiên không thể phân biệt với người thật.',
+    href: '/dashboard/voices',
   },
   {
     id: 'languages-metric',
@@ -20,6 +21,7 @@ export const metricPillars: MetricPillar[] = [
     title: 'Ngôn ngữ & Bản địa',
     titleColorClass: 'text-secondary',
     description: 'Phủ sóng hơn 100 quốc gia với trọng âm địa phương chuẩn xác từ Bắc, Trung, Nam cho tới tiếng Anh, Nhật, Hàn, Pháp.',
+    href: '/dashboard/voices',
   },
   {
     id: 'tools-metric',
@@ -30,6 +32,7 @@ export const metricPillars: MetricPillar[] = [
     title: 'Free Audio Tools',
     titleColorClass: 'text-signal-success',
     description: 'Bộ công cụ xử lý âm thanh chuyên nghiệp chạy trực tiếp trên trình duyệt bằng WebAssembly, hoàn toàn 0 tốn credit.',
+    href: '/dashboard/tools',
   },
   {
     id: 'credits-metric',
@@ -40,6 +43,7 @@ export const metricPillars: MetricPillar[] = [
     title: 'Free Credits',
     titleColorClass: 'text-signal-warning',
     description: 'Nhận ngay khi đăng ký tài khoản mới. Không yêu cầu nhập thẻ tín dụng, trải nghiệm toàn bộ tính năng cao cấp tức thì.',
+    href: '/dashboard/billing',
   },
 ];
 
@@ -55,6 +59,7 @@ export const coreServices: CoreService[] = [
     specs: '3,000+ Voices • 100+ Lăng',
     actionText: 'Trải nghiệm',
     actionColorClass: 'text-primary-container',
+    href: '/dashboard',
   },
   {
     id: 'service-dubbing',
@@ -67,6 +72,7 @@ export const coreServices: CoreService[] = [
     specs: 'SRT / VTT • 4K Video Output',
     actionText: 'Lồng tiếng ngay',
     actionColorClass: 'text-secondary',
+    href: '/dashboard/dubbing',
   },
   {
     id: 'service-stt',
@@ -79,6 +85,7 @@ export const coreServices: CoreService[] = [
     specs: 'Độ chính xác 99.2%',
     actionText: 'Chuyển âm thanh',
     actionColorClass: 'text-primary-container',
+    href: '/dashboard/stt',
   },
   {
     id: 'service-clone',
@@ -91,5 +98,6 @@ export const coreServices: CoreService[] = [
     specs: 'Chỉ cần mẫu 10 giây',
     actionText: 'Tạo giọng của bạn',
     actionColorClass: 'text-accent-violet-bright',
+    href: '/dashboard/clone',
   },
 ];

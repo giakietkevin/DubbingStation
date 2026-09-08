@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import type { PricingPlan } from '@/types';
 
 interface PricingCardProps {
@@ -59,12 +60,12 @@ export const PricingCard: React.FC<PricingCardProps> = ({ plan, isAnnual }) => {
           </ul>
         </div>
 
-        <button
-          type="button"
-          className="mt-space-lg w-full py-3 rounded-lg bg-gradient-to-r from-primary-container to-accent-violet-bright hover:shadow-[0_0_24px_rgba(0,242,254,0.5)] text-canvas-base font-label-md text-label-md font-extrabold transition-all"
+        <Link
+          href="/dashboard/billing"
+          className="mt-space-lg w-full py-3 rounded-lg bg-gradient-to-r from-primary-container to-accent-violet-bright hover:shadow-[0_0_24px_rgba(0,242,254,0.5)] text-canvas-base font-label-md text-label-md font-extrabold transition-all text-center inline-block"
         >
           {plan.ctaText}
-        </button>
+        </Link>
       </div>
     );
   }
@@ -112,12 +113,12 @@ export const PricingCard: React.FC<PricingCardProps> = ({ plan, isAnnual }) => {
         </ul>
       </div>
 
-      <button
-        type="button"
-        className="mt-space-lg w-full py-2.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-sm text-label-sm font-bold transition-all"
+      <Link
+        href="/dashboard/billing"
+        className="mt-space-lg w-full py-2.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-sm text-label-sm font-bold transition-all text-center inline-block"
       >
         {plan.ctaText}
-      </button>
+      </Link>
     </div>
   );
 };

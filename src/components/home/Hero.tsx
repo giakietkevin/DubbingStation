@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 export const Hero: React.FC = () => {
   return (
@@ -38,6 +39,57 @@ export const Hero: React.FC = () => {
           trên 100+ quốc gia. Tự động lồng tiếng video theo mốc thời gian, nhân bản giọng nói và bộ
           22 công cụ âm thanh hoàn toàn miễn phí trên trình duyệt.
         </p>
+
+        {/* Primary CTA Buttons Navigation Grid */}
+        <div className="mt-space-lg flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/dashboard"
+            className="px-6 py-3.5 rounded-xl font-bold text-[14px] bg-gradient-to-r from-primary-container via-primary-fixed to-accent-violet-bright text-surface-card shadow-glow-cyan hover:shadow-[0_0_36px_rgba(0,242,254,0.6)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[20px]">mic</span>
+            <span>Vào Studio TTS Ngay</span>
+          </Link>
+
+          <Link
+            href="/dashboard/dubbing"
+            className="px-5 py-3.5 rounded-xl font-bold text-[14px] bg-surface-container hover:bg-surface-container-high border border-border-glass text-on-surface hover:text-secondary-container transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <span className="material-symbols-outlined text-[20px] text-secondary">movie_edit</span>
+            <span>Lồng Tiếng Video</span>
+          </Link>
+
+          <Link
+            href="/dashboard/clone"
+            className="px-5 py-3.5 rounded-xl font-bold text-[14px] bg-surface-container hover:bg-surface-container-high border border-border-glass text-on-surface hover:text-accent-violet-bright transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <span className="material-symbols-outlined text-[20px] text-accent-violet-bright">fingerprint</span>
+            <span>Nhân Bản Giọng AI</span>
+          </Link>
+
+          <Link
+            href="/dashboard/tools"
+            className="px-5 py-3.5 rounded-xl font-bold text-[14px] bg-surface-container hover:bg-surface-container-high border border-border-glass text-on-surface hover:text-signal-success transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <span className="material-symbols-outlined text-[20px] text-signal-success">construction</span>
+            <span>22 Công Cụ Free</span>
+          </Link>
+        </div>
+
+        {/* Trust Badges */}
+        <div className="mt-space-md flex flex-wrap items-center justify-center gap-space-lg text-text-muted text-body-xs font-medium">
+          <div className="flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-primary-container text-[16px]">token</span>
+            <span>Tặng 50.000 Credits Trải Nghiệm</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-signal-success text-[16px]">verified</span>
+            <span>3.000+ Giọng Đọc Bản Ngữ</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-accent-violet-bright text-[16px]">bolt</span>
+            <span>Xử lý thời gian thực</span>
+          </div>
+        </div>
       </div>
     </section>
   );

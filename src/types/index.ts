@@ -84,6 +84,7 @@ export interface CoreService {
   specs: string;
   actionText: string;
   actionColorClass: string;
+  href?: string;
 }
 
 export interface MetricPillar {
@@ -95,4 +96,5 @@ export interface MetricPillar {
   title: string;
   titleColorClass: string;
   description: string;
+  href?: string;
 }

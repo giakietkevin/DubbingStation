@@ -72,13 +72,24 @@ export const StudioConsole: React.FC = () => {
     setAudioUrl('');
   };
 
-  // Sync voice from URL query param if present (e.g. ?voice=mai-anh)
+  // Sync voice from URL query param if present (e.g. ?voice=mai-anh or custom-123)
   useEffect(() => {
     const voiceParam = searchParams.get('voice');
     if (voiceParam) {
       const found = voices.find((v) => v.id === voiceParam);
       if (found) {
         handleSelectVoice(found);
+      } else {
+        try {
+          const saved = localStorage.getItem('dubbing_custom_voices');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            const customFound = parsed.find((v: any) => v.id === voiceParam);
+            if (customFound) {
+              handleSelectVoice(customFound);
+            }
+          }
+        } catch {}
       }
     }
   }, [searchParams]);
@@ -257,7 +268,7 @@ export const StudioConsole: React.FC = () => {
   };
 
   return (
-    <section className="relative w-full pb-space-2xl">
+    <section id="demo-player" className="relative w-full pb-space-2xl">
       <div className="max-w-max-width-content mx-auto px-gutter-desktop">
         <div className="relative w-full rounded-xl bg-surface-card/90 backdrop-blur-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.85)] p-space-sm sm:p-space-md">
           {/* Edge Gradient Line */}

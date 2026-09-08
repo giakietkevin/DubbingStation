@@ -41,11 +41,44 @@ export default function VoiceClonePage() {
 
   const fetchMyVoices = async () => {
     try {
-      const res = await fetch('/api/clone');
-      if (res.ok) {
-        const data = await res.json();
-        setMyVoices(data.voices || []);
+      let apiVoices: ClonedVoice[] = [];
+      try {
+        const res = await fetch('/api/clone');
+        if (res.ok) {
+          const data = await res.json();
+          apiVoices = data.voices || [];
+        }
+      } catch (err) {
+        console.warn('API clone fetch failed, using local store', err);
       }
+
+      // Also merge custom voices saved in localStorage (from VoiceModal)
+      try {
+        const local = localStorage.getItem('dubbing_custom_voices');
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (Array.isArray(parsed)) {
+            const localCloned: ClonedVoice[] = parsed.map((v: any) => ({
+              id: v.id,
+              name: v.name,
+              gender: v.gender || 'female',
+              language: v.countryCode || 'vi-VN',
+              modelKey: v.baseModel || 'vi-VN-NamMinhNeural',
+              sampleUrl: v.previewUrl || `/api/voices/preview?voiceId=custom&pitch=${encodeURIComponent(v.customPitch || '+0Hz')}`,
+              status: 'ready',
+              createdAt: 'Gần đây',
+            }));
+            const existingIds = new Set(apiVoices.map((item) => item.id));
+            const combined = [...apiVoices, ...localCloned.filter((item) => !existingIds.has(item.id))];
+            setMyVoices(combined);
+            return;
+          }
+        }
+      } catch (localErr) {
+        console.warn('Failed to parse local custom voices', localErr);
+      }
+
+      setMyVoices(apiVoices);
     } catch (e) {
       console.error('Failed to fetch custom voices', e);
     }
@@ -443,7 +476,7 @@ export default function VoiceClonePage() {
                           </button>
                         )}
                         <Link
-                          href="/dashboard"
+                          href={`/dashboard?voice=${voice.id}`}
                           className="px-2.5 py-1 rounded-lg bg-surface-container-high border border-border-glass text-[11px] font-bold text-on-surface hover:text-primary-container hover:border-primary-container transition-all"
                         >
                           Dùng

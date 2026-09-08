@@ -82,7 +82,7 @@ export default function VoicesPage() {
       audioRef.current.pause();
     }
 
-    const sampleUrl = voice.previewUrl || 'https://actions.google.com/sounds/v1/speech/greeting_male.ogg';
+    const sampleUrl = voice.previewUrl || `/api/voices/preview?voiceId=${voice.id}&gender=${voice.gender}`;
     const audio = new Audio(sampleUrl);
     audioRef.current = audio;
 

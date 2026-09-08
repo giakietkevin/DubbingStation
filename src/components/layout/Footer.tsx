@@ -43,25 +43,25 @@ export const Footer: React.FC = () => {
             </span>
             <div className="flex flex-col gap-space-xs">
               <Link
-                href="#demo-player"
+                href="/dashboard"
                 className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors"
               >
-                Text to Speech
+                Text to Speech (TTS)
               </Link>
               <Link
-                href="#demo-player"
+                href="/dashboard/dubbing"
                 className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors"
               >
-                Video Dubbing
+                Video Dubbing & Subtitle
               </Link>
               <Link
-                href="#demo-player"
+                href="/dashboard/clone"
                 className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors"
               >
-                Voice Cloning
+                Voice Cloning AI
               </Link>
               <Link
-                href="#audio-tools"
+                href="/dashboard/tools"
                 className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors"
               >
                 22 Free Audio Tools
@@ -76,61 +76,63 @@ export const Footer: React.FC = () => {
             </span>
             <div className="flex flex-col gap-space-xs">
               <Link
-                href="#api-docs"
+                href="/docs"
                 className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors"
               >
                 Hướng dẫn sử dụng
               </Link>
               <Link
-                href="#api-docs"
+                href="/docs"
                 className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors"
               >
                 API Docs & SDK
               </Link>
               <Link
-                href="#demo-player"
+                href="/dashboard/voices"
                 className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors"
               >
-                Thư viện giọng đọc
+                Thư viện 3.000+ giọng đọc
               </Link>
               <Link
-                href="#audio-tools"
+                href="/dashboard/billing"
                 className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors"
               >
-                Kho tài liệu Studio
+                Bảng giá & Gói Credits
               </Link>
             </div>
           </div>
 
-          {/* Company Col */}
+          {/* Company & Account Col */}
           <div className="flex flex-col gap-space-sm">
             <span className="font-label-md text-label-md text-on-surface uppercase tracking-wider font-bold">
-              Công ty
+              Tài khoản & Pháp lý
             </span>
             <div className="flex flex-col gap-space-xs">
               <Link
-                href="#about"
+                href="/login"
+                className="font-body-sm text-body-sm text-primary-container font-semibold hover:underline transition-all flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-[16px]">login</span>
+                <span>Đăng nhập</span>
+              </Link>
+              <Link
+                href="/register"
+                className="font-body-sm text-body-sm text-accent-violet-bright font-semibold hover:underline transition-all flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-[16px]">person_add</span>
+                <span>Đăng ký (+50K)</span>
+              </Link>
+              <Link
+                href="/dashboard"
                 className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors"
               >
-                Về DubbingStation
+                Phòng thu Dashboard
               </Link>
               <Link
                 href="#terms"
                 className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors"
               >
-                Điều khoản dịch vụ
-              </Link>
-              <Link
-                href="#privacy"
-                className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors"
-              >
-                Chính sách bảo mật
-              </Link>
-              <Link
-                href="#refund"
-                className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors"
-              >
-                Chính sách hoàn tiền
+                Điều khoản & Bảo mật
               </Link>
             </div>
           </div>

@@ -31,7 +31,7 @@ export const CtaBanner: React.FC = () => {
 
           <div className="relative mt-space-xl flex flex-wrap items-center justify-center gap-space-md">
             <Link
-              href="#demo-player"
+              href="/dashboard"
               className="inline-flex items-center justify-center gap-2 px-space-xl py-3.5 rounded-xl font-label-md text-label-md font-extrabold text-canvas-base bg-gradient-to-r from-primary-container via-primary-fixed to-accent-violet-bright shadow-[0_0_32px_rgba(0,242,254,0.4)] hover:shadow-[0_0_40px_rgba(0,242,254,0.6)] hover:scale-105 active:scale-95 transition-all"
             >
               <span>Tạo Giọng Nói Ngay Miễn Phí</span>
@@ -41,7 +41,7 @@ export const CtaBanner: React.FC = () => {
             </Link>
 
             <Link
-              href="#pricing-section"
+              href="/dashboard/billing"
               className="inline-flex items-center justify-center gap-2 px-space-lg py-3.5 rounded-xl font-label-md text-label-md font-bold bg-surface-container hover:bg-surface-container-highest text-on-surface transition-all"
             >
               <span

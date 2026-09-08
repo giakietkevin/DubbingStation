@@ -57,7 +57,7 @@ export const AudioToolsShowcase: React.FC = () => {
               </div>
 
               <Link
-                href="#demo-player"
+                href={`/dashboard/tools?tool=${tool.id}`}
                 className="mt-space-sm font-label-sm text-label-sm text-text-secondary group-hover:text-primary inline-flex items-center gap-1"
               >
                 <span>Sử dụng</span>
@@ -72,8 +72,8 @@ export const AudioToolsShowcase: React.FC = () => {
         {/* Browse All 22 CTA Button */}
         <div className="mt-space-xl flex justify-center">
           <Link
-            href="#demo-player"
-            className="inline-flex items-center gap-2 px-space-lg py-3 rounded-xl font-label-md text-label-md font-bold bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-all shadow-md"
+            href="/dashboard/tools"
+            className="inline-flex items-center gap-2 px-space-lg py-3 rounded-xl font-label-md text-label-md font-bold bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-all shadow-md hover:scale-[1.02] active:scale-[0.98]"
           >
             <span
               aria-hidden="true"

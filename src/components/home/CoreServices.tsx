@@ -56,7 +56,7 @@ export const CoreServices: React.FC = () => {
                   {service.specs}
                 </span>
                 <Link
-                  href="#demo-player"
+                  href={service.href || '/dashboard'}
                   className={`font-label-sm text-label-sm font-bold ${service.actionColorClass} group-hover:translate-x-1 transition-transform inline-flex items-center gap-1`}
                 >
                   <span>{service.actionText}</span>

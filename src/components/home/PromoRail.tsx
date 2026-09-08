@@ -40,7 +40,7 @@ export const PromoRail: React.FC = () => {
         </div>
 
         <Link
-          href="#pricing-section"
+          href="/dashboard/billing"
           className="inline-flex items-center gap-1 font-label-sm text-label-sm text-primary-container hover:text-primary transition-colors"
         >
           <span>Xem biểu phí &amp; Nhận ưu đãi</span>

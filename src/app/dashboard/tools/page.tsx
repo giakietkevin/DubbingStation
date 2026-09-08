@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { audioTools } from '@/data/audioTools';
 import {
   trimAudioBuffer,
@@ -11,10 +12,19 @@ import {
   audioBufferToWav,
 } from '@/lib/webAudio';
 
-export default function AudioToolsHubPage() {
+function AudioToolsHubContent() {
+  const searchParams = useSearchParams();
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
+
+  useEffect(() => {
+    const toolParam = searchParams.get('tool');
+    if (toolParam) {
+      setSelectedTool(toolParam);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [searchParams]);
 
   // Audio state
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -420,5 +430,20 @@ export default function AudioToolsHubPage() {
         })}
       </div>
     </div>
+  );
+}
+
+export default function AudioToolsHubPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-12 text-center text-text-muted flex items-center justify-center gap-2">
+          <span className="w-5 h-5 rounded-full border-2 border-primary-container border-t-transparent animate-spin" />
+          <span>Đang tải bộ công cụ âm thanh...</span>
+        </div>
+      }
+    >
+      <AudioToolsHubContent />
+    </Suspense>
   );
 }
