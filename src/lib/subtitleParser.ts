@@ -19,6 +19,7 @@ export interface SubtitleParseResult {
   totalDurationSec: number;
   totalCues: number;
   speakers: string[];
+  hasExplicitSpeakers: boolean;
   cues: SubtitleCue[];
 }
 
@@ -65,12 +66,22 @@ export function secondsToFormattedTime(sec: number): string {
  * VD: "Minh: Xin chào bạn" -> speaker = "Minh", text = "Xin chào bạn"
  * VD: "[Nhân vật 1] Chào nhé" -> speaker = "Nhân vật 1", text = "Chào nhé"
  */
-function extractSpeakerAndText(rawText: string, defaultSpeakerIndex = 1): { speaker: string; text: string } {
+function extractSpeakerAndText(rawText: string): { speaker: string; text: string; explicit: boolean } {
+  const voiceTagMatch = rawText.match(/^<v\s+([^>]+)>\s*(.*)$/i);
+  if (voiceTagMatch) {
+    return {
+      speaker: voiceTagMatch[1].trim(),
+      text: voiceTagMatch[2].trim(),
+      explicit: true,
+    };
+  }
+
   const bracketMatch = rawText.match(/^\[(.*?)\]\s*(.*)$/);
   if (bracketMatch) {
     return {
       speaker: bracketMatch[1].trim(),
       text: bracketMatch[2].trim(),
+      explicit: true,
     };
   }
 
@@ -79,12 +90,14 @@ function extractSpeakerAndText(rawText: string, defaultSpeakerIndex = 1): { spea
     return {
       speaker: colonMatch[1].trim(),
       text: colonMatch[2].trim(),
+      explicit: true,
     };
   }
 
   return {
-    speaker: `Speaker ${defaultSpeakerIndex}`,
+    speaker: 'Speaker 1',
     text: rawText.trim(),
+    explicit: false,
   };
 }
 
@@ -100,6 +113,7 @@ export function parseSubtitle(content: string): SubtitleParseResult {
   const blocks = clean.split(/\n\s*\n/);
   const cues: SubtitleCue[] = [];
   const speakersSet = new Set<string>();
+  let hasExplicitSpeakers = false;
 
   let cueId = 1;
 
@@ -130,9 +144,10 @@ export function parseSubtitle(content: string): SubtitleParseResult {
 
       // Toàn bộ các dòng phía sau timestamp là text của cue
       const textLines = lines.slice(timeLineIndex + 1).join(' ');
-      const { speaker, text } = extractSpeakerAndText(textLines, (cueId % 2) + 1);
+      const { speaker, text, explicit } = extractSpeakerAndText(textLines);
 
       if (text.length > 0) {
+        hasExplicitSpeakers = hasExplicitSpeakers || explicit;
         speakersSet.add(speaker);
         cues.push({
           id: cueId++,
@@ -154,13 +169,14 @@ export function parseSubtitle(content: string): SubtitleParseResult {
     let currentTime = 0;
 
     lines.forEach((line, index) => {
-      const { speaker, text } = extractSpeakerAndText(line, (index % 2) + 1);
+      const { speaker, text, explicit } = extractSpeakerAndText(line);
       const durationSec = Math.max(2, Math.round(text.length / 15));
       const startTime = currentTime;
       const endTime = currentTime + durationSec;
       currentTime = endTime;
 
       speakersSet.add(speaker);
+      hasExplicitSpeakers = hasExplicitSpeakers || explicit;
       cues.push({
         id: index + 1,
         startTime,
@@ -181,6 +197,7 @@ export function parseSubtitle(content: string): SubtitleParseResult {
     totalDurationSec,
     totalCues: cues.length,
     speakers: Array.from(speakersSet),
+    hasExplicitSpeakers,
     cues,
   };
 }

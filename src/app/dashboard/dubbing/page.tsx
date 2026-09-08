@@ -239,6 +239,12 @@ export default function DubbingWorkspacePage() {
               </span>
             </div>
 
+            {parsedData && !parsedData.hasExplicitSpeakers && parsedData.cues.length > 0 && (
+              <p className="text-[11px] text-signal-warning bg-signal-warning/10 border border-signal-warning/20 rounded-lg px-3 py-2">
+                Phụ đề chưa có nhãn speaker. Hệ thống đang dùng một giọng mặc định; muốn gán nhiều nhân vật, hãy dùng dạng [Speaker 1], [Speaker 2] hoặc VTT &lt;v Speaker&gt;.
+              </p>
+            )}
+
             {parsedData && parsedData.speakers.length > 0 ? (
               <div className="flex flex-col gap-2.5 pt-1">
                 {parsedData.speakers.map((speaker, idx) => {
