@@ -15,11 +15,13 @@
 2. [Yêu Cầu Hệ Thống](#-yêu-cầu-hệ-thống)
 3. [Hướng Dẫn Cài Đặt & Chạy Dự Án (Quick Start)](#-hướng-dẫn-cài-đặt--chạy-dự-án-quick-start)
 4. [Cấu Hình Biến Môi Trường (.env)](#-cấu-hình-biến-môi-trường-env)
-5. [Cấu Hình Gửi Real OTP Qua Gmail SMTP](#-cấu-hình-gửi-real-otp-qua-gmail-smtp)
-6. [Hệ Thống Tài Khoản & Phân Quyền](#-hệ-thống-tài-khoản--phân-quyền)
-7. [Cơ Chế Trừ Số Dư Credits (Unified Balance)](#-cơ-chế-trừ-số-dư-credits-unified-balance)
-8. [Cấu Trúc Thư Mục Dự Án](#-cấu-trúc-thư-mục-dự-án)
-9. [Công Nghệ Sử Dụng (Tech Stack)](#-công-nghệ-sử-dụng-tech-stack)
+5. [Hướng Dẫn Sử Dụng](#-hướng-dẫn-sử-dụng)
+6. [Cấu Hình Gửi Real OTP Qua Gmail SMTP](#-cấu-hình-gửi-real-otp-qua-gmail-smtp)
+7. [Hệ Thống Tài Khoản & Phân Quyền](#-hệ-thống-tài-khoản--phân-quyền)
+8. [Cơ Chế Trừ Số Dư Credits (Unified Balance)](#-cơ-chế-trừ-số-dư-credits-unified-balance)
+9. [Triển Khai Production](#-triển-khai-production)
+10. [Cấu Trúc Thư Mục Dự Án](#-cấu-trúc-thư-mục-dự-án)
+11. [Công Nghệ Sử Dụng (Tech Stack)](#-công-nghệ-sử-dụng-tech-stack)
 
 ---
 
@@ -61,22 +63,36 @@ npm install
 
 ### Bước 3: Thiết lập tệp môi trường `.env`
 
-Sao chép hoặc tạo tệp `.env` tại thư mục gốc của dự án:
+Tạo `.env` từ tệp mẫu có sẵn tại thư mục gốc dự án.
 
 ```bash
+# macOS / Linux / Git Bash
 cp .env.example .env
 ```
-*(Nếu chưa có `.env.example`, bạn hãy tạo tệp `.env` theo hướng dẫn ở phần bên dưới).*
 
-### Bước 4: Khởi tạo CSDL SQLite với Prisma
+Trên Windows PowerShell:
 
-Chạy lệnh để sinh mã Prisma Client và đồng bộ cấu trúc database SQLite:
-
-```bash
-npx prisma db push
+```powershell
+Copy-Item .env.example .env
 ```
 
-*(Tùy chọn: Bạn có thể chạy `npx prisma studio` để mở giao diện quản lý dữ liệu CSDL trực quan trên trình duyệt tại cổng 5555).*
+Giữ nguyên giá trị mặc định để chạy local. Các biến bắt buộc và tùy chọn được giải thích ở phần [Cấu Hình Biến Môi Trường](#-cấu-hình-biến-môi-trường-env).
+
+### Bước 4: Khởi tạo Prisma và CSDL SQLite
+
+Chạy một lệnh duy nhất để sinh Prisma Client và đồng bộ schema:
+
+```bash
+npm run setup
+```
+
+Lệnh này tạo file `prisma/dev.db` nếu chưa có. Có thể mở giao diện xem dữ liệu bằng:
+
+```bash
+npx prisma studio
+```
+
+Prisma Studio chạy tại `http://localhost:5555`.
 
 ### Bước 5: Khởi động Server phát triển (Development)
 
@@ -86,18 +102,20 @@ npm run dev
 
 Mở trình duyệt và truy cập: **[http://localhost:3000](http://localhost:3000)**
 
+Để dừng server, nhấn `Ctrl+C` trong terminal.
+
 ---
 
 ## ⚙️ Cấu Hình Biến Môi Trường (.env)
 
-Tạo tệp `.env` tại thư mục gốc với nội dung mẫu sau:
+Tệp `.env.example` trong repo đã có sẵn mẫu cấu hình. Sao chép thành `.env`, sau đó thay các giá trị cần thiết:
 
 ```env
 # Kết nối CSDL SQLite cục bộ
 DATABASE_URL="file:./dev.db"
 
 # Khóa bí mật NextAuth & URL ứng dụng
-NEXTAUTH_SECRET="dubbingstation-super-secret-key-32chars-min-length-2026"
+NEXTAUTH_SECRET="thay-bang-chuoi-ngau-nhien-dai"
 NEXTAUTH_URL="http://localhost:3000"
 
 # OAuth Providers (Tùy chọn nếu muốn đăng nhập bằng Google)
@@ -108,7 +126,46 @@ GOOGLE_CLIENT_SECRET=""
 SMTP_USER="dia-chi-gmail-cua-ban@gmail.com"
 SMTP_PASS="xxxx xxxx xxxx xxxx"
 SMTP_FROM="DubbingStation AI <dia-chi-gmail-cua-ban@gmail.com>"
+
+# Tùy chọn: dùng OpenAI cho dịch phụ đề và OpenAI TTS
+OPENAI_API_KEY=""
 ```
+
+`DATABASE_URL`, `NEXTAUTH_SECRET` và `NEXTAUTH_URL` nên luôn được cấu hình. `GOOGLE_*`, `SMTP_*` và `OPENAI_API_KEY` là tùy chọn; để trống vẫn chạy được các chức năng local không phụ thuộc chúng. Không commit `.env` hoặc API key vào Git.
+
+---
+
+## 🎬 Hướng Dẫn Sử Dụng
+
+### 1. Đăng ký và đăng nhập
+
+1. Mở `/register`, nhập tên, email và mật khẩu.
+2. Nhập OTP tại `/verify-otp`. Khi chưa cấu hình SMTP, mã OTP được hiển thị ở chế độ development và in trong terminal.
+3. Đăng nhập tại `/login`. Tài khoản mới được tặng 50.000 Credits sau khi kích hoạt.
+
+### 2. Tạo giọng nói từ văn bản (TTS)
+
+1. Vào Dashboard và chọn **Text to Speech**.
+2. Nhập hoặc dán nội dung, chọn ngôn ngữ và giọng đọc.
+3. Điều chỉnh tốc độ, cao độ, âm lượng hoặc SSML nếu cần.
+4. Bấm tạo audio, nghe thử rồi tải file kết quả.
+
+### 3. Lồng tiếng video và phụ đề
+
+1. Vào **Dubbing**, tải video và tệp `.srt` hoặc `.vtt`.
+2. Kiểm tra các đoạn phụ đề, chọn giọng đọc và cấu hình tốc độ.
+3. Chạy lồng tiếng, theo dõi tiến trình và tải video kết quả.
+
+### 4. Dịch phụ đề, chuyển giọng nói thành văn bản và công cụ audio
+
+* **Translate:** tải phụ đề, chọn ngôn ngữ nguồn/đích rồi xuất tệp đã dịch. Có `OPENAI_API_KEY` sẽ ưu tiên OpenAI; nếu không, hệ thống dùng Google Translate endpoint.
+* **STT:** tải audio/video để nhận transcript và xuất phụ đề.
+* **Tools:** dùng các công cụ xử lý audio tại trình duyệt; dữ liệu được xử lý bằng Web Audio/WebAssembly và không trừ Credits.
+* **Voice Clone:** tải mẫu giọng sạch, đặt tên voice, sau đó chọn voice này trong các màn hình tạo audio hỗ trợ custom voice.
+
+### 5. Quản lý tài khoản và dự án
+
+Dashboard hiển thị số dư Credits, lịch sử dự án và các voice đã tạo. Các file đầu vào nên có âm thanh rõ, phụ đề đúng timestamp và không vượt giới hạn hiển thị trên từng màn hình.
 
 ---
 
@@ -166,6 +223,38 @@ Hệ thống quản lý Credits tập trung thông qua bảng `CreditWallet` & `
 | **Batch TTS (>5.000 ký tự)** | `1 Credit / 1 ký tự` | Trừ gộp 1 lần duy nhất cho toàn bộ batch |
 | **Video Dubbing** | `100 Credits / 1 giây video` | Tương đương 6.000 Credits / phút video |
 | **22 Audio Tools (WASM)** | `0 Credit (Miễn phí 100%)` | Xử lý trực tiếp trên RAM máy khách |
+
+---
+
+## 🚢 Triển Khai Production
+
+Trên máy chủ production, cấu hình `.env` với:
+
+* `NEXTAUTH_URL` là URL public thật, ví dụ `https://app.example.com`.
+* `NEXTAUTH_SECRET` là chuỗi ngẫu nhiên dài, khác với môi trường local.
+* `DATABASE_URL` trỏ tới database được lưu trữ bền vững. SQLite phù hợp cho cài đặt đơn máy; không dùng volume tạm thời.
+* `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` nếu cần gửi OTP thật.
+* `OPENAI_API_KEY` nếu cần OpenAI TTS hoặc ưu tiên OpenAI khi dịch.
+
+Sau khi cài dependencies và sao chép `.env`, chạy:
+
+```bash
+npm run setup
+npm run build
+npm run start
+```
+
+Mặc định production server chạy tại `http://localhost:3000`. Dùng reverse proxy (Nginx, Caddy hoặc nền tảng hosting) để bật HTTPS và public domain. Không expose Prisma Studio trên Internet.
+
+### Xử lý lỗi thường gặp
+
+* **`EPERM ... query_engine-windows.dll.node` trên Windows:** đóng các terminal đang chạy `next dev`, `prisma studio` hoặc Node khác, rồi chạy lại `npm run setup`.
+* **Không nhận được OTP:** kiểm tra `SMTP_USER` và `SMTP_PASS`; Gmail yêu cầu bật 2-Step Verification và dùng App Password.
+* **Không đăng nhập Google được:** kiểm tra callback URL trong Google Cloud Console là `http://localhost:3000/api/auth/callback/google` (hoặc domain production tương ứng).
+* **Không tạo được audio:** kiểm tra Credits, định dạng file đầu vào và log terminal của server.
+* **Build lỗi do biến môi trường:** kiểm tra `.env` nằm ở thư mục gốc dự án và khởi động lại lệnh build.
+
+> ⚠️ Tài khoản admin mặc định là `admin` hoặc `admin@dubbingstation.com` với mật khẩu `Giakiet@123`. Đây là thông tin được mã hóa cố định trong code hiện tại; hãy giới hạn quyền truy cập hoặc thay đổi cơ chế xác thực trước khi triển khai Internet công khai.
 
 ---
 
