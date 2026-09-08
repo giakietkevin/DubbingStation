@@ -28,7 +28,12 @@ export const StudioConsole: React.FC = () => {
   const [fileName, setFileName] = useState<string>('Minh_Khang_Audio_Dubbing.mp3');
   const [hasAudioRing, setHasAudioRing] = useState<boolean>(false);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{
+    text: string;
+    type: 'success' | 'error';
+    requireLogin?: boolean;
+    requireBilling?: boolean;
+  } | null>(null);
   const [audioUrl, setAudioUrl] = useState<string>('');
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -221,7 +226,21 @@ export const StudioConsole: React.FC = () => {
       const data = await res.json();
 
       if (!res.ok) {
-        setStatusMessage({ text: data.error || 'Tạo âm thanh thất bại', type: 'error' });
+        if (res.status === 401 || data.requireLogin) {
+          setStatusMessage({
+            text: data.error || 'Vui lòng đăng nhập tài khoản để sử dụng 50.000 Credits tạo âm thanh!',
+            type: 'error',
+            requireLogin: true,
+          });
+        } else if (res.status === 402) {
+          setStatusMessage({
+            text: data.error || 'Số dư Credits không đủ. Vui lòng nạp thêm Credits để tiếp tục.',
+            type: 'error',
+            requireBilling: true,
+          });
+        } else {
+          setStatusMessage({ text: data.error || 'Tạo âm thanh thất bại', type: 'error' });
+        }
         setIsGenerating(false);
         return;
       }
@@ -231,9 +250,18 @@ export const StudioConsole: React.FC = () => {
       const ext = provider === 'piper' ? 'wav' : 'mp3';
       setFileName(`${selectedVoice.name}_${provider}_${Date.now()}.${ext}`);
 
+      // Phát sự kiện cập nhật Credits realtime cho Header và Sidebar
+      if (typeof data.remainingCredits === 'number') {
+        window.dispatchEvent(
+          new CustomEvent('creditsUpdated', {
+            detail: { remainingCredits: data.remainingCredits },
+          })
+        );
+      }
+
       if (data.mode === 'batch') {
         setStatusMessage({
-          text: `Batch Render thành công! Đã chia ${data.totalChunks} đoạn và trừ ${data.creditsDeducted.toLocaleString('vi-VN')} Credits.`,
+          text: `Batch Render thành công! Đã chia ${data.totalChunks} đoạn và trừ -${data.creditsDeducted.toLocaleString('vi-VN')} Credits trong CSDL (Còn lại: ${data.remainingCredits.toLocaleString('vi-VN')} Credits).`,
           type: 'success',
         });
       } else {
@@ -245,8 +273,13 @@ export const StudioConsole: React.FC = () => {
             : provider === 'piper'
             ? 'Piper Free'
             : 'Neural Studio';
+
+        const deductInfo = typeof data.creditsDeducted === 'number'
+          ? `Đã trừ -${data.creditsDeducted.toLocaleString('vi-VN')} Credits (Còn: ${data.remainingCredits.toLocaleString('vi-VN')} Credits). `
+          : '';
+
         setStatusMessage({
-          text: `Tạo âm thanh thành công! Đang phát giọng đọc ${providerLabel} của "${selectedVoice.name}"...`,
+          text: `Tạo âm thanh thành công! ${deductInfo}Đang phát giọng đọc ${providerLabel} của "${selectedVoice.name}"...`,
           type: 'success',
         });
       }
@@ -283,16 +316,38 @@ export const StudioConsole: React.FC = () => {
           {/* Status Message Notification */}
           {statusMessage && (
             <div
-              className={`mb-space-sm p-3 rounded-xl flex items-center gap-2 font-body-sm text-body-sm ${
+              className={`mb-space-sm p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-body-sm text-body-sm ${
                 statusMessage.type === 'success'
                   ? 'bg-signal-success/15 border border-signal-success/30 text-signal-success'
                   : 'bg-signal-danger/15 border border-signal-danger/30 text-signal-danger'
               }`}
             >
-              <span className="material-symbols-outlined text-[18px]">
-                {statusMessage.type === 'success' ? 'check_circle' : 'error'}
-              </span>
-              <span>{statusMessage.text}</span>
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[18px] shrink-0">
+                  {statusMessage.type === 'success' ? 'check_circle' : 'error'}
+                </span>
+                <span>{statusMessage.text}</span>
+              </div>
+
+              {statusMessage.requireLogin && (
+                <a
+                  href="/login"
+                  className="px-3 py-1.5 rounded-lg bg-primary-container text-surface-card font-bold text-xs flex items-center gap-1 self-start sm:self-auto hover:shadow-glow-cyan transition-all shrink-0"
+                >
+                  <span className="material-symbols-outlined text-[16px]">login</span>
+                  <span>Đăng Nhập (+50k Credits)</span>
+                </a>
+              )}
+
+              {statusMessage.requireBilling && (
+                <a
+                  href="/dashboard/billing"
+                  className="px-3 py-1.5 rounded-lg bg-secondary text-surface-card font-bold text-xs flex items-center gap-1 self-start sm:self-auto hover:shadow-sm transition-all shrink-0"
+                >
+                  <span className="material-symbols-outlined text-[16px]">token</span>
+                  <span>Nạp Thêm Credits</span>
+                </a>
+              )}
             </div>
           )}
 

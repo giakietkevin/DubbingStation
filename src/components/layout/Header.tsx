@@ -15,8 +15,41 @@ export const Header: React.FC = () => {
   const isAuthenticated = status === 'authenticated' && !!session?.user;
   const userName = session?.user?.name || 'Thành viên';
   const userEmail = session?.user?.email || '';
-  const credits = (session?.user as any)?.credits ?? 50000;
+  const initialCredits = (session?.user as any)?.credits ?? 50000;
+  const [creditsBalance, setCreditsBalance] = useState<number>(initialCredits);
   const isAdmin = (session?.user as any)?.role === 'ADMIN';
+
+  // Đồng bộ credits từ session & CSDL realtime
+  React.useEffect(() => {
+    if ((session?.user as any)?.credits !== undefined) {
+      setCreditsBalance((session?.user as any)?.credits);
+    }
+  }, [session]);
+
+  React.useEffect(() => {
+    // Lắng nghe sự kiện cập nhật credits khi người dùng tạo âm thanh
+    const handleCreditsUpdate = (e: any) => {
+      if (e.detail?.remainingCredits !== undefined) {
+        setCreditsBalance(e.detail.remainingCredits);
+      }
+    };
+
+    window.addEventListener('creditsUpdated', handleCreditsUpdate);
+
+    // Fetch realtime từ CSDL khi component mount nếu đã đăng nhập
+    if (isAuthenticated) {
+      fetch('/api/user/credits')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.authenticated && typeof data.credits === 'number') {
+            setCreditsBalance(data.credits);
+          }
+        })
+        .catch(() => {});
+    }
+
+    return () => window.removeEventListener('creditsUpdated', handleCreditsUpdate);
+  }, [isAuthenticated]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-surface-glass backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.5)] border-b border-border-glass">
@@ -183,7 +216,7 @@ export const Header: React.FC = () => {
               >
                 <span className="w-2 h-2 rounded-full bg-signal-success animate-pulse" />
                 <span className="font-code-sm text-code-sm font-bold text-primary">
-                  {credits.toLocaleString('vi-VN')}
+                  {creditsBalance.toLocaleString('vi-VN')}
                 </span>
                 <span className="font-label-sm text-[11px] uppercase tracking-wide text-text-muted">
                   Credits
@@ -224,7 +257,7 @@ export const Header: React.FC = () => {
                     <p className="text-[11px] text-text-muted truncate">{userEmail}</p>
                     <div className="mt-1 flex items-center justify-between text-[11px]">
                       <span className="text-text-muted">Credits:</span>
-                      <strong className="text-primary-container font-mono">{credits.toLocaleString('vi-VN')}</strong>
+                      <strong className="text-primary-container font-mono">{creditsBalance.toLocaleString('vi-VN')}</strong>
                     </div>
                   </div>
 

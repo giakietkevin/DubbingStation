@@ -75,14 +75,6 @@ function LoginContent() {
     }
   };
 
-  // Nút hỗ trợ điền nhanh tài khoản Admin để test
-  const handleFillAdmin = () => {
-    setEmail('admin');
-    setPassword('Giakiet@123');
-    setError('');
-    setPendingOtpEmail('');
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-canvas-base relative overflow-hidden">
       {/* Glow effects */}
@@ -114,21 +106,6 @@ function LoginContent() {
           <p className="font-body-sm text-body-sm text-text-muted mt-1">
             Đăng nhập để vào phòng thu Studio và quản lý Credits
           </p>
-        </div>
-
-        {/* Quick Admin Credential Chip */}
-        <div className="mb-4 p-2.5 rounded-xl bg-surface-container border border-border-glass flex items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-1.5 text-text-secondary">
-            <span className="material-symbols-outlined text-[16px] text-signal-danger">admin_panel_settings</span>
-            <span>Admin: <strong>admin</strong> | <strong>Giakiet@123</strong></span>
-          </div>
-          <button
-            type="button"
-            onClick={handleFillAdmin}
-            className="px-2 py-1 rounded bg-primary-container/20 text-primary-container font-bold hover:bg-primary-container hover:text-surface-card transition-colors"
-          >
-            Điền nhanh
-          </button>
         </div>
 
         {/* Success Alert */}

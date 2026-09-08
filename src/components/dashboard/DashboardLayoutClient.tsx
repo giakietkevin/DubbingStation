@@ -23,9 +23,39 @@ export function DashboardLayoutClient({ children }: { children: React.ReactNode 
   const { data: session } = useSession();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-  const credits = (session?.user as any)?.credits ?? 50000;
+  const initialCredits = (session?.user as any)?.credits ?? 50000;
+  const [creditsBalance, setCreditsBalance] = useState<number>(initialCredits);
   const userName = session?.user?.name || 'Creator';
   const userEmail = session?.user?.email || '';
+
+  // Đồng bộ credits từ session & CSDL realtime
+  React.useEffect(() => {
+    if ((session?.user as any)?.credits !== undefined) {
+      setCreditsBalance((session?.user as any)?.credits);
+    }
+  }, [session]);
+
+  React.useEffect(() => {
+    const handleCreditsUpdate = (e: any) => {
+      if (e.detail?.remainingCredits !== undefined) {
+        setCreditsBalance(e.detail.remainingCredits);
+      }
+    };
+
+    window.addEventListener('creditsUpdated', handleCreditsUpdate);
+
+    // Fetch số dư thực tế từ CSDL SQLite
+    fetch('/api/user/credits')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.authenticated && typeof data.credits === 'number') {
+          setCreditsBalance(data.credits);
+        }
+      })
+      .catch(() => {});
+
+    return () => window.removeEventListener('creditsUpdated', handleCreditsUpdate);
+  }, []);
 
   return (
     <div className="min-h-screen bg-canvas-base flex text-on-surface">
@@ -110,7 +140,7 @@ export function DashboardLayoutClient({ children }: { children: React.ReactNode 
             <div className="flex flex-col">
               <span className="font-label-sm text-[10px] text-text-muted uppercase">Số dư Credits</span>
               <span className="font-code-sm text-code-sm text-primary font-bold">
-                {credits.toLocaleString('vi-VN')}
+                {creditsBalance.toLocaleString('vi-VN')}
               </span>
             </div>
             <Link
