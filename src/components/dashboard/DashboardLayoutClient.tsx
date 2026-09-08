@@ -195,7 +195,7 @@ export function DashboardLayoutClient({ children }: { children: React.ReactNode 
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high">
               <span className="w-2 h-2 rounded-full bg-signal-success animate-pulse" />
               <span className="font-code-xs text-code-xs text-primary font-bold">
-                {credits.toLocaleString('vi-VN')} Credits
+                {creditsBalance.toLocaleString('vi-VN')} Credits
               </span>
             </div>
             <Link
