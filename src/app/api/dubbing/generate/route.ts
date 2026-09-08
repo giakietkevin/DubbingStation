@@ -6,6 +6,7 @@ import { promisify } from 'util';
 import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
+import ffmpegPath from 'ffmpeg-static';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
@@ -13,6 +14,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const execFileAsync = promisify(execFile);
+const ffmpegExecutable = ffmpegPath || 'ffmpeg';
 
 interface DubbingCue {
   id: number;
@@ -51,7 +53,7 @@ async function createTimedAudio(req: Request, cues: DubbingCue[], speakerVoiceMa
   });
   filterParts.push(`${cues.map((_, index) => `[a${index}]`).join('')}amix=inputs=${cues.length}:duration=longest:dropout_transition=0,loudnorm=I=-14:TP=-1.0:LRA=7,volume=9dB[dub]`);
   args.push('-filter_complex', filterParts.join(';'), '-map', '[dub]', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', outputPath);
-  await execFileAsync('ffmpeg', args, { maxBuffer: 10 * 1024 * 1024 });
+  await execFileAsync(ffmpegExecutable, args, { maxBuffer: 10 * 1024 * 1024 });
   return outputPath;
 }
 
@@ -75,7 +77,7 @@ export async function POST(req: Request) {
     const outputDir = path.join(process.cwd(), 'public', 'generated');
     const outputPath = path.join(outputDir, outputName);
     await fs.mkdir(outputDir, { recursive: true });
-    await execFileAsync('ffmpeg', ['-y', '-i', inputPath, '-i', dubbedAudioPath, '-map', '0:v:0', '-map', '1:a:0', '-c:v', 'copy', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', outputPath], { maxBuffer: 10 * 1024 * 1024 });
+    await execFileAsync(ffmpegExecutable, ['-y', '-i', inputPath, '-i', dubbedAudioPath, '-map', '0:v:0', '-map', '1:a:0', '-c:v', 'copy', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', outputPath], { maxBuffer: 10 * 1024 * 1024 });
 
     const session = await getServerSession(authOptions);
     const durationSec = Math.max(1, Math.ceil(Math.max(...cues.map((cue) => cue.endTime))));
