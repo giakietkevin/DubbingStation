@@ -3,11 +3,12 @@ import { Communicate } from 'edge-tts-universal';
 import { voicePersonaProfiles } from '@/data/voiceProfiles';
 import { synthesizeWithOpenAI } from '@/lib/tts/openai';
 import { synthesizeWithPiper, createWavHeader } from '@/lib/tts/piper';
+import { applyVocalTimbreDSP } from '@/lib/tts/dsp';
 import { join, isAbsolute } from 'path';
 
 export const dynamic = 'force-dynamic';
 
-type TTSProvider = 'microsoft' | 'openai' | 'piper';
+type TTSProvider = 'microsoft' | 'openai' | 'piper' | 'google';
 
 const MODELS_DIR = join(process.cwd(), 'models', 'piper');
 
@@ -148,6 +149,35 @@ async function synthesizeChunk(
 ): Promise<ChunkSynthesisResult> {
   const combinedRate = calculateCombinedRate(profile.rate || '+0%', speed);
 
+  if (provider === 'google') {
+    try {
+      const lang = profile.neuralModel?.startsWith('en') ? 'en' : 'vi';
+      const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
+        chunkText.slice(0, 200)
+      )}&tl=${lang}&client=tw-ob`;
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      });
+      if (res.ok) {
+        const arrayBuffer = await res.arrayBuffer();
+        return { buffer: Buffer.from(arrayBuffer) };
+      }
+    } catch (err) {
+      console.error('[TTS] Google synthesis failed, falling back to Microsoft', err);
+    }
+    const fallbackBuffer = await synthesizeWithMicrosoftNeural(
+      chunkText,
+      'vi-VN-HoaiMyNeural',
+      profile.pitch || '+0Hz',
+      combinedRate,
+      profile.volume || '+0%'
+    );
+    return { buffer: fallbackBuffer };
+  }
+
   if (provider === 'openai') {
     const openAIVoice = profile.openAIVoice || 'nova';
     const result = await synthesizeWithOpenAI({
@@ -213,8 +243,10 @@ async function synthesizeChunk(
 }
 
 function getProvider(voiceId: string, profile: any): TTSProvider {
-  if (profile.provider === 'openai' || voiceId.startsWith('openai-')) return 'openai';
-  if (profile.provider === 'piper' || voiceId.startsWith('piper-')) return 'piper';
+  if (profile.provider) return profile.provider;
+  if (voiceId === 'chi-google') return 'google';
+  if (voiceId.startsWith('openai-')) return 'openai';
+  if (voiceId.startsWith('piper-')) return 'piper';
   return 'microsoft';
 }
 
@@ -224,15 +256,35 @@ export async function GET(req: Request) {
     const text = searchParams.get('text') || 'Xin chào, đây là phòng thu giọng nói DubbingStation.';
     const voiceId = searchParams.get('voiceId') || 'minh-khang';
     const speed = parseFloat(searchParams.get('speed') || '1.0');
+    const customPitch = searchParams.get('pitch');
+    const customRate = searchParams.get('rate');
+    const customVolume = searchParams.get('volume');
+    const customModel = searchParams.get('model');
+    const customWarmth = searchParams.get('warmth') ? parseInt(searchParams.get('warmth')!, 10) : undefined;
+    const customBrightness = searchParams.get('brightness') ? parseInt(searchParams.get('brightness')!, 10) : undefined;
+    const customFullness = searchParams.get('fullness') ? parseInt(searchParams.get('fullness')!, 10) : undefined;
+    const customF1 = searchParams.get('f1') ? parseInt(searchParams.get('f1')!, 10) : undefined;
+    const customF2 = searchParams.get('f2') ? parseInt(searchParams.get('f2')!, 10) : undefined;
     const providerParam = searchParams.get('provider') as TTSProvider | null;
 
-    const profile = voicePersonaProfiles[voiceId] || {
-      neuralModel: voiceId.includes('female') ? 'vi-VN-HoaiMyNeural' : 'vi-VN-NamMinhNeural',
+    const baseProfile = voicePersonaProfiles[voiceId] || {
+      neuralModel: customModel || (voiceId.includes('female') ? 'vi-VN-HoaiMyNeural' : 'vi-VN-NamMinhNeural'),
       pitch: '+0Hz',
       rate: '+0%',
       volume: '+0%',
       samplePhrase: '',
-      provider: 'microsoft' as TTSProvider,
+      provider: (providerParam || (customModel?.includes('onnx') ? 'piper' : 'microsoft')) as TTSProvider,
+      piperModel: customModel?.includes('onnx') ? customModel : undefined,
+    };
+
+    const profile = {
+      ...baseProfile,
+      neuralModel: customModel || baseProfile.neuralModel,
+      pitch: customPitch !== null && customPitch !== undefined ? customPitch : baseProfile.pitch,
+      rate: customRate !== null && customRate !== undefined ? customRate : baseProfile.rate,
+      volume: customVolume !== null && customVolume !== undefined ? customVolume : baseProfile.volume,
+      provider: providerParam || baseProfile.provider,
+      piperModel: customModel?.includes('onnx') ? customModel : baseProfile.piperModel,
     };
 
     const provider = providerParam || getProvider(voiceId, profile);
@@ -260,7 +312,22 @@ export async function GET(req: Request) {
     let fullBuffer: Buffer;
 
     if (isWav) {
-      const totalRawPcm = Buffer.concat(rawPcmChunks);
+      let totalRawPcm = Buffer.concat(rawPcmChunks);
+      if (
+        customWarmth !== undefined ||
+        customBrightness !== undefined ||
+        customFullness !== undefined ||
+        customF1 !== undefined ||
+        customF2 !== undefined
+      ) {
+        totalRawPcm = applyVocalTimbreDSP(totalRawPcm, detectedSampleRate, {
+          warmth: customWarmth,
+          brightness: customBrightness,
+          fullness: customFullness,
+          formantF1: customF1,
+          formantF2: customF2,
+        });
+      }
       const header = createWavHeader(totalRawPcm.length, detectedSampleRate);
       fullBuffer = Buffer.concat([header, totalRawPcm]);
     } else if (audioBuffers.length > 0) {
@@ -290,7 +357,9 @@ export async function GET(req: Request) {
         'X-Voice-Profile': voiceId,
         'X-Provider': provider,
         'X-Engine':
-          provider === 'openai'
+          provider === 'google'
+            ? 'Google-TTS-Viral'
+            : provider === 'openai'
             ? 'OpenAI-TTS-HD'
             : provider === 'piper'
             ? 'Piper-Offline-Neural'

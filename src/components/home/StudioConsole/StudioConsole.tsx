@@ -20,7 +20,7 @@ export const StudioConsole: React.FC = () => {
   const [selectedVoice, setSelectedVoice] = useState<Voice>(defaultVoice);
   const [selectedEmotion, setSelectedEmotion] = useState<string>('Tự nhiên');
   const [speed, setSpeed] = useState<number>(1.0);
-  const [provider, setProvider] = useState<'microsoft' | 'openai' | 'piper'>('microsoft');
+  const [provider, setProvider] = useState<'microsoft' | 'openai' | 'piper' | 'google'>('microsoft');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
@@ -33,13 +33,52 @@ export const StudioConsole: React.FC = () => {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const handleSelectVoice = (voice: Voice) => {
+    setSelectedVoice(voice);
+    if (voice.provider) {
+      setProvider(voice.provider);
+    } else if (voice.tags.includes('Piper')) {
+      setProvider('piper');
+    } else if (voice.tags.includes('OpenAI')) {
+      setProvider('openai');
+    } else if (voice.id === 'chi-google' || voice.tags.includes('Chị Google')) {
+      setProvider('google');
+    } else {
+      setProvider('microsoft');
+    }
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    setIsPlaying(false);
+    setAudioUrl('');
+    setCurrentTime(0);
+    const ext = voice.provider === 'piper' ? 'wav' : 'mp3';
+    setFileName(`${voice.name}_Dubbing.${ext}`);
+  };
+
+  const handleTextChange = (newText: string) => {
+    setText(newText);
+    setAudioUrl('');
+  };
+
+  const handleSpeedChange = (newSpeed: number) => {
+    setSpeed(newSpeed);
+    setAudioUrl('');
+  };
+
+  const handleProviderChange = (newProvider: 'microsoft' | 'openai' | 'piper' | 'google') => {
+    setProvider(newProvider);
+    setAudioUrl('');
+  };
+
   // Sync voice from URL query param if present (e.g. ?voice=mai-anh)
   useEffect(() => {
     const voiceParam = searchParams.get('voice');
     if (voiceParam) {
       const found = voices.find((v) => v.id === voiceParam);
       if (found) {
-        setSelectedVoice(found);
+        handleSelectVoice(found);
       }
     }
   }, [searchParams]);
@@ -54,11 +93,32 @@ export const StudioConsole: React.FC = () => {
       .trim();
   };
 
+  // Build Stream URL helper
+  const buildStreamUrl = () => {
+    const params = new URLSearchParams({
+      text: cleanTextForSpeech(text),
+      voiceId: selectedVoice.id,
+      speed: speed.toString(),
+      provider: provider,
+    });
+    if (selectedVoice.customPitch) params.set('pitch', selectedVoice.customPitch);
+    if (selectedVoice.customRate) params.set('rate', selectedVoice.customRate);
+    if (selectedVoice.customVolume) params.set('volume', selectedVoice.customVolume);
+    if (selectedVoice.baseModel) params.set('model', selectedVoice.baseModel);
+    if (selectedVoice.vocalFingerprint) {
+      const fp = selectedVoice.vocalFingerprint;
+      if (fp.warmth !== undefined) params.set('warmth', fp.warmth.toString());
+      if (fp.brightness !== undefined) params.set('brightness', fp.brightness.toString());
+      if (fp.fullness !== undefined) params.set('fullness', fp.fullness.toString());
+      if (fp.f1 !== undefined) params.set('f1', fp.f1.toString());
+      if (fp.f2 !== undefined) params.set('f2', fp.f2.toString());
+    }
+    return `/api/tts/stream?${params.toString()}`;
+  };
+
   // Play Neural MP3 Audio from Backend
   const playAudio = () => {
-    const targetUrl =
-      audioUrl ||
-      `/api/tts/stream?text=${encodeURIComponent(cleanTextForSpeech(text))}&voiceId=${selectedVoice.id}&speed=${speed}&provider=${provider}`;
+    const targetUrl = audioUrl || buildStreamUrl();
 
     if (!audioRef.current) {
       audioRef.current = new Audio(targetUrl);
@@ -116,9 +176,7 @@ export const StudioConsole: React.FC = () => {
   };
 
   const handleDownload = () => {
-    const downloadLink =
-      audioUrl ||
-      `/api/tts/stream?text=${encodeURIComponent(cleanTextForSpeech(text))}&voiceId=${selectedVoice.id}&speed=${speed}&provider=${provider}`;
+    const downloadLink = audioUrl || buildStreamUrl();
 
     const a = document.createElement('a');
     a.href = downloadLink;
@@ -157,7 +215,7 @@ export const StudioConsole: React.FC = () => {
         return;
       }
 
-      const streamEndpoint = `/api/tts/stream?text=${encodeURIComponent(cleanTextForSpeech(text))}&voiceId=${selectedVoice.id}&speed=${speed}&provider=${provider}`;
+      const streamEndpoint = buildStreamUrl();
       setAudioUrl(streamEndpoint);
       const ext = provider === 'piper' ? 'wav' : 'mp3';
       setFileName(`${selectedVoice.name}_${provider}_${Date.now()}.${ext}`);
@@ -168,7 +226,14 @@ export const StudioConsole: React.FC = () => {
           type: 'success',
         });
       } else {
-        const providerLabel = provider === 'openai' ? 'OpenAI HD' : provider === 'piper' ? 'Piper Free' : 'Neural Studio';
+        const providerLabel =
+          provider === 'google'
+            ? 'Chị Google (TikTok Viral)'
+            : provider === 'openai'
+            ? 'OpenAI HD'
+            : provider === 'piper'
+            ? 'Piper Free'
+            : 'Neural Studio';
         setStatusMessage({
           text: `Tạo âm thanh thành công! Đang phát giọng đọc ${providerLabel} của "${selectedVoice.name}"...`,
           type: 'success',
@@ -223,7 +288,7 @@ export const StudioConsole: React.FC = () => {
           {/* Main Studio Workspace Container */}
           <div className="rounded-xl bg-surface-container-lowest p-space-md flex flex-col gap-space-md shadow-inner">
             {/* Text Input Area with SSML helper tags & dynamic credit counter */}
-            <TextInputArea text={text} onChange={setText} />
+            <TextInputArea text={text} onChange={handleTextChange} />
 
             {/* Bottom Control Deck */}
             <ControlDeck
@@ -232,11 +297,11 @@ export const StudioConsole: React.FC = () => {
               selectedEmotion={selectedEmotion}
               onSelectEmotion={setSelectedEmotion}
               speed={speed}
-              onSpeedChange={setSpeed}
+              onSpeedChange={handleSpeedChange}
               isGenerating={isGenerating}
               onGenerate={handleGenerate}
               provider={provider}
-              onProviderChange={setProvider}
+              onProviderChange={handleProviderChange}
             />
           </div>
 
@@ -258,7 +323,7 @@ export const StudioConsole: React.FC = () => {
         isOpen={isVoiceModalOpen}
         onClose={() => setIsVoiceModalOpen(false)}
         selectedVoice={selectedVoice}
-        onSelectVoice={setSelectedVoice}
+        onSelectVoice={handleSelectVoice}
       />
     </section>
   );

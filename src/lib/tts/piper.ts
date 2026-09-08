@@ -139,9 +139,15 @@ export async function synthesizeWithPiper(options: PiperTTSOptions): Promise<Pip
   try {
     const child = spawn(piperCmd, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        PYTHONIOENCODING: 'utf-8',
+        PYTHONUTF8: '1',
+      },
     });
 
-    child.stdin.write(text + '\n');
+    child.stdin.setDefaultEncoding('utf-8');
+    child.stdin.write(text + '\n', 'utf-8');
     child.stdin.end();
 
     child.stdout.on('data', (chunk) => {

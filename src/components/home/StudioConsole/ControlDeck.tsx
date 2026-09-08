@@ -13,8 +13,8 @@ interface ControlDeckProps {
   onSpeedChange: (speed: number) => void;
   isGenerating: boolean;
   onGenerate: () => void;
-  provider: 'microsoft' | 'openai' | 'piper';
-  onProviderChange: (provider: 'microsoft' | 'openai' | 'piper') => void;
+  provider: 'microsoft' | 'openai' | 'piper' | 'google';
+  onProviderChange: (provider: 'microsoft' | 'openai' | 'piper' | 'google') => void;
 }
 
 export const ControlDeck: React.FC<ControlDeckProps> = ({
@@ -38,7 +38,13 @@ export const ControlDeck: React.FC<ControlDeckProps> = ({
           onClick={onOpenVoiceModal}
           className="flex items-center gap-2 p-1.5 pr-3.5 rounded-full bg-surface-container hover:bg-surface-container-high transition-all text-left shadow-sm"
         >
-          <span className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary-container to-secondary-container flex items-center justify-center font-headline-sm text-headline-sm text-canvas-base font-black">
+          <span
+            className={`w-9 h-9 rounded-full flex items-center justify-center font-headline-sm text-headline-sm text-canvas-base font-black ${
+              selectedVoice.isCustom
+                ? 'bg-gradient-to-tr from-accent-violet-bright to-primary-container'
+                : 'bg-gradient-to-tr from-primary-container to-secondary-container'
+            }`}
+          >
             {selectedVoice.avatarInitials}
           </span>
           <div className="flex flex-col">
@@ -46,11 +52,21 @@ export const ControlDeck: React.FC<ControlDeckProps> = ({
               <span className="font-label-md text-label-md font-bold text-text-primary">
                 {selectedVoice.name}
               </span>
-              <span className="px-1.5 py-0.2 rounded font-code-xs text-[10px] bg-primary-container/20 text-primary-container font-semibold">
-                {selectedVoice.country}
+              <span
+                className={`px-1.5 py-0.2 rounded font-code-xs text-[10px] font-semibold ${
+                  selectedVoice.isCustom
+                    ? 'bg-accent-violet-bright/20 text-accent-violet-bright border border-accent-violet-bright/30'
+                    : 'bg-primary-container/20 text-primary-container'
+                }`}
+              >
+                {selectedVoice.isCustom
+                  ? selectedVoice.clonedSampleCount
+                    ? `🧬 CLONE (${selectedVoice.clonedSampleCount} FILE)`
+                    : 'CUSTOM'
+                  : selectedVoice.country}
               </span>
             </div>
-            <span className="font-body-sm text-[11px] text-text-muted">
+            <span className="font-body-sm text-[11px] text-text-muted truncate max-w-[180px]">
               {selectedVoice.style}
             </span>
           </div>
@@ -64,7 +80,7 @@ export const ControlDeck: React.FC<ControlDeckProps> = ({
 
         {/* Provider Selector */}
         <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-container">
-          {(['microsoft', 'openai', 'piper'] as const).map((p) => {
+          {(['microsoft', 'openai', 'piper', 'google'] as const).map((p) => {
             const isActive = provider === p;
             return (
               <button
@@ -77,7 +93,7 @@ export const ControlDeck: React.FC<ControlDeckProps> = ({
                     : 'text-text-secondary hover:text-on-surface'
                 }`}
               >
-                {p === 'openai' ? 'OpenAI HD' : p === 'piper' ? 'Piper Free' : 'Microsoft'}
+                {p === 'openai' ? 'OpenAI HD' : p === 'piper' ? 'Piper Free' : p === 'google' ? 'Chị Google' : 'Microsoft'}
               </button>
             );
           })}

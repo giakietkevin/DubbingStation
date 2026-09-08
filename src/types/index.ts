@@ -13,6 +13,32 @@ export interface Voice {
   isPremium?: boolean;
   age?: 'young' | 'adult' | 'senior';
   useCase?: string;
+  provider?: 'microsoft' | 'openai' | 'piper' | 'google';
+  isCustom?: boolean;
+  customPitch?: string;
+  customRate?: string;
+  customVolume?: string;
+  baseModel?: string;
+  clonedSampleCount?: number;
+  analysisProfile?: {
+    pitchHz?: number;
+    rateWpm?: number;
+    qualityScore?: number;
+    timbreDescription?: string;
+  };
+  vocalFingerprint?: {
+    fingerprintId?: string;
+    f0?: number;
+    f1?: number;
+    f2?: number;
+    warmth?: number;
+    brightness?: number;
+    fullness?: number;
+    tempoWpm?: number;
+    gender?: 'male' | 'female';
+    vocalType?: string;
+    waveformPoints?: number[];
+  };
 }
 
 export interface PricingPlan {
