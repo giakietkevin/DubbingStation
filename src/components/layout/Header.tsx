@@ -16,6 +16,7 @@ export const Header: React.FC = () => {
   const userName = session?.user?.name || 'Thành viên';
   const userEmail = session?.user?.email || '';
   const credits = (session?.user as any)?.credits ?? 50000;
+  const isAdmin = (session?.user as any)?.role === 'ADMIN';
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-surface-glass backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.5)] border-b border-border-glass">
@@ -227,6 +228,17 @@ export const Header: React.FC = () => {
                     </div>
                   </div>
 
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="px-3 py-2 rounded-lg text-body-sm font-bold text-signal-danger hover:bg-signal-danger/10 transition-colors flex items-center gap-2 border border-signal-danger/25 bg-signal-danger/5"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
+                      <span>Quản Trị Admin CSDL</span>
+                    </Link>
+                  )}
+
                   <Link
                     href="/dashboard"
                     onClick={() => setIsUserMenuOpen(false)}
@@ -345,6 +357,19 @@ export const Header: React.FC = () => {
 
           {/* Navigation Links */}
           <div className="flex flex-col space-y-1">
+            {isAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-lg text-[13px] font-bold text-signal-danger bg-signal-danger/10 border border-signal-danger/30 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
+                  <span>Quản Trị Admin CSDL</span>
+                </div>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-signal-danger/20 font-mono">ADMIN</span>
+              </Link>
+            )}
             <Link
               href="/dashboard"
               onClick={() => setIsMobileMenuOpen(false)}

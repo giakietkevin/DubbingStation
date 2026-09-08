@@ -1,41 +1,86 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const searchParams = useSearchParams();
+
+  const activatedParam = searchParams.get('activated') === 'true';
+  const emailParam = searchParams.get('email') || '';
+
+  const [email, setEmail] = useState<string>(emailParam);
+  const [password, setPassword] = useState<string>('');
+  const [error, setError] = useState<string>('');
+  const [pendingOtpEmail, setPendingOtpEmail] = useState<string>('');
+  const [successMsg, setSuccessMsg] = useState<string>(
+    activatedParam
+      ? 'Kích hoạt tài khoản OTP thành công! Mời bạn đăng nhập để vào phòng thu.'
+      : ''
+  );
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+  }, [emailParam]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setPendingOtpEmail('');
+
+    const cleanInput = email.trim();
 
     try {
       const res = await signIn('credentials', {
         redirect: false,
-        email,
+        email: cleanInput,
         password,
       });
 
       if (res?.error) {
-        setError(res.error);
+        // Kiểm tra xem có phải lỗi chưa kích hoạt OTP không
+        if (res.error.includes('CHUA_KICH_HOAT_OTP')) {
+          const parts = res.error.split(':');
+          const targetEmail = parts[1] || cleanInput;
+          setPendingOtpEmail(targetEmail);
+          setError('Tài khoản của bạn chưa được kích hoạt mã OTP. Hệ thống đã gửi mã OTP mới vào CSDL.');
+        } else {
+          setError(res.error);
+        }
         setIsLoading(false);
       } else {
-        router.push('/dashboard');
+        // Nếu đăng nhập bằng nick admin -> Chuyển hướng thẳng tới trang /admin
+        const isLoggingAsAdmin =
+          cleanInput.toLowerCase() === 'admin' ||
+          cleanInput.toLowerCase() === 'admin@dubbingstation.com';
+
+        if (isLoggingAsAdmin) {
+          router.push('/admin');
+        } else {
+          router.push('/dashboard');
+        }
         router.refresh();
       }
     } catch (err: any) {
-      setError('Đã xảy ra lỗi không xác định');
+      setError('Đã xảy ra lỗi không xác định trong quá trình đăng nhập');
       setIsLoading(false);
     }
+  };
+
+  // Nút hỗ trợ điền nhanh tài khoản Admin để test
+  const handleFillAdmin = () => {
+    setEmail('admin');
+    setPassword('Giakiet@123');
+    setError('');
+    setPendingOtpEmail('');
   };
 
   return (
@@ -47,15 +92,15 @@ export default function LoginPage() {
       />
 
       <div className="w-full max-w-md relative z-10 bg-surface-card/90 backdrop-blur-2xl rounded-2xl border border-border-glass shadow-[0_24px_80px_-15px_rgba(0,0,0,0.9)] p-space-lg sm:p-space-xl">
-        {/* Logo */}
+        {/* Logo Branding */}
         <div className="flex flex-col items-center text-center mb-space-lg">
           <Link href="/" className="flex items-center gap-space-xs mb-2">
             <div className="relative h-9 w-9">
               <Image
                 src="https://lh3.googleusercontent.com/aida/AEtjO1V-UY2Vq84aP1TGSemuRsNV1QLsuv0qyihz872V7JRpt1zfIbe9cIcDboSo_rWDyuvk8eaaPBuLPjwDmmAsaaZvwip7xi_08PfNZjMWz5P5yUyrTzfJFlgXqv7qhNxrukI8RmCWfvAHRvGZAsCvXTne6arYNyYhnqHk_h9YjyTPddJTATjRAp7gdgsIk7ua_L9M7OHLBE2KOTx9F295HOnIl8F6D8O5IqMVcDOtVMA8Yy6MFVFWnIprww"
                 alt="DubbingStation Logo"
-                fill
-                sizes="36px"
+                width={36}
+                height={36}
                 className="object-contain"
               />
             </div>
@@ -67,32 +112,69 @@ export default function LoginPage() {
             Chào mừng bạn trở lại!
           </h1>
           <p className="font-body-sm text-body-sm text-text-muted mt-1">
-            Đăng nhập để quản lý dự án và số dư Credits
+            Đăng nhập để vào phòng thu Studio và quản lý Credits
           </p>
         </div>
 
+        {/* Quick Admin Credential Chip */}
+        <div className="mb-4 p-2.5 rounded-xl bg-surface-container border border-border-glass flex items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-1.5 text-text-secondary">
+            <span className="material-symbols-outlined text-[16px] text-signal-danger">admin_panel_settings</span>
+            <span>Admin: <strong>admin</strong> | <strong>Giakiet@123</strong></span>
+          </div>
+          <button
+            type="button"
+            onClick={handleFillAdmin}
+            className="px-2 py-1 rounded bg-primary-container/20 text-primary-container font-bold hover:bg-primary-container hover:text-surface-card transition-colors"
+          >
+            Điền nhanh
+          </button>
+        </div>
+
+        {/* Success Alert */}
+        {successMsg && (
+          <div className="mb-space-md p-3 rounded-xl bg-signal-success/15 border border-signal-success/30 text-signal-success font-body-sm text-body-sm flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px]">check_circle</span>
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        {/* Error Alert */}
         {error && (
-          <div className="mb-space-md p-3 rounded-lg bg-signal-danger/15 border border-signal-danger/30 text-signal-danger font-body-sm text-body-sm flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px]">error</span>
-            <span>{error}</span>
+          <div className="mb-space-md p-3 rounded-xl bg-signal-danger/15 border border-signal-danger/30 text-signal-danger font-body-sm text-body-sm flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px]">error</span>
+              <span>{error}</span>
+            </div>
+
+            {/* If pending OTP: Show direct button to go to /verify-otp */}
+            {pendingOtpEmail && (
+              <Link
+                href={`/verify-otp?email=${encodeURIComponent(pendingOtpEmail)}`}
+                className="mt-1 py-1.5 px-3 rounded-lg bg-primary-container text-surface-card font-bold text-xs text-center flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <span>Nhập mã OTP để kích hoạt ngay</span>
+                <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+              </Link>
+            )}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-space-md">
           <div className="flex flex-col gap-1.5">
             <label
-              htmlFor="email"
-              className="font-label-sm text-label-sm text-text-secondary uppercase tracking-wider"
+              htmlFor="login-identifier"
+              className="font-label-sm text-label-sm text-text-secondary uppercase tracking-wider font-bold"
             >
-              Địa chỉ Email
+              Tài khoản hoặc Địa chỉ Email
             </label>
             <input
-              id="email"
-              type="email"
+              id="login-identifier"
+              type="text"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="tenban@email.com"
+              placeholder="VD: admin hoặc tenban@email.com"
               className="w-full px-space-md py-2.5 rounded-xl bg-surface-container-lowest border border-border-glass font-body-md text-body-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary-container transition-colors"
             />
           </div>
@@ -101,16 +183,16 @@ export default function LoginPage() {
             <div className="flex items-center justify-between">
               <label
                 htmlFor="password"
-                className="font-label-sm text-label-sm text-text-secondary uppercase tracking-wider"
+                className="font-label-sm text-label-sm text-text-secondary uppercase tracking-wider font-bold"
               >
                 Mật khẩu
               </label>
-              <a
-                href="#"
-                className="font-label-sm text-label-sm text-primary-container hover:underline"
+              <Link
+                href="/verify-otp"
+                className="font-label-sm text-label-sm text-primary-container hover:underline text-xs"
               >
-                Quên mật khẩu?
-              </a>
+                Kích hoạt mã OTP?
+              </Link>
             </div>
             <input
               id="password"
@@ -126,12 +208,12 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full mt-2 py-3 rounded-xl font-label-md text-label-md font-bold text-canvas-base bg-gradient-to-r from-primary-container to-accent-violet-bright hover:shadow-[0_0_24px_rgba(0,242,254,0.4)] hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+            className="w-full mt-2 py-3 rounded-xl font-label-md text-label-md font-bold text-surface-card bg-gradient-to-r from-primary-container to-accent-violet-bright hover:shadow-[0_0_24px_rgba(0,242,254,0.4)] hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-70 flex items-center justify-center gap-2 shadow-glow-cyan"
           >
             {isLoading ? (
               <>
-                <span className="w-4 h-4 rounded-full border-2 border-canvas-base border-t-transparent animate-spin" />
-                <span>Đang đăng nhập...</span>
+                <span className="w-4 h-4 rounded-full border-2 border-surface-card border-t-transparent animate-spin" />
+                <span>Đang kiểm tra CSDL...</span>
               </>
             ) : (
               <span>Đăng Nhập Ngay</span>
@@ -185,5 +267,20 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-canvas-base flex items-center justify-center text-text-muted">
+          <span className="w-8 h-8 rounded-full border-2 border-primary-container border-t-transparent animate-spin mr-2" />
+          <span>Đang tải...</span>
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }

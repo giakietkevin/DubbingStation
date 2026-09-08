@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -34,19 +33,9 @@ export default function RegisterPage() {
         return;
       }
 
-      // Tự động đăng nhập sau khi đăng ký thành công
-      const loginRes = await signIn('credentials', {
-        redirect: false,
-        email,
-        password,
-      });
-
-      if (loginRes?.error) {
-        router.push('/login');
-      } else {
-        router.push('/dashboard?welcome=true');
-        router.refresh();
-      }
+      // Khi đăng ký thành công, chuyển hướng ngay sang trang nhập mã OTP để kích hoạt
+      const previewParam = data.previewOtp ? `&previewOtp=${encodeURIComponent(data.previewOtp)}` : '';
+      router.push(`/verify-otp?email=${encodeURIComponent(email)}&registered=true${previewParam}`);
     } catch (err: any) {
       setError('Đã xảy ra lỗi không xác định');
       setIsLoading(false);
@@ -78,15 +67,11 @@ export default function RegisterPage() {
               DubbingStation
             </span>
           </Link>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-signal-warning/15 text-signal-warning font-label-sm text-label-sm font-bold mb-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-signal-warning animate-ping" />
-            <span>Tặng 50.000 Credits Miễn Phí</span>
-          </div>
           <h1 className="font-headline-sm text-headline-sm font-bold text-text-primary">
-            Tạo Tài Khoản Mới
+            Tạo tài khoản mới
           </h1>
           <p className="font-body-sm text-body-sm text-text-muted mt-1">
-            Không cần thẻ tín dụng • Trải nghiệm ngay toàn bộ tính năng
+            Nhận ngay <strong className="text-primary-container font-mono font-bold">+50.000 Credits</strong> trải nghiệm miễn phí sau khi kích hoạt OTP!
           </p>
         </div>
 
@@ -98,118 +83,73 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-space-md">
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="name"
-              className="font-label-sm text-label-sm text-text-secondary uppercase tracking-wider"
-            >
-              Họ và Tên
+          <div>
+            <label className="block font-label-md text-label-md text-text-secondary mb-1">
+              Họ và tên
             </label>
             <input
-              id="name"
               type="text"
-              required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Nguyễn Văn A"
-              className="w-full px-space-md py-2.5 rounded-xl bg-surface-container-lowest border border-border-glass font-body-md text-body-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary-container transition-colors"
+              placeholder="VD: Nguyễn Văn A"
+              className="w-full px-space-md py-2.5 rounded-xl bg-surface-container-lowest border border-border-glass text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary-container font-body-sm text-body-sm transition-colors"
             />
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="email"
-              className="font-label-sm text-label-sm text-text-secondary uppercase tracking-wider"
-            >
-              Địa chỉ Email
+          <div>
+            <label className="block font-label-md text-label-md text-text-secondary mb-1">
+              Địa chỉ Email <span className="text-signal-danger">*</span>
             </label>
             <input
-              id="email"
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="tenban@email.com"
-              className="w-full px-space-md py-2.5 rounded-xl bg-surface-container-lowest border border-border-glass font-body-md text-body-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary-container transition-colors"
+              placeholder="VD: creator@gmail.com"
+              className="w-full px-space-md py-2.5 rounded-xl bg-surface-container-lowest border border-border-glass text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary-container font-body-sm text-body-sm transition-colors"
             />
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="password"
-              className="font-label-sm text-label-sm text-text-secondary uppercase tracking-wider"
-            >
-              Mật khẩu (tối thiểu 6 ký tự)
+          <div>
+            <label className="block font-label-md text-label-md text-text-secondary mb-1">
+              Mật khẩu <span className="text-signal-danger">*</span>
             </label>
             <input
-              id="password"
               type="password"
               required
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-space-md py-2.5 rounded-xl bg-surface-container-lowest border border-border-glass font-body-md text-body-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary-container transition-colors"
+              placeholder="Tối thiểu 6 ký tự"
+              className="w-full px-space-md py-2.5 rounded-xl bg-surface-container-lowest border border-border-glass text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary-container font-body-sm text-body-sm transition-colors"
             />
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full mt-2 py-3 rounded-xl font-label-md text-label-md font-bold text-canvas-base bg-gradient-to-r from-primary-container via-primary-fixed to-accent-violet-bright hover:shadow-[0_0_24px_rgba(0,242,254,0.4)] hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+            className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-primary-container via-primary-fixed to-accent-violet-bright font-label-md text-label-md font-bold text-surface-card hover:opacity-90 active:scale-[0.99] transition-all shadow-glow-cyan flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <>
-                <span className="w-4 h-4 rounded-full border-2 border-canvas-base border-t-transparent animate-spin" />
-                <span>Đang khởi tạo tài khoản...</span>
+                <span className="w-4 h-4 rounded-full border-2 border-surface-card border-t-transparent animate-spin" />
+                <span>Đang đăng ký & sinh mã OTP...</span>
               </>
             ) : (
-              <span>Đăng Ký & Nhận 50.000 Credits</span>
+              <>
+                <span>Đăng ký & Nhận mã OTP</span>
+                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+              </>
             )}
           </button>
         </form>
 
-        {/* Divider */}
-        <div className="my-space-md flex items-center gap-3">
-          <div className="flex-1 h-[1px] bg-border-glass" />
-          <span className="font-code-xs text-code-xs text-text-muted uppercase">hoặc</span>
-          <div className="flex-1 h-[1px] bg-border-glass" />
-        </div>
-
-        {/* Google OAuth Button */}
-        <button
-          type="button"
-          onClick={() => signIn('google', { callbackUrl: '/dashboard?welcome=true' })}
-          className="w-full py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-sm text-label-sm font-semibold transition-colors flex items-center justify-center gap-2 border border-border-glass"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24">
-            <path
-              fill="#EA4335"
-              d="M12 5c1.5 0 2.8.5 3.9 1.5l2.9-2.9C17 1.8 14.7 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.6 2.8C6.4 7.1 8.9 5 12 5z"
-            />
-            <path
-              fill="#4285F4"
-              d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M5.5 14.9c-.2-.7-.4-1.5-.4-2.4s.2-1.6.4-2.4L1.9 7.3C.7 9.7 0 12.3 0 15.2s.7 5.5 1.9 7.9l3.6-2.8z"
-            />
-            <path
-              fill="#34A853"
-              d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.6-2.1-6.5-5.1L1.9 16.5C3.7 20.2 7.5 23.5 12 23.5z"
-            />
-          </svg>
-          <span>Đăng ký nhanh với Google</span>
-        </button>
-
-        {/* Footer link */}
-        <p className="mt-space-lg text-center font-body-sm text-body-sm text-text-muted">
+        <div className="mt-space-lg pt-space-md border-t border-border-glass text-center font-body-sm text-body-sm text-text-muted">
           Đã có tài khoản?{' '}
-          <Link href="/login" className="text-primary-container font-bold hover:underline">
-            Đăng nhập
+          <Link href="/login" className="text-primary hover:underline font-semibold">
+            Đăng nhập ngay
           </Link>
-        </p>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { createAndSaveOtp } from '@/lib/otp';
 
 export async function POST(req: Request) {
   try {
@@ -20,14 +21,16 @@ export async function POST(req: Request) {
       );
     }
 
+    const cleanEmail = email.toLowerCase().trim();
+
     // Kiểm tra email đã tồn tại
     const existingUser = await prisma.user.findUnique({
-      where: { email },
+      where: { email: cleanEmail },
     });
 
     if (existingUser) {
       return NextResponse.json(
-        { error: 'Email này đã được đăng ký tài khoản' },
+        { error: 'Email này đã được đăng ký tài khoản trong hệ thống' },
         { status: 409 }
       );
     }
@@ -35,14 +38,15 @@ export async function POST(req: Request) {
     // Hash mật khẩu
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // Tạo user và khởi tạo ngay 50.000 Credits Free Onboarding
+    // Tạo user (chưa kích hoạt emailVerified: null) và khởi tạo ngay 50.000 Credits Free Onboarding
     const newUser = await prisma.user.create({
       data: {
-        name: name || email.split('@')[0],
-        email,
+        name: name || cleanEmail.split('@')[0],
+        email: cleanEmail,
         passwordHash,
         role: 'FREE_USER',
         language: 'vi',
+        emailVerified: null, // Chưa kích hoạt cho đến khi xác thực OTP
         wallet: {
           create: {
             balance: 50000,
@@ -63,7 +67,7 @@ export async function POST(req: Request) {
             tier: 'FREE',
             status: 'ACTIVE',
             currentPeriodStart: new Date(),
-            currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+            currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 năm
           },
         },
       },
@@ -72,12 +76,19 @@ export async function POST(req: Request) {
         name: true,
         email: true,
         role: true,
+        emailVerified: true,
       },
     });
 
+    // Tự động sinh mã OTP và lưu vào CSDL
+    const otpCode = await createAndSaveOtp(cleanEmail, 10);
+
     return NextResponse.json(
       {
-        message: 'Đăng ký tài khoản thành công! Bạn đã nhận được 50.000 Credits.',
+        message: 'Đăng ký thành công! Vui lòng nhập mã OTP để kích hoạt tài khoản.',
+        requireOtp: true,
+        email: cleanEmail,
+        previewOtp: otpCode,
         user: newUser,
       },
       { status: 201 }
