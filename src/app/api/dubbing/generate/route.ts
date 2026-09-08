@@ -14,7 +14,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const execFileAsync = promisify(execFile);
-const ffmpegExecutable = ffmpegPath || 'ffmpeg';
+const ffmpegExecutable = ffmpegPath || path.join(process.cwd(), 'node_modules', 'ffmpeg-static', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
 
 interface DubbingCue {
   id: number;
@@ -26,7 +26,12 @@ interface DubbingCue {
 
 async function createTimedAudio(req: Request, cues: DubbingCue[], speakerVoiceMap: Record<string, string>, workDir: string) {
   const audioFiles: string[] = [];
-  const origin = new URL(req.url).origin;
+  const requestUrl = new URL(req.url);
+  const forwardedHost = req.headers.get('x-forwarded-host');
+  const forwardedProto = req.headers.get('x-forwarded-proto') || 'https';
+  const origin = forwardedHost
+    ? `${forwardedProto.split(',')[0].trim()}://${forwardedHost.split(',')[0].trim()}`
+    : requestUrl.origin;
 
   for (const cue of cues) {
     const ttsUrl = new URL('/api/tts/stream', origin);
@@ -36,8 +41,11 @@ async function createTimedAudio(req: Request, cues: DubbingCue[], speakerVoiceMa
     const estimatedSpeechDuration = Math.max(0.25, cue.text.trim().length / 14);
     const speed = Math.max(0.75, Math.min(2.5, estimatedSpeechDuration / cueDuration));
     ttsUrl.searchParams.set('speed', speed.toFixed(2));
-    const response = await fetch(ttsUrl);
-    if (!response.ok) throw new Error(`TTS thất bại ở cue #${cue.id} (${response.status}).`);
+    const response = await fetch(ttsUrl, { cache: 'no-store' });
+    if (!response.ok) {
+      const details = (await response.text()).slice(0, 300);
+      throw new Error(`TTS thất bại ở cue #${cue.id} (${response.status}) tại ${ttsUrl.pathname}. ${details}`);
+    }
     const audioPath = path.join(workDir, `cue-${cue.id}.mp3`);
     await fs.writeFile(audioPath, Buffer.from(await response.arrayBuffer()));
     audioFiles.push(audioPath);
