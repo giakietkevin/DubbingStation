@@ -20,7 +20,7 @@ export const StudioConsole: React.FC = () => {
   const [selectedVoice, setSelectedVoice] = useState<Voice>(defaultVoice);
   const [selectedEmotion, setSelectedEmotion] = useState<string>('Tự nhiên');
   const [speed, setSpeed] = useState<number>(1.0);
-  const [provider, setProvider] = useState<'microsoft' | 'openai' | 'piper' | 'google'>('microsoft');
+  const [provider, setProvider] = useState<'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface'>('microsoft');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
@@ -72,7 +72,7 @@ export const StudioConsole: React.FC = () => {
     setAudioUrl('');
   };
 
-  const handleProviderChange = (newProvider: 'microsoft' | 'openai' | 'piper' | 'google') => {
+  const handleProviderChange = (newProvider: 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface') => {
     setProvider(newProvider);
     setAudioUrl('');
   };
@@ -266,7 +266,9 @@ export const StudioConsole: React.FC = () => {
         });
       } else {
         const providerLabel =
-          provider === 'google'
+          provider === 'huggingface'
+            ? 'Hugging Face (Người thật)'
+            : provider === 'google'
             ? 'Chị Google (TikTok Viral)'
             : provider === 'openai'
             ? 'OpenAI HD'

@@ -5,6 +5,9 @@ import { prisma } from '@/lib/prisma';
 import { Communicate } from 'edge-tts-universal';
 import { voicePersonaProfiles } from '@/data/voiceProfiles';
 import { synthesizeWithOpenAI } from '@/lib/tts/openai';
+import { synthesizeWithPiper } from '@/lib/tts/piper';
+import { synthesizeWithHuggingFace } from '@/lib/tts/huggingface';
+import { join } from 'path';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +43,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { text, voiceId = 'minh-khang', speed = 1.0, provider = 'microsoft', responseFormat = 'audio' } = body;
+    const { text, voiceId = 'vivos-nam-saigon', speed = 1.0, provider = 'microsoft', responseFormat = 'audio' } = body;
 
     if (!text || typeof text !== 'string' || !text.trim()) {
       return NextResponse.json({ error: 'Nội dung "text" không được để trống.' }, { status: 400 });
@@ -77,7 +80,18 @@ export async function POST(req: Request) {
 
     // 4. Tổng hợp âm thanh qua Neural Engine
     let audioBuffer: Buffer | null = null;
-    if (selectedProvider === 'openai') {
+    if (selectedProvider === 'huggingface') {
+      const hfModel = profile.hfModel || 'facebook/mms-tts-vie';
+      const hfResult = await synthesizeWithHuggingFace({
+        text: cleanText,
+        modelId: hfModel,
+        speed,
+        gender: profile.gender || (cleanText.toLowerCase().includes('phương thảo') || cleanText.toLowerCase().includes('bảo trâm') ? 'female' : 'male'),
+      });
+      if (hfResult?.audio) {
+        audioBuffer = hfResult.audio;
+      }
+    } else if (selectedProvider === 'openai') {
       const openAIVoice = profile.openAIVoice || 'nova';
       const result = await synthesizeWithOpenAI({
         text: cleanText,
@@ -100,17 +114,20 @@ export async function POST(req: Request) {
         if (chunks.length > 0) {
           audioBuffer = Buffer.concat(chunks);
         }
-      } catch {
-        // Fallback
-        const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
-          cleanText.slice(0, 200)
-        )}&tl=vi&client=tw-ob`;
-        const res = await fetch(url, {
-          headers: { 'User-Agent': 'Mozilla/5.0' },
-        });
-        if (res.ok) {
-          audioBuffer = Buffer.from(await res.arrayBuffer());
-        }
+      } catch (e) {
+        // Fallback to local Piper VIVOS real human model
+        try {
+          const modelPath = join(process.cwd(), 'models', 'piper', 'vi_VN-vivos-x_low.onnx');
+          const result = await synthesizeWithPiper({
+            text: cleanText,
+            modelPath,
+            outputFormat: 'wav',
+            lengthScale: 1.0,
+          });
+          if (result) {
+            audioBuffer = result.audio;
+          }
+        } catch {}
       }
     }
 
@@ -170,12 +187,13 @@ export async function POST(req: Request) {
       }, { headers: rateLimitHeaders });
     }
 
-    // Trả về trực tiếp Audio MP3 Binary stream
+    // Trả về trực tiếp Audio Binary stream
     const uint8 = new Uint8Array(audioBuffer);
+    const isWav = audioBuffer.subarray(0, 4).toString() === 'RIFF';
     return new NextResponse(uint8, {
       status: 200,
       headers: {
-        'Content-Type': 'audio/mpeg',
+        'Content-Type': isWav ? 'audio/wav' : 'audio/mpeg',
         'Content-Length': uint8.byteLength.toString(),
         'X-Credits-Deducted': creditsRequired.toString(),
         'X-Remaining-Balance': (auth.user.walletBalance - creditsRequired).toString(),

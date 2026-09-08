@@ -1,4 +1,4 @@
-export type TTSProvider = 'microsoft' | 'openai' | 'piper';
+export type TTSProvider = 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface';
 
 export interface TTSProviderOptions {
   provider: TTSProvider;

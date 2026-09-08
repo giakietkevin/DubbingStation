@@ -3,11 +3,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
-// Import động transformers để tránh lỗi SSR trên Next.js
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import * as transformers from '@huggingface/transformers';
 import { cleanAndDeduplicateWhisperSegments, exportToVTT, type WhisperSegment } from '@/lib/whisper';
+
+// Tải transformers.js động trên client để tránh webpack bundle native node_modules
+const loadBrowserTransformers = async () => {
+  const url = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/dist/transformers.min.js';
+  return import(/* webpackIgnore: true */ url);
+};
 
 export default function LocalVideoSubtitler() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -89,6 +91,8 @@ export default function LocalVideoSubtitler() {
       // 2. Chạy Whisper với Transformers.js
       setStatus('transcribing');
       setProgress(0);
+
+      const transformers = await loadBrowserTransformers();
 
       // Cấu hình môi trường Web
       transformers.env.allowLocalModels = false;

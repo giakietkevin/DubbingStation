@@ -46,9 +46,11 @@ interface VocalFingerprint {
 const categories = [
   { id: 'all', label: 'Tất cả' },
   { id: 'custom', label: '⭐ Giọng Của Tôi' },
-  { id: 'tiktok', label: '🔥 TikTok / CapCut' },
-  { id: 'review', label: '🎬 Review Phim' },
-  { id: 'news', label: '📺 Thời Sự & E-Learning' },
+  { id: 'dataset', label: '🎧 VIVOS • Common Voice • OpenSLR' },
+  { id: 'huggingface', label: '🤗 Hugging Face Models' },
+  { id: 'vivos', label: '🇻🇳 VIVOS (AILAB)' },
+  { id: 'common_voice', label: '🗣️ Common Voice 17.0' },
+  { id: 'openslr', label: '🎙️ OpenSLR 57 Studio' },
   { id: 'en', label: '🇺🇸 Tiếng Anh' },
   { id: 'asia', label: '🇯🇵🇰🇷🇨🇳 Nhật • Hàn • Trung' },
   { id: 'openai', label: '✨ OpenAI HD' },
@@ -82,11 +84,11 @@ const manualBaseOptions = [
   },
   {
     id: 'vi_VN-vivos-x_low.onnx',
-    name: 'Mỹ Duyên Vivos (Nữ Sài Gòn - Piper)',
+    name: 'Bảo Trâm VIVOS (Nữ Sài Gòn - Piper)',
     gender: 'female' as const,
     country: 'VIỆT NAM',
     provider: 'piper' as const,
-    description: 'Giọng nữ Nam Bộ tươi vui, năng động',
+    description: 'Giọng nữ Nam Bộ VIVOS mộc mạc, tươi vui (AILAB)',
   },
 ];
 
@@ -498,24 +500,29 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
     if (activeCategory === 'custom') {
       return v.isCustom === true;
     }
-    if (activeCategory === 'tiktok') {
-      return v.tags.includes('TikTok') || v.useCase?.includes('TikTok');
-    }
-    if (activeCategory === 'review') {
+    if (activeCategory === 'dataset') {
       return (
-        v.tags.includes('Review Phim') ||
-        v.tags.includes('Kịch tính') ||
-        v.useCase?.includes('Review') ||
-        v.useCase?.includes('Truyện')
+        v.tags.includes('VIVOS') ||
+        v.tags.includes('Common Voice') ||
+        v.tags.includes('OpenSLR') ||
+        v.tags.includes('Hugging Face') ||
+        v.provider === 'huggingface' ||
+        v.style.includes('VIVOS') ||
+        v.style.includes('Common Voice') ||
+        v.style.includes('OpenSLR')
       );
     }
-    if (activeCategory === 'news') {
-      return (
-        v.tags.includes('Thời sự') ||
-        v.tags.includes('Bản tin') ||
-        v.tags.includes('E-Learning') ||
-        v.tags.includes('Giáo dục')
-      );
+    if (activeCategory === 'huggingface') {
+      return v.provider === 'huggingface' || v.tags.includes('Hugging Face');
+    }
+    if (activeCategory === 'vivos') {
+      return v.tags.includes('VIVOS') || v.style.includes('VIVOS');
+    }
+    if (activeCategory === 'common_voice') {
+      return v.tags.includes('Common Voice') || v.style.includes('Common Voice');
+    }
+    if (activeCategory === 'openslr') {
+      return v.tags.includes('OpenSLR') || v.style.includes('OpenSLR');
     }
     if (activeCategory === 'en') {
       return v.countryCode === 'en-US' || v.countryCode === 'en-GB';
@@ -1295,6 +1302,26 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
                             <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-primary-container/15 text-primary-container">
                               {voice.country}
                             </span>
+                            {voice.tags.includes('VIVOS') && (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                🇻🇳 VIVOS AILAB
+                              </span>
+                            )}
+                            {voice.tags.includes('Common Voice') && (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                🗣️ COMMON VOICE 17.0
+                              </span>
+                            )}
+                            {voice.tags.includes('OpenSLR') && (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                                🎙️ OPENSLR 57 STUDIO
+                              </span>
+                            )}
+                            {(voice.provider === 'huggingface' || voice.tags.includes('Hugging Face')) && (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
+                                🤗 HUGGING FACE • NGƯỜI THẬT
+                              </span>
+                            )}
                             {voice.isCustom ? (
                               <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-accent-violet-bright/20 text-accent-violet-bright border border-accent-violet-bright/30 flex items-center gap-1">
                                 <span>🧬</span>

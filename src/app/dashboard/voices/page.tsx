@@ -10,6 +10,7 @@ export default function VoicesPage() {
   const [voices, setVoices] = useState<Voice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedCountry, setSelectedCountry] = useState('all');
   const [selectedGender, setSelectedGender] = useState('all');
   const [selectedTier, setSelectedTier] = useState('all');
@@ -19,11 +20,22 @@ export default function VoicesPage() {
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const categories = [
+    { id: 'all', label: 'Tất cả giọng đọc' },
+    { id: 'dataset', label: '🎧 VIVOS • Common Voice • OpenSLR (11 Giọng Mới)' },
+    { id: 'huggingface', label: '🤗 Hugging Face Models' },
+    { id: 'vivos', label: '🇻🇳 VIVOS (AILAB)' },
+    { id: 'common_voice', label: '🗣️ Common Voice 17.0' },
+    { id: 'openslr', label: '🎙️ OpenSLR 57 Studio' },
+    { id: 'international', label: '🌐 Quốc Tế (US, UK, Nhật, Hàn, Trung)' },
+  ];
+
   const fetchVoices = async () => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
+      if (selectedCategory !== 'all') params.append('category', selectedCategory);
       if (selectedCountry !== 'all') params.append('country', selectedCountry);
       if (selectedGender !== 'all') params.append('gender', selectedGender);
       if (selectedTier !== 'all') params.append('tier', selectedTier);
@@ -42,7 +54,7 @@ export default function VoicesPage() {
 
   useEffect(() => {
     fetchVoices();
-  }, [search, selectedCountry, selectedGender, selectedTier]);
+  }, [search, selectedCategory, selectedCountry, selectedGender, selectedTier]);
 
   // Load saved favorites from localStorage
   useEffect(() => {
@@ -125,7 +137,7 @@ export default function VoicesPage() {
               Thư Viện Giọng Đọc AI
             </h2>
             <span className="px-2.5 py-0.5 rounded-full bg-primary-container/15 text-primary-container font-code-xs text-[11px] font-bold">
-              3.000+ Voices
+              {voices.length} Voices
             </span>
           </div>
           <p className="font-body-sm text-body-sm text-text-muted mt-1">
@@ -142,6 +154,37 @@ export default function VoicesPage() {
         </Link>
       </div>
 
+      {/* Featured Dataset Banner */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-surface-card to-blue-950/40 border border-emerald-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-[0_0_25px_rgba(16,185,129,0.1)]">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-[24px]">graphic_eq</span>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-[14px] text-text-primary">
+                Đã cập nhật 11 giọng đọc mới từ 3 Dataset AI lớn
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">
+                MỚI
+              </span>
+            </div>
+            <p className="text-[12px] text-text-muted mt-0.5">
+              Bao gồm: <strong>VIVOS</strong> (AILAB ĐHQG TP.HCM), <strong>Mozilla Common Voice 17.0</strong> (Đa vùng miền & đời thực), và <strong>OpenSLR 57</strong> (Studio Master 48kHz).
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setSelectedCategory('dataset')}
+          className="px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 font-bold text-[12px] transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5"
+        >
+          <span>Lọc 11 giọng mới</span>
+          <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+        </button>
+      </div>
+
       {/* Filter Bar & Search */}
       <div className="p-space-md rounded-2xl bg-surface-card border border-border-glass flex flex-col gap-space-md">
         {/* Search input */}
@@ -153,7 +196,7 @@ export default function VoicesPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm theo tên giọng đọc, phong cách (trầm ấm, tin tức, anime, kể chuyện)..."
+            placeholder="Tìm theo tên giọng đọc, phong cách (VIVOS, Common Voice, OpenSLR, Sài Gòn, Đà Nẵng, Nghệ An, trầm ấm)..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-surface-container-lowest border border-border-glass text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary-container font-body-sm text-body-sm transition-colors"
           />
           {search && (
@@ -165,6 +208,24 @@ export default function VoicesPage() {
               <span className="material-symbols-outlined text-[18px]">close</span>
             </button>
           )}
+        </div>
+
+        {/* Categories Tab Horizontal Slider */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`px-3 py-1.5 rounded-xl text-[12px] font-bold whitespace-nowrap transition-all ${
+                selectedCategory === cat.id
+                  ? 'bg-primary-container text-canvas-base shadow-[0_0_15px_rgba(0,242,254,0.3)]'
+                  : 'bg-surface-container-lowest border border-border-glass text-text-secondary hover:text-text-primary hover:bg-surface-container-high'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
         </div>
 
         {/* Filter Chips & Selectors */}
@@ -295,6 +356,7 @@ export default function VoicesPage() {
             type="button"
             onClick={() => {
               setSearch('');
+              setSelectedCategory('all');
               setSelectedCountry('all');
               setSelectedGender('all');
               setSelectedTier('all');
@@ -340,6 +402,26 @@ export default function VoicesPage() {
                         <span className="font-label-lg text-label-lg font-bold text-text-primary">
                           {voice.name}
                         </span>
+                        {voice.tags.includes('VIVOS') && (
+                          <span className="px-1.5 py-0.5 rounded font-code-xs text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                            VIVOS AILAB
+                          </span>
+                        )}
+                        {voice.tags.includes('Common Voice') && (
+                          <span className="px-1.5 py-0.5 rounded font-code-xs text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                            COMMON VOICE 17.0
+                          </span>
+                        )}
+                        {voice.tags.includes('OpenSLR') && (
+                          <span className="px-1.5 py-0.5 rounded font-code-xs text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                            OPENSLR 57 STUDIO
+                          </span>
+                        )}
+                        {(voice.provider === 'huggingface' || voice.tags.includes('Hugging Face')) && (
+                          <span className="px-1.5 py-0.5 rounded font-code-xs text-[10px] font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
+                            🤗 HUGGING FACE
+                          </span>
+                        )}
                         {voice.isPremium ? (
                           <span className="px-1.5 py-0.5 rounded font-code-xs text-[10px] font-bold bg-secondary-container/25 text-secondary">
                             PRO

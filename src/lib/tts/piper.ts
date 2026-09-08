@@ -56,11 +56,48 @@ function ensureModelsDir(): void {
   }
 }
 
-function getPiperCommand(): string {
-  if (process.platform === 'win32') {
-    return 'python';
+interface PiperExecutable {
+  cmd: string;
+  argsPrefix: string[];
+}
+
+function resolvePiperExecutable(): PiperExecutable {
+  const directCandidates = [
+    'C:\\Users\\PC\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\piper.exe',
+    join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python312', 'Scripts', 'piper.exe'),
+    join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python311', 'Scripts', 'piper.exe'),
+    join(process.env.APPDATA || '', 'Python', 'Python312', 'Scripts', 'piper.exe'),
+    'piper',
+  ];
+
+  for (const p of directCandidates) {
+    try {
+      if (p !== 'piper' && existsSync(p)) {
+        return { cmd: p, argsPrefix: [] };
+      }
+    } catch {}
   }
-  return 'python3';
+
+  const pythonCandidates = [
+    'C:\\Users\\PC\\AppData\\Local\\Programs\\Python\\Python312\\python.exe',
+    join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python312', 'python.exe'),
+    join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python311', 'python.exe'),
+    'python',
+    'python3',
+  ];
+
+  for (const py of pythonCandidates) {
+    try {
+      if (py !== 'python' && py !== 'python3' && existsSync(py)) {
+        return { cmd: py, argsPrefix: ['-m', 'piper'] };
+      }
+    } catch {}
+  }
+
+  return {
+    cmd: process.platform === 'win32' ? 'python' : 'python3',
+    argsPrefix: ['-m', 'piper'],
+  };
 }
 
 export async function synthesizeWithPiper(options: PiperTTSOptions): Promise<PiperTTSResult | null> {
@@ -117,9 +154,9 @@ export async function synthesizeWithPiper(options: PiperTTSOptions): Promise<Pip
     console.warn('[Piper TTS] Failed to parse config sample_rate, defaulting to 22050', err);
   }
 
-  const piperCmd = getPiperCommand();
+  const exec = resolvePiperExecutable();
   const args = [
-    '-m', 'piper',
+    ...exec.argsPrefix,
     '--model', resolvedModelPath,
     '--config', configPath,
     '--output-raw',
@@ -137,7 +174,7 @@ export async function synthesizeWithPiper(options: PiperTTSOptions): Promise<Pip
   const audioChunks: Buffer[] = [];
 
   try {
-    const child = spawn(piperCmd, args, {
+    const child = spawn(exec.cmd, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: {
         ...process.env,
@@ -196,8 +233,9 @@ export async function synthesizeWithPiper(options: PiperTTSOptions): Promise<Pip
 
 export async function isPiperAvailable(): Promise<boolean> {
   try {
-    const cmd = getPiperCommand();
-    const child = spawn(cmd, ['-m', 'piper', '--help'], {
+    const exec = resolvePiperExecutable();
+    const testArgs = [...exec.argsPrefix, '--help'];
+    const child = spawn(exec.cmd, testArgs, {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 

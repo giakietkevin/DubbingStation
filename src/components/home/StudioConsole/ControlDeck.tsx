@@ -13,8 +13,8 @@ interface ControlDeckProps {
   onSpeedChange: (speed: number) => void;
   isGenerating: boolean;
   onGenerate: () => void;
-  provider: 'microsoft' | 'openai' | 'piper' | 'google';
-  onProviderChange: (provider: 'microsoft' | 'openai' | 'piper' | 'google') => void;
+  provider: 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface';
+  onProviderChange: (provider: 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface') => void;
 }
 
 export const ControlDeck: React.FC<ControlDeckProps> = ({
@@ -80,7 +80,7 @@ export const ControlDeck: React.FC<ControlDeckProps> = ({
 
         {/* Provider Selector */}
         <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-container">
-          {(['microsoft', 'openai', 'piper', 'google'] as const).map((p) => {
+          {(['huggingface', 'microsoft', 'openai', 'piper', 'google'] as const).map((p) => {
             const isActive = provider === p;
             return (
               <button
@@ -93,7 +93,7 @@ export const ControlDeck: React.FC<ControlDeckProps> = ({
                     : 'text-text-secondary hover:text-on-surface'
                 }`}
               >
-                {p === 'openai' ? 'OpenAI HD' : p === 'piper' ? 'Piper Free' : p === 'google' ? 'Chị Google' : 'Microsoft'}
+                {p === 'huggingface' ? 'Hugging Face' : p === 'openai' ? 'OpenAI HD' : p === 'piper' ? 'Piper Free' : p === 'google' ? 'Chị Google' : 'Microsoft'}
               </button>
             );
           })}

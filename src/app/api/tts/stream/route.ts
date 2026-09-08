@@ -3,12 +3,13 @@ import { Communicate } from 'edge-tts-universal';
 import { voicePersonaProfiles } from '@/data/voiceProfiles';
 import { synthesizeWithOpenAI } from '@/lib/tts/openai';
 import { synthesizeWithPiper, createWavHeader } from '@/lib/tts/piper';
+import { synthesizeWithHuggingFace } from '@/lib/tts/huggingface';
 import { applyVocalTimbreDSP } from '@/lib/tts/dsp';
 import { join, isAbsolute } from 'path';
 
 export const dynamic = 'force-dynamic';
 
-type TTSProvider = 'microsoft' | 'openai' | 'piper' | 'google';
+type TTSProvider = 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface';
 
 const MODELS_DIR = join(process.cwd(), 'models', 'piper');
 
@@ -104,32 +105,29 @@ async function synthesizeWithMicrosoftNeural(
       return Buffer.concat(audioChunks);
     }
   } catch (e) {
-    console.warn('[TTS] Tier 2 Microsoft clean voice failed, attempting Tier 3 Google fallback', e);
+    console.warn('[TTS] Tier 2 Microsoft clean voice failed, attempting local Piper real human model fallback', e);
   }
 
-  // Tier 3: Emergency Google TTS fallback
+  // Tier 3: Local Piper VIVOS/25H real human dataset model fallback
   try {
-    let lang = 'vi';
-    if (safeVoice.startsWith('en')) lang = 'en';
-    else if (safeVoice.startsWith('ja')) lang = 'ja';
-    else if (safeVoice.startsWith('ko')) lang = 'ko';
-    else if (safeVoice.startsWith('zh')) lang = 'zh-CN';
-
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
-      chunkText.slice(0, 200)
-    )}&tl=${lang}&client=tw-ob`;
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-    });
-    if (res.ok) {
-      const arrayBuffer = await res.arrayBuffer();
-      return Buffer.from(arrayBuffer);
+    const isVietnamese = !safeVoice.startsWith('en') && !safeVoice.startsWith('ja') && !safeVoice.startsWith('ko') && !safeVoice.startsWith('zh');
+    if (isVietnamese) {
+      const modelFile = safeVoice.includes('female') || safeVoice.includes('HoaiMy')
+        ? 'vi_VN-vivos-x_low.onnx'
+        : 'vi_VN-25hours_single-low.onnx';
+      const modelPath = join(MODELS_DIR, modelFile);
+      const result = await synthesizeWithPiper({
+        text: chunkText,
+        modelPath,
+        outputFormat: 'wav',
+        lengthScale: 1.0,
+      });
+      if (result?.audio) {
+        return result.audio;
+      }
     }
   } catch (err) {
-    console.error('[TTS] Tier 3 Google fallback failed', err);
+    console.error('[TTS] Tier 3 Piper fallback failed', err);
   }
 
   return null;
@@ -149,25 +147,40 @@ async function synthesizeChunk(
 ): Promise<ChunkSynthesisResult> {
   const combinedRate = calculateCombinedRate(profile.rate || '+0%', speed);
 
-  if (provider === 'google') {
-    try {
-      const lang = profile.neuralModel?.startsWith('en') ? 'en' : 'vi';
-      const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
-        chunkText.slice(0, 200)
-      )}&tl=${lang}&client=tw-ob`;
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        },
-      });
-      if (res.ok) {
-        const arrayBuffer = await res.arrayBuffer();
-        return { buffer: Buffer.from(arrayBuffer) };
-      }
-    } catch (err) {
-      console.error('[TTS] Google synthesis failed, falling back to Microsoft', err);
+  if (provider === 'huggingface') {
+    const hfModel = profile.hfModel || 'facebook/mms-tts-vie';
+    const hfResult = await synthesizeWithHuggingFace({
+      text: chunkText,
+      modelId: hfModel,
+      speed,
+      gender: profile.gender || (chunkText.toLowerCase().includes('phương thảo') || chunkText.toLowerCase().includes('bảo trâm') ? 'female' : 'male'),
+    });
+    if (hfResult?.audio) {
+      return {
+        buffer: hfResult.audio,
+        sampleRate: hfResult.sampleRate,
+      };
     }
+    // Fallback to local Piper VIVOS/25H ONNX model
+    const modelFile = profile.piperModel || (profile.gender === 'female' ? 'vi_VN-vivos-x_low.onnx' : 'vi_VN-25hours_single-low.onnx');
+    const modelPath = join(MODELS_DIR, modelFile);
+    const piperFallback = await synthesizeWithPiper({
+      text: chunkText,
+      modelPath,
+      outputFormat: 'wav',
+      lengthScale: speed > 0 ? 1.0 / speed : 1.0,
+    });
+    if (piperFallback) {
+      return {
+        buffer: piperFallback.audio,
+        rawPcm: piperFallback.rawPcm,
+        sampleRate: piperFallback.sampleRate,
+      };
+    }
+  }
+
+  if (provider === 'google') {
+    // Legacy provider mapped to Microsoft Neural instead of Google Translate
     const fallbackBuffer = await synthesizeWithMicrosoftNeural(
       chunkText,
       'vi-VN-HoaiMyNeural',
@@ -175,6 +188,7 @@ async function synthesizeChunk(
       combinedRate,
       profile.volume || '+0%'
     );
+    return { buffer: fallbackBuffer };
     return { buffer: fallbackBuffer };
   }
 
@@ -247,6 +261,7 @@ function getProvider(voiceId: string, profile: any): TTSProvider {
   if (voiceId === 'chi-google') return 'google';
   if (voiceId.startsWith('openai-')) return 'openai';
   if (voiceId.startsWith('piper-')) return 'piper';
+  if (voiceId.startsWith('vivos-') || voiceId.startsWith('cv-') || voiceId.startsWith('openslr-')) return 'huggingface';
   return 'microsoft';
 }
 
@@ -254,7 +269,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const text = searchParams.get('text') || 'Xin chào, đây là phòng thu giọng nói DubbingStation.';
-    const voiceId = searchParams.get('voiceId') || 'minh-khang';
+    const voiceId = searchParams.get('voiceId') || 'vivos-nam-saigon';
     const speed = parseFloat(searchParams.get('speed') || '1.0');
     const customPitch = searchParams.get('pitch');
     const customRate = searchParams.get('rate');
@@ -345,19 +360,22 @@ export async function GET(req: Request) {
       );
     }
 
+    const isWavFormat = isWav || fullBuffer.subarray(0, 4).toString() === 'RIFF';
     const uint8 = new Uint8Array(fullBuffer);
 
     return new NextResponse(uint8, {
       status: 200,
       headers: {
-        'Content-Type': isWav ? 'audio/wav' : 'audio/mpeg',
+        'Content-Type': isWavFormat ? 'audio/wav' : 'audio/mpeg',
         'Content-Length': uint8.byteLength.toString(),
         'Accept-Ranges': 'bytes',
         'Cache-Control': 'public, max-age=3600',
         'X-Voice-Profile': voiceId,
         'X-Provider': provider,
         'X-Engine':
-          provider === 'google'
+          provider === 'huggingface'
+            ? 'HuggingFace-MetaMMS-VITS'
+            : provider === 'google'
             ? 'Google-TTS-Viral'
             : provider === 'openai'
             ? 'OpenAI-TTS-HD'

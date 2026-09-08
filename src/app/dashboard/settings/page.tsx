@@ -109,7 +109,7 @@ export default function SettingsPage() {
   -H "Content-Type: application/json" \\
   -d '{
     "text": "Chào mừng bạn đến với DubbingStation AI Studio!",
-    "voiceId": "minh-khang",
+    "voiceId": "vivos-nam-saigon",
     "speed": 1.0,
     "responseFormat": "audio"
   }' --output output.mp3`,
@@ -123,7 +123,7 @@ const response = await fetch('http://localhost:3000/api/v1/tts', {
   },
   body: JSON.stringify({
     text: 'Chào mừng bạn đến với DubbingStation AI Studio!',
-    voiceId: 'minh-khang',
+    voiceId: 'vivos-nam-saigon',
     responseFormat: 'audio'
   })
 });
@@ -140,7 +140,7 @@ headers = {
 }
 payload = {
     "text": "Chào mừng bạn đến với DubbingStation AI Studio!",
-    "voiceId": "minh-khang",
+    "voiceId": "vivos-nam-saigon",
     "responseFormat": "audio"
 }
 

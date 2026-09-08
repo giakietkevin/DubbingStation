@@ -3,6 +3,7 @@ import { Communicate } from 'edge-tts-universal';
 import { voicePersonaProfiles } from '@/data/voiceProfiles';
 import { synthesizeWithOpenAI } from '@/lib/tts/openai';
 import { synthesizeWithPiper, createWavHeader } from '@/lib/tts/piper';
+import { synthesizeWithHuggingFace } from '@/lib/tts/huggingface';
 import { applyVocalTimbreDSP } from '@/lib/tts/dsp';
 import { join, isAbsolute } from 'path';
 
@@ -13,7 +14,7 @@ const MODELS_DIR = join(process.cwd(), 'models', 'piper');
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const voiceId = searchParams.get('voiceId') || 'minh-khang';
+    const voiceId = searchParams.get('voiceId') || 'vivos-nam-saigon';
     const customPitch = searchParams.get('pitch');
     const customRate = searchParams.get('rate');
     const customVolume = searchParams.get('volume');
@@ -50,24 +51,34 @@ export async function GET(req: Request) {
     const provider = profile.provider || 'microsoft';
 
     let audioBuffer: Buffer | null = null;
-    const isWav = provider === 'piper';
+    const isWav = provider === 'piper' || provider === 'huggingface';
 
-    if (provider === 'google') {
+    if (provider === 'huggingface') {
+      const hfModel = profile.hfModel || 'facebook/mms-tts-vie';
+      const hfResult = await synthesizeWithHuggingFace({
+        text: sampleText,
+        modelId: hfModel,
+        speed: 1.0,
+        gender: profile.gender || (sampleText.toLowerCase().includes('phương thảo') || sampleText.toLowerCase().includes('bảo trâm') ? 'female' : 'male'),
+      });
+      if (hfResult?.audio) {
+        audioBuffer = hfResult.audio;
+      }
+    } else if (provider === 'google') {
+      // Legacy provider mapped to Microsoft Neural or Piper instead of Google Translate
       try {
-        const lang = profile.neuralModel?.startsWith('en') ? 'en' : 'vi';
-        const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
-          sampleText.slice(0, 200)
-        )}&tl=${lang}&client=tw-ob`;
-        const res = await fetch(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          },
-        });
-        if (res.ok) {
-          audioBuffer = Buffer.from(await res.arrayBuffer());
+        const comm = new Communicate(sampleText, { voice: 'vi-VN-HoaiMyNeural' });
+        const chunks: Buffer[] = [];
+        for await (const chunk of comm.stream()) {
+          if (chunk.type === 'audio' && chunk.data) {
+            chunks.push(chunk.data as Buffer);
+          }
+        }
+        if (chunks.length > 0) {
+          audioBuffer = Buffer.concat(chunks);
         }
       } catch (e) {
-        console.error('[Voice Preview] Google TTS failed:', e);
+        console.error('[Voice Preview] Legacy Google alias failed:', e);
       }
     } else if (provider === 'openai') {
       const result = await synthesizeWithOpenAI({
@@ -167,22 +178,25 @@ export async function GET(req: Request) {
         } catch {}
       }
 
-      // Emergency fallback to Google TTS for preview
+      // Fallback to local Piper VIVOS/25H real human dataset model if Microsoft Neural is unavailable
       if (!audioBuffer) {
         try {
-          const lang = safeVoice.startsWith('en') ? 'en' : 'vi';
-          const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
-            sampleText.slice(0, 150)
-          )}&tl=${lang}&client=tw-ob`;
-          const res = await fetch(url, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            },
+          const modelFile = safeVoice.includes('female') || safeVoice.includes('HoaiMy')
+            ? 'vi_VN-vivos-x_low.onnx'
+            : 'vi_VN-25hours_single-low.onnx';
+          const modelPath = join(MODELS_DIR, modelFile);
+          const result = await synthesizeWithPiper({
+            text: sampleText,
+            modelPath,
+            outputFormat: 'wav',
+            lengthScale: 1.0,
           });
-          if (res.ok) {
-            audioBuffer = Buffer.from(await res.arrayBuffer());
+          if (result) {
+            audioBuffer = Buffer.concat([createWavHeader(result.rawPcm.length, result.sampleRate), result.rawPcm]);
           }
-        } catch {}
+        } catch (piperErr) {
+          console.error('[Voice Preview] Piper fallback error:', piperErr);
+        }
       }
     }
 
@@ -202,7 +216,9 @@ export async function GET(req: Request) {
         'X-Voice-Profile': voiceId,
         'X-Provider': provider,
         'X-Engine':
-          provider === 'google'
+          provider === 'huggingface'
+            ? 'HuggingFace-MetaMMS-VITS'
+            : provider === 'google'
             ? 'Google-TTS-Viral'
             : provider === 'openai'
             ? 'OpenAI-TTS-HD'

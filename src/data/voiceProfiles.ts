@@ -4,14 +4,18 @@ export interface VoicePersonaConfig {
   rate: string;  // VD: '-10%', '+15%'
   volume: string;
   samplePhrase: string;
-  provider?: 'microsoft' | 'openai' | 'piper' | 'google';
+  provider?: 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface';
   openAIVoice?: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
   piperModel?: string;
+  hfModel?: string;
+  gender?: 'male' | 'female';
 }
 
 // Bảng cấu hình âm sắc, cao độ (pitch), tốc độ (rate) và câu thoại đặc trưng cho từng nhân vật
 export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
+  // ==========================================
   // 1. TIẾNG VIỆT - TIKTOK & VIRAL
+  // ==========================================
   'chi-google': {
     neuralModel: 'google-vietnamese',
     pitch: '+0Hz',
@@ -45,7 +49,9 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     provider: 'microsoft',
   },
 
-  // 2. REVIEW PHIM & TRUYỆN
+  // ==========================================
+  // 2. REVIEW PHIM & TRUYỆN DÀI
+  // ==========================================
   'bac-ba-review': {
     neuralModel: 'vi-VN-NamMinhNeural',
     pitch: '-35Hz',
@@ -70,15 +76,6 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     samplePhrase: 'Xin chào, tôi là Minh Khang. Giọng đọc trầm ấm, truyền cảm, rất phù hợp cho truyện dài và thuyết minh.',
     provider: 'microsoft',
   },
-  'hoang-nam': {
-    neuralModel: 'vi_VN-25hours_single-low',
-    pitch: '+0Hz',
-    rate: '+0%',
-    volume: '+0%',
-    samplePhrase: 'Chào mọi người nha, tui là Hoàng Nam, giọng miền Nam thân thiện và gần gũi nè.',
-    provider: 'piper',
-    piperModel: 'vi_VN-25hours_single-low.onnx',
-  },
   'mai-anh': {
     neuralModel: 'vi-VN-HoaiMyNeural',
     pitch: '+6Hz',
@@ -87,14 +84,14 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     samplePhrase: 'Xin chào, tôi là Mai Anh, giọng nữ Hà Nội dịu dàng, ngọt ngào, sẵn sàng đồng hành cùng bạn.',
     provider: 'microsoft',
   },
-  'my-duyen': {
-    neuralModel: 'vi_VN-vivos-x_low',
+  'hoang-nam': {
+    neuralModel: 'vi_VN-25hours_single-low',
     pitch: '+0Hz',
     rate: '+0%',
     volume: '+0%',
-    samplePhrase: 'Em chào cả nhà yêu nha, hôm nay shop em có rất nhiều deal sốc, mọi người bấm vào giỏ hàng ngay nha!',
+    samplePhrase: 'Chào mọi người nha, tui là Hoàng Nam, giọng miền Nam thân thiện và gần gũi nè.',
     provider: 'piper',
-    piperModel: 'vi_VN-vivos-x_low.onnx',
+    piperModel: 'vi_VN-25hours_single-low.onnx',
   },
   'ngoc-lan': {
     neuralModel: 'vi-VN-HoaiMyNeural',
@@ -105,7 +102,142 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     provider: 'microsoft',
   },
 
-  // 3. THỜI SỰ & GIÁO DỤC
+  // ==========================================
+  // 3. VIVOS DATASET CORPUS (AILAB - ĐHQG TP.HCM • HUGGING FACE)
+  // ==========================================
+  'vivos-nam-saigon': {
+    neuralModel: 'vi_VN-25hours_single-low',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+5%',
+    samplePhrase: 'Chào mọi người, mình là Minh Trí từ VIVOS corpus. Giọng nói người thật Nam Bộ mộc mạc, tự nhiên và gần gũi.',
+    provider: 'huggingface',
+    piperModel: 'vi_VN-25hours_single-low.onnx',
+    hfModel: 'rhasspy/piper-voices/vi_VN-25hours_single-low',
+    gender: 'male',
+  },
+  'vivos-nu-hanoi': {
+    neuralModel: 'facebook/mms-tts-vie',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+0%',
+    samplePhrase: 'Xin chào các bạn, mình là Phương Thảo từ VIVOS dataset. Giọng nói trong trẻo, tự nhiên chuẩn người Hà Nội.',
+    provider: 'huggingface',
+    piperModel: 'vi_VN-vivos-x_low.onnx',
+    hfModel: 'facebook/mms-tts-vie',
+    gender: 'female',
+  },
+  'vivos-bao-tram': {
+    neuralModel: 'vi_VN-vivos-x_low',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+5%',
+    samplePhrase: 'Xin chào, đây là giọng đọc Bảo Trâm từ bộ dữ liệu VIVOS của AILAB trên Hugging Face, giọng nữ người thật Nam Bộ mộc mạc.',
+    provider: 'huggingface',
+    piperModel: 'vi_VN-vivos-x_low.onnx',
+    hfModel: 'rhasspy/piper-voices/vi_VN-vivos-x_low',
+    gender: 'female',
+  },
+
+  // ==========================================
+  // 4. MOZILLA COMMON VOICE 17.0 (ĐA VÙNG MIỀN • HUGGING FACE)
+  // ==========================================
+  'cv-nam-mientrung': {
+    neuralModel: 'facebook/mms-tts-vie',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+4%',
+    samplePhrase: 'Chào anh em bạn bè bốn phương! Mình là Hải Đăng, giọng nói người con xứ Đà Nẵng - Quảng Nam trên Common Voice.',
+    provider: 'huggingface',
+    piperModel: 'vi_VN-25hours_single-low.onnx',
+    hfModel: 'facebook/mms-tts-vie',
+    gender: 'male',
+  },
+  'cv-nu-nghetinh': {
+    neuralModel: 'facebook/mms-tts-vie',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+2%',
+    samplePhrase: 'Dạ xin chào mọi người, em là Lam Giang. Giọng con gái xứ Nghệ ngọt ngào, mộc mạc và chân thành từ Common Voice.',
+    provider: 'huggingface',
+    piperModel: 'vi_VN-vivos-x_low.onnx',
+    hfModel: 'facebook/mms-tts-vie',
+    gender: 'female',
+  },
+  'cv-bac-sau-mientay': {
+    neuralModel: 'vi_VN-25hours_single-low',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+8%',
+    samplePhrase: 'Mấy đứa nhỏ về chơi miền Tây hả con? Ngồi xuống đây uống miếng trà, ăn trái cây miệt vườn với chú Sáu nè!',
+    provider: 'huggingface',
+    piperModel: 'vi_VN-25hours_single-low.onnx',
+    hfModel: 'rhasspy/piper-voices/vi_VN-25hours_single-low',
+    gender: 'male',
+  },
+  'cv-nam-phoco': {
+    neuralModel: 'facebook/mms-tts-vie',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+4%',
+    samplePhrase: 'Hà Nội mùa này đẹp lắm các bác ạ. Tôi là Hùng, xin gửi tới quý thính giả những câu chuyện về một thời phố cổ nghìn năm.',
+    provider: 'huggingface',
+    piperModel: 'vi_VN-25hours_single-low.onnx',
+    hfModel: 'facebook/mms-tts-vie',
+    gender: 'male',
+  },
+  'cv-nu-congso': {
+    neuralModel: 'facebook/mms-tts-vie',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+0%',
+    samplePhrase: 'Chào các bạn, mình là Thanh Trúc từ Common Voice. Một giọng nói đàm thoại đời thường, gần gũi và nhiều năng lượng tích cực.',
+    provider: 'huggingface',
+    piperModel: 'vi_VN-vivos-x_low.onnx',
+    hfModel: 'facebook/mms-tts-vie',
+    gender: 'female',
+  },
+
+  // ==========================================
+  // 5. OPENSLR 57 DATASET (STUDIO MASTER • HUGGING FACE)
+  // ==========================================
+  'openslr-audiobook-nam': {
+    neuralModel: 'facebook/mms-tts-vie',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+6%',
+    samplePhrase: 'Xin chào quý độc giả, tôi là Tuấn Kiệt từ OpenSLR 57. Giọng đọc chuẩn mực phòng thu chuyên nghiệp, âm sắc tròn trịa dành riêng cho sách nói và tiểu thuyết kinh điển.',
+    provider: 'huggingface',
+    piperModel: 'vi_VN-25hours_single-low.onnx',
+    hfModel: 'facebook/mms-tts-vie',
+    gender: 'male',
+  },
+  'openslr-nu-thuyetminh': {
+    neuralModel: 'facebook/mms-tts-vie',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+4%',
+    samplePhrase: 'Chào mừng quý khán giả đến với chương trình tài liệu khoa học. Tôi là Hồng Nhung từ OpenSLR 57, phát thanh viên chuẩn studio master.',
+    provider: 'huggingface',
+    piperModel: 'vi_VN-vivos-x_low.onnx',
+    hfModel: 'facebook/mms-tts-vie',
+    gender: 'female',
+  },
+  'openslr-nam-cinematic': {
+    neuralModel: 'facebook/mms-tts-vie',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+8%',
+    samplePhrase: 'Hàng triệu năm trước, thiên nhiên đã kiến tạo nên những kỳ quan vĩ đại. Đây là Hoàng Khôi, giọng thuyết minh điện ảnh từ OpenSLR 57.',
+    provider: 'huggingface',
+    piperModel: 'vi_VN-25hours_single-low.onnx',
+    hfModel: 'facebook/mms-tts-vie',
+    gender: 'male',
+  },
+
+  // ==========================================
+  // 6. THỜI SỰ & GIÁO DỤC
+  // ==========================================
   'quoc-bao': {
     neuralModel: 'vi-VN-NamMinhNeural',
     pitch: '-4Hz',
@@ -130,8 +262,18 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     samplePhrase: 'Chào các em học sinh, hôm nay thầy sẽ hướng dẫn các em giải quyết bài toán này một cách rất đơn giản.',
     provider: 'microsoft',
   },
+  'mc-hai-yen': {
+    neuralModel: 'vi-VN-HoaiMyNeural',
+    pitch: '+4Hz',
+    rate: '+2%',
+    volume: '+8%',
+    samplePhrase: 'Kính thưa quý vị đại biểu, chào mừng quý vị đến với buổi dạ tiệc vinh danh thường niên ngày hôm nay.',
+    provider: 'microsoft',
+  },
 
-  // 3b. MIỀN TÂY, RADIO, ASMR & THỂ THAO GAMING
+  // ==========================================
+  // 7. MIỀN TÂY, RADIO, ASMR & THỂ THAO GAMING
+  // ==========================================
   'chu-bay-mientay': {
     neuralModel: 'vi_VN-25hours_single-low',
     pitch: '+0Hz',
@@ -182,14 +324,10 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     samplePhrase: 'Một pha Pentakill không tưởng! Quét sạch toàn bộ đội hình đối phương trong sự ngỡ ngàng của khán giả!',
     provider: 'microsoft',
   },
-  'mc-hai-yen': {
-    neuralModel: 'vi-VN-HoaiMyNeural',
-    pitch: '+4Hz',
-    rate: '+2%',
-    volume: '+8%',
-    samplePhrase: 'Kính thưa quý vị đại biểu, chào mừng quý vị đến với buổi dạ tiệc vinh danh thường niên ngày hôm nay.',
-    provider: 'microsoft',
-  },
+
+  // ==========================================
+  // 8. TIẾNG ANH (US & UK) & ĐIỆN ẢNH HOLLYWOOD
+  // ==========================================
   'epic-trailer-marcus': {
     neuralModel: 'en-US-ChristopherNeural',
     pitch: '-32Hz',
@@ -198,8 +336,6 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     samplePhrase: 'In a world consumed by darkness, one hero rises to reclaim the destiny of mankind.',
     provider: 'microsoft',
   },
-
-  // 4. TIẾNG ANH (US & UK)
   'john-smith': {
     neuralModel: 'en-US-ChristopherNeural',
     pitch: '-5Hz',
@@ -233,7 +369,9 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     provider: 'microsoft',
   },
 
-  // 5. TIẾNG NHẬT
+  // ==========================================
+  // 9. TIẾNG NHẬT
+  // ==========================================
   'sakura-tanaka': {
     neuralModel: 'ja-JP-NanamiNeural',
     pitch: '+35Hz',
@@ -251,7 +389,9 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     provider: 'microsoft',
   },
 
-  // 6. TIẾNG HÀN
+  // ==========================================
+  // 10. TIẾNG HÀN
+  // ==========================================
   'min-jun': {
     neuralModel: 'ko-KR-InJoonNeural',
     pitch: '-5Hz',
@@ -269,7 +409,9 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     provider: 'microsoft',
   },
 
-  // 7. TIẾNG TRUNG
+  // ==========================================
+  // 11. TIẾNG TRUNG
+  // ==========================================
   'zhi-hao': {
     neuralModel: 'zh-CN-YunxiNeural',
     pitch: '-15Hz',
@@ -287,7 +429,9 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     provider: 'microsoft',
   },
 
-  // 8. OPENAI TTS - GIỌNG TỰ NHIÊN CAO CẤP
+  // ==========================================
+  // 12. OPENAI TTS - GIỌNG TỰ NHIÊN CAO CẤP
+  // ==========================================
   'openai-nova': {
     neuralModel: 'openai-nova',
     pitch: '+0Hz',
@@ -343,7 +487,9 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     openAIVoice: 'shimmer',
   },
 
-  // 9. PIPER TTS - OFFLINE FREE NEURAL VOICES
+  // ==========================================
+  // 13. PIPER TTS - OFFLINE FREE NEURAL VOICES
+  // ==========================================
   'piper-lessac': {
     neuralModel: 'en_US-lessac-medium',
     pitch: '+0Hz',
@@ -352,33 +498,6 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     samplePhrase: 'Hello, this is Lessac from Piper TTS. A natural, clear voice for narration.',
     provider: 'piper',
     piperModel: 'en_US-lessac-medium.onnx',
-  },
-  'piper-ryan': {
-    neuralModel: 'en_US-ryan-medium',
-    pitch: '-5Hz',
-    rate: '+0%',
-    volume: '+0%',
-    samplePhrase: 'Hi there, I am Ryan. A deep, resonant voice perfect for storytelling.',
-    provider: 'piper',
-    piperModel: 'en_US-ryan-medium.onnx',
-  },
-  'piper-amy': {
-    neuralModel: 'en_US-amy-medium',
-    pitch: '+5Hz',
-    rate: '+0%',
-    volume: '+0%',
-    samplePhrase: 'Hello, I am Amy. A warm, friendly female voice for any content.',
-    provider: 'piper',
-    piperModel: 'en_US-amy-medium.onnx',
-  },
-  'piper-john': {
-    neuralModel: 'en_US-john-medium',
-    pitch: '-3Hz',
-    rate: '+0%',
-    volume: '+0%',
-    samplePhrase: 'Greetings, I am John. A balanced, professional voice for narration.',
-    provider: 'piper',
-    piperModel: 'en_US-john-medium.onnx',
   },
   'piper-vivos': {
     neuralModel: 'vi_VN-vivos-x_low',
@@ -397,5 +516,45 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     samplePhrase: 'Xin chào, đây là giọng đọc tiếng Việt offline 25 Hours từ Piper TTS.',
     provider: 'piper',
     piperModel: 'vi_VN-25hours_single-low.onnx',
+  },
+
+  // ==========================================
+  // 14. TƯƠNG THÍCH NGƯỢC (BACKWARD COMPATIBILITY)
+  // ==========================================
+  'my-duyen': {
+    neuralModel: 'vi_VN-vivos-x_low',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+0%',
+    samplePhrase: 'Em chào cả nhà yêu nha, hôm nay shop em có rất nhiều deal sốc, mọi người bấm vào giỏ hàng ngay nha!',
+    provider: 'piper',
+    piperModel: 'vi_VN-vivos-x_low.onnx',
+  },
+  'piper-ryan': {
+    neuralModel: 'en_US-lessac-medium',
+    pitch: '-5Hz',
+    rate: '+0%',
+    volume: '+0%',
+    samplePhrase: 'Hi there, I am Ryan from Piper TTS.',
+    provider: 'piper',
+    piperModel: 'en_US-lessac-medium.onnx',
+  },
+  'piper-amy': {
+    neuralModel: 'en_US-lessac-medium',
+    pitch: '+5Hz',
+    rate: '+0%',
+    volume: '+0%',
+    samplePhrase: 'Hello, I am Amy from Piper TTS.',
+    provider: 'piper',
+    piperModel: 'en_US-lessac-medium.onnx',
+  },
+  'piper-john': {
+    neuralModel: 'en_US-lessac-medium',
+    pitch: '-3Hz',
+    rate: '+0%',
+    volume: '+0%',
+    samplePhrase: 'Greetings, I am John from Piper TTS.',
+    provider: 'piper',
+    piperModel: 'en_US-lessac-medium.onnx',
   },
 };

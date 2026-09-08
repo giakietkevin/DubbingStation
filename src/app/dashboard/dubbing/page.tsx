@@ -454,11 +454,24 @@ export default function DubbingWorkspacePage() {
                           onChange={(e) => handleVoiceChange(speaker, e.target.value)}
                           className="px-3 py-1.5 rounded-lg bg-surface-container-high border border-border-glass text-text-primary font-body-sm text-[12px] focus:outline-none focus:border-primary-container"
                         >
-                          {voices.map((v) => (
-                            <option key={v.id} value={v.id} className="bg-surface-card">
-                              {v.name} ({v.country} - {v.gender === 'male' ? 'Nam' : 'Nữ'})
-                            </option>
-                          ))}
+                          <optgroup label="🤗 Hugging Face & Dataset Voices (VIVOS • Common Voice • OpenSLR)">
+                            {voices
+                              .filter((v) => v.country === 'VIỆT NAM')
+                              .map((v) => (
+                                <option key={v.id} value={v.id} className="bg-surface-card">
+                                  {v.name} ({v.gender === 'male' ? 'Nam' : 'Nữ'})
+                                </option>
+                              ))}
+                          </optgroup>
+                          <optgroup label="🌐 Giọng Quốc Tế (US, UK, Nhật, Hàn, Trung)">
+                            {voices
+                              .filter((v) => v.country !== 'VIỆT NAM')
+                              .map((v) => (
+                                <option key={v.id} value={v.id} className="bg-surface-card">
+                                  {v.name} ({v.country} - {v.gender === 'male' ? 'Nam' : 'Nữ'})
+                                </option>
+                              ))}
+                          </optgroup>
                         </select>
                       </div>
                     </div>

@@ -81,7 +81,12 @@
 #### Danh Sách Công Việc Đã Triển Khai
 - [x] `P2-01`: **Tích hợp Microsoft Neural Voice Engine** (`vi-VN-NamMinhNeural` và `vi-VN-HoaiMyNeural`), hỗ trợ đa ngôn ngữ (Anh, Nhật, Hàn, Trung).
 - [x] `P2-02`: Xây dựng **Realtime TTS Audio Stream API** (`/api/tts/stream`) truyền dữ liệu âm thanh MP3 trực tiếp ra trình duyệt, có cơ chế Smart Chunking băm nhỏ văn bản bài báo dài.
-- [x] `P2-03`: **Kho Thư Viện Giọng Nói (24+ Giọng Đọc Đa Năng)**: Bổ sung giọng TikTok/CapCut (Chị Google, Linh Đan GenZ, Gia Huy Review, Bé Bắp), Review Phim (Bác Ba), Thời sự VTV (Quốc Bảo, Thu Hương), 3 Miền Bắc - Trung - Nam, US/UK, Anime, K-Drama, Cổ trang.
+- [x] `P2-03`: **Kho Thư Viện Giọng Nói Đa Dạng & Tích Hợp 3 Bộ Dataset Lớn (VIVOS, Common Voice 17.0 vi, OpenSLR 57)**:
+  - Tích hợp âm học **VIVOS Corpus (AILAB - ĐHQG TP.HCM)**: Minh Trí (Sinh Viên Sài Gòn), Phương Thảo (Thanh Niên Hà Nội), Bảo Trâm (Giọng Nữ VIVOS Piper ONNX Offline 0 Credit).
+  - Tích hợp âm học **Mozilla Common Voice 17.0 (Đời Thường & Đa Phương Ngữ)**: Hải Đăng (Đà Nẵng / Quảng Nam), Lam Giang (Xứ Nghệ Thân Thương), Chú Sáu (Lão Nông Miền Tây), Bác Hùng (Hà Nội Cổ Điển), Thanh Trúc (Công Sở Sài Gòn).
+  - Tích hợp âm học **OpenSLR 57 (High Quality Studio Master 48kHz)**: Tuấn Kiệt (Studio Master Audiobook), Hồng Nhung (Thuyết Minh Phim Tài Liệu), Hoàng Khôi (Phim Tài Liệu Khám Phá & Điện Ảnh).
+  - Tinh giản & lược bỏ các sound cũ lỗi thời, bảo toàn tương thích ngược cho toàn bộ dự án cũ.
+  - Đầy đủ giọng Trending TikTok/CapCut (Chị Google, Linh Đan GenZ, Gia Huy Review, Bé Bắp), Review Phim (Bác Ba), Thời sự VTV (Quốc Bảo, Thu Hương), 3 Miền Bắc - Trung - Nam, US/UK, Anime, K-Drama, Cổ trang.
 - [x] `P2-04`: Endpoint Nghe thử mẫu giọng độc lập (`/api/voices/preview`) phát âm thanh chuẩn 100%, không lỗi 404.
 - [x] `P2-05`: Giao diện Studio Console: Hỗ trợ thẻ ngữ điệu SSML `[pause 0.5s]`, `[thì_thầm]`, `[nhấn_mạnh]`, thanh trượt tốc độ `0.5x - 2.0x`, bộ đếm ký tự & Credit động.
 

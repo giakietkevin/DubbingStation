@@ -74,7 +74,7 @@ export default function ProjectsPage() {
     // Xác định sound url
     let soundUrl = project.outputUrl;
     if (!soundUrl) {
-      soundUrl = `/api/tts/stream?text=${encodeURIComponent(project.name)}&voiceId=minh-khang`;
+      soundUrl = `/api/tts/stream?text=${encodeURIComponent(project.name)}&voiceId=vivos-nam-saigon`;
     }
 
     if (!audioRef.current) {
@@ -98,7 +98,7 @@ export default function ProjectsPage() {
   const handleDownload = (project: Project) => {
     let downloadUrl = project.outputUrl;
     if (!downloadUrl) {
-      downloadUrl = `/api/tts/stream?text=${encodeURIComponent(project.name)}&voiceId=minh-khang`;
+      downloadUrl = `/api/tts/stream?text=${encodeURIComponent(project.name)}&voiceId=vivos-nam-saigon`;
     }
     const a = document.createElement('a');
     a.href = downloadUrl;

@@ -77,7 +77,7 @@ async function createTimedAudio(
     const cue = cues[i];
     const ttsUrl = new URL('/api/tts/stream', origin);
     ttsUrl.searchParams.set('text', cue.text);
-    ttsUrl.searchParams.set('voiceId', speakerVoiceMap[cue.speaker || ''] || 'minh-khang');
+    ttsUrl.searchParams.set('voiceId', speakerVoiceMap[cue.speaker || ''] || 'vivos-nam-saigon');
 
     // Căn chỉnh tốc độ đọc tự nhiên tương ứng với thời lượng cue
     const cueDuration = Math.max(0.6, cue.endTime - cue.startTime);
