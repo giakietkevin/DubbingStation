@@ -18,6 +18,12 @@ export default function DubbingWorkspacePage() {
 
   // Tự động parse phụ đề khi srtInput thay đổi
   useEffect(() => {
+    const importedSubtitle = sessionStorage.getItem('dubbing_import_srt');
+    if (importedSubtitle) {
+      setSrtInput(importedSubtitle);
+      sessionStorage.removeItem('dubbing_import_srt');
+    }
+
     if (srtInput.trim()) {
       const res = parseSubtitle(srtInput);
       setParsedData(res);
@@ -85,15 +91,20 @@ export default function DubbingWorkspacePage() {
     setGeneratedVideoUrl(null);
 
     try {
+      if (!videoFile) {
+        setStatusMessage({ text: 'Vui lòng tải lên video gốc trước khi lồng tiếng.', type: 'error' });
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('video', videoFile);
+      formData.append('title', videoFile.name.replace(/\.[^/.]+$/, ''));
+      formData.append('cues', JSON.stringify(parsedData.cues));
+      formData.append('speakerVoiceMap', JSON.stringify(speakerVoiceMap));
+
       const res = await fetch('/api/dubbing/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: videoFile ? videoFile.name.replace(/\.[^/.]+$/, '') : 'AI_Video_Dubbing_Project',
-          durationSec: totalDurationSec,
-          cues: parsedData.cues,
-          speakerVoiceMap,
-        }),
+        body: formData,
       });
 
       const data = await res.json();
@@ -329,7 +340,7 @@ export default function DubbingWorkspacePage() {
               <button
                 type="button"
                 onClick={handleGenerateDubbing}
-                disabled={isProcessing || !parsedData || parsedData.cues.length === 0}
+                disabled={isProcessing || !videoFile || !parsedData || parsedData.cues.length === 0}
                 className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-primary-container to-secondary-container hover:opacity-95 text-canvas-base font-label-md text-label-md font-bold transition-all shadow-[0_0_20px_rgba(0,242,254,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isProcessing ? (

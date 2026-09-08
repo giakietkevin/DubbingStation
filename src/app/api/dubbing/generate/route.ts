@@ -1,122 +1,106 @@
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
+import { promises as fs } from 'fs';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import os from 'os';
+import path from 'path';
+import crypto from 'crypto';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import type { SubtitleCue } from '@/lib/subtitleParser';
 
-/**
- * POST /api/dubbing/generate
- * Xử lý pipeline Video Dubbing:
- * 1. Nhận danh sách cues phụ đề + mapping speaker -> voiceId
- * 2. Tính toán Credits tiêu thụ: 100 Credits / 1 giây video
- * 3. Trừ credits atomic trong database của user
- * 4. Tạo bản ghi AudioProject loại DUBBING
- * 5. Trả về kết quả video URL đã lồng tiếng
- */
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+const execFileAsync = promisify(execFile);
+
+interface DubbingCue {
+  id: number;
+  startTime: number;
+  endTime: number;
+  text: string;
+  speaker?: string;
+}
+
+async function createTimedAudio(req: Request, cues: DubbingCue[], speakerVoiceMap: Record<string, string>, workDir: string) {
+  const audioFiles: string[] = [];
+  const origin = new URL(req.url).origin;
+
+  for (const cue of cues) {
+    const ttsUrl = new URL('/api/tts/stream', origin);
+    ttsUrl.searchParams.set('text', cue.text);
+    ttsUrl.searchParams.set('voiceId', speakerVoiceMap[cue.speaker || ''] || 'minh-khang');
+    const cueDuration = Math.max(0.25, cue.endTime - cue.startTime);
+    const estimatedSpeechDuration = Math.max(0.25, cue.text.trim().length / 14);
+    const speed = Math.max(0.75, Math.min(2.5, estimatedSpeechDuration / cueDuration));
+    ttsUrl.searchParams.set('speed', speed.toFixed(2));
+    const response = await fetch(ttsUrl);
+    if (!response.ok) throw new Error(`TTS thất bại ở cue #${cue.id} (${response.status}).`);
+    const audioPath = path.join(workDir, `cue-${cue.id}.mp3`);
+    await fs.writeFile(audioPath, Buffer.from(await response.arrayBuffer()));
+    audioFiles.push(audioPath);
+  }
+
+  const outputPath = path.join(workDir, 'dubbed-audio.m4a');
+  const args = ['-y'];
+  for (const audioFile of audioFiles) args.push('-i', audioFile);
+  const filterParts = cues.map((cue, index) => {
+    const cueDuration = Math.max(0.1, cue.endTime - cue.startTime);
+    const fadeDuration = Math.min(0.08, cueDuration / 4);
+    return `[${index}:a]atrim=duration=${cueDuration.toFixed(3)},asetpts=PTS-STARTPTS,afade=t=out:st=${Math.max(0, cueDuration - fadeDuration).toFixed(3)}:d=${fadeDuration.toFixed(3)},adelay=${Math.max(0, Math.round(cue.startTime * 1000))}:all=1[a${index}]`;
+  });
+  filterParts.push(`${cues.map((_, index) => `[a${index}]`).join('')}amix=inputs=${cues.length}:duration=longest:dropout_transition=0,loudnorm=I=-14:TP=-1.0:LRA=7,volume=9dB[dub]`);
+  args.push('-filter_complex', filterParts.join(';'), '-map', '[dub]', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', outputPath);
+  await execFileAsync('ffmpeg', args, { maxBuffer: 10 * 1024 * 1024 });
+  return outputPath;
+}
+
 export async function POST(req: Request) {
+  const workDir = await fs.mkdtemp(path.join(os.tmpdir(), 'dubbingstation-'));
   try {
+    const formData = await req.formData();
+    const video = formData.get('video');
+    const cues = JSON.parse(String(formData.get('cues') || '[]')) as DubbingCue[];
+    const speakerVoiceMap = JSON.parse(String(formData.get('speakerVoiceMap') || '{}')) as Record<string, string>;
+    const title = String(formData.get('title') || 'Video Dubbing Project');
+
+    if (!(video instanceof File) || video.size === 0) return NextResponse.json({ error: 'Vui lòng tải lên video gốc trước khi lồng tiếng.' }, { status: 400 });
+    if (!Array.isArray(cues) || cues.length === 0) return NextResponse.json({ error: 'Vui lòng cung cấp phụ đề hợp lệ.' }, { status: 400 });
+    if (cues.length > 300) return NextResponse.json({ error: 'Video tối đa 300 cue mỗi lần lồng tiếng.' }, { status: 400 });
+
+    const inputPath = path.join(workDir, `${crypto.randomUUID()}-${video.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
+    await fs.writeFile(inputPath, Buffer.from(await video.arrayBuffer()));
+    const dubbedAudioPath = await createTimedAudio(req, cues, speakerVoiceMap, workDir);
+    const outputName = `${title.replace(/[^a-zA-Z0-9._-]/g, '_')}-dubbed-${Date.now()}.mp4`;
+    const outputDir = path.join(process.cwd(), 'public', 'generated');
+    const outputPath = path.join(outputDir, outputName);
+    await fs.mkdir(outputDir, { recursive: true });
+    await execFileAsync('ffmpeg', ['-y', '-i', inputPath, '-i', dubbedAudioPath, '-map', '0:v:0', '-map', '1:a:0', '-c:v', 'copy', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', outputPath], { maxBuffer: 10 * 1024 * 1024 });
+
     const session = await getServerSession(authOptions);
-    const body = await req.json();
-    const { title = 'Video Dubbing Project', durationSec = 15, cues = [], speakerVoiceMap = {} } = body;
+    const durationSec = Math.max(1, Math.ceil(Math.max(...cues.map((cue) => cue.endTime))));
+    const requiredCredits = durationSec * 100;
+    let remainingCredits = Math.max(0, 50000 - requiredCredits);
+    let projectId: string | undefined;
 
-    if (!cues || !Array.isArray(cues) || cues.length === 0) {
-      return NextResponse.json(
-        { error: 'Vui lòng cung cấp danh sách phụ đề cues hợp lệ' },
-        { status: 400 }
-      );
-    }
-
-    const validDuration = Math.max(1, Math.ceil(durationSec));
-    // Công thức Unified Credits cho Video Dubbing: 100 credits / 1 giây video
-    const requiredCredits = validDuration * 100;
-
-    // Nếu người dùng đã đăng nhập, kiểm tra và trừ credit
     if (session?.user?.email) {
-      const user = await prisma.user.findUnique({
-        where: { email: session.user.email },
-        include: { wallet: true },
-      });
-
-      if (!user) {
-        return NextResponse.json({ error: 'Người dùng không tồn tại' }, { status: 404 });
-      }
-
-      if (!user.wallet || user.wallet.balance < requiredCredits) {
-        return NextResponse.json(
-          {
-            error: `Số dư credits không đủ. Yêu cầu ${requiredCredits.toLocaleString('vi-VN')} credits (${validDuration}s x 100 cr/s), hiện có ${(user.wallet?.balance ?? 0).toLocaleString('vi-VN')} credits.`,
-            currentBalance: user.wallet?.balance ?? 0,
-            requiredCredits,
-          },
-          { status: 402 }
-        );
-      }
-
+      const user = await prisma.user.findUnique({ where: { email: session.user.email }, include: { wallet: true } });
+      if (!user) return NextResponse.json({ error: 'Người dùng không tồn tại.' }, { status: 404 });
+      if (!user.wallet || user.wallet.balance < requiredCredits) return NextResponse.json({ error: `Số dư credits không đủ. Cần ${requiredCredits.toLocaleString('vi-VN')} credits.`, requiredCredits }, { status: 402 });
       const newBalance = user.wallet.balance - requiredCredits;
-
-      const [updatedWallet, project] = await prisma.$transaction([
-        prisma.creditWallet.update({
-          where: { id: user.wallet.id },
-          data: {
-            balance: newBalance,
-            totalConsumed: user.wallet.totalConsumed + requiredCredits,
-            transactions: {
-              create: {
-                amount: -requiredCredits,
-                balanceAfter: newBalance,
-                type: 'DUBBING_USAGE',
-                description: `Lồng tiếng video AI (${cues.length} cues, ${validDuration}s duration)`,
-              },
-            },
-          },
-        }),
-        prisma.audioProject.create({
-          data: {
-            userId: user.id,
-            name: `${title.replace(/\s+/g, '_')}_Dubbed_${Date.now()}.mp4`,
-            type: 'DUBBING',
-            inputData: JSON.stringify({ cuesCount: cues.length, speakerVoiceMap }),
-            outputUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-            durationSec: validDuration,
-            creditsUsed: requiredCredits,
-            status: 'COMPLETED',
-          },
-        }),
+      const [wallet, project] = await prisma.$transaction([
+        prisma.creditWallet.update({ where: { id: user.wallet.id }, data: { balance: newBalance, totalConsumed: user.wallet.totalConsumed + requiredCredits, transactions: { create: { amount: -requiredCredits, balanceAfter: newBalance, type: 'DUBBING_USAGE', description: `Lồng tiếng video thật (${cues.length} cues, ${durationSec}s)` } } } }),
+        prisma.audioProject.create({ data: { userId: user.id, name: outputName, type: 'DUBBING', inputData: JSON.stringify({ cues, speakerVoiceMap }), outputUrl: `/generated/${outputName}`, durationSec, creditsUsed: requiredCredits, status: 'COMPLETED' } }),
       ]);
-
-      return NextResponse.json({
-        success: true,
-        projectId: project.id,
-        videoUrl: project.outputUrl,
-        fileName: project.name,
-        durationSec: validDuration,
-        creditsDeducted: requiredCredits,
-        remainingCredits: updatedWallet.balance,
-      });
+      remainingCredits = wallet.balance;
+      projectId = project.id;
     }
 
-    // Nếu là khách dùng thử demo (chưa đăng nhập)
-    if (validDuration > 30) {
-      return NextResponse.json(
-        { error: 'Bản dùng thử lồng tiếng video giới hạn tối đa 30 giây. Vui lòng đăng nhập để lồng tiếng không giới hạn.' },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-      fileName: `${title}_Demo_Dubbed.mp4`,
-      durationSec: validDuration,
-      creditsDeducted: requiredCredits,
-      remainingCredits: Math.max(0, 50000 - requiredCredits),
-      isGuest: true,
-    });
-  } catch (error: any) {
+    return NextResponse.json({ success: true, projectId, videoUrl: `/generated/${outputName}`, fileName: outputName, durationSec, creditsDeducted: requiredCredits, remainingCredits });
+  } catch (error) {
     console.error('Video Dubbing Generation Error:', error);
-    return NextResponse.json(
-      { error: 'Đã xảy ra lỗi trong quá trình lồng tiếng video. Vui lòng thử lại.' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Đã xảy ra lỗi trong quá trình lồng tiếng video.' }, { status: 500 });
+  } finally {
+    await fs.rm(workDir, { recursive: true, force: true }).catch(() => undefined);
   }
 }

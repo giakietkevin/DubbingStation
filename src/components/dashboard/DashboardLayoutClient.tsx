@@ -10,6 +10,7 @@ const sidebarLinks = [
   { href: '/dashboard', label: 'AI Voice Studio', icon: 'record_voice_over' },
   { href: '/dashboard/dubbing', label: 'Video Dubbing', icon: 'movie_edit' },
   { href: '/dashboard/stt', label: 'Audio to Text (STT)', icon: 'transcribe' },
+  { href: '/dashboard/translate', label: 'Subtitle Translate', icon: 'translate' },
   { href: '/dashboard/clone', label: 'Custom Voice Clone', icon: 'fingerprint' },
   { href: '/dashboard/tools', label: '22 Audio Tools', icon: 'construction', badge: 'Free' },
   { href: '/dashboard/voices', label: 'Thư viện giọng', icon: 'volume_up', badge: '3.000+' },

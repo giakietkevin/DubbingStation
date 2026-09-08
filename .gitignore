@@ -18,6 +18,9 @@
 # production
 /build
 
+# generated media outputs
+/public/generated/
+
 # misc
 .DS_Store
 *.pem

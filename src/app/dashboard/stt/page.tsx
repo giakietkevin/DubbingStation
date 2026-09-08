@@ -122,6 +122,12 @@ export default function STTWorkspacePage() {
     router.push('/dashboard/dubbing');
   };
 
+  const handleSendToTranslate = () => {
+    if (segments.length === 0) return;
+    sessionStorage.setItem('translate_import_srt', exportToSRT(segments));
+    router.push('/dashboard/translate');
+  };
+
   return (
     <div className="flex flex-col gap-space-lg max-w-6xl mx-auto">
       {/* Header */}
@@ -348,6 +354,15 @@ export default function STTWorkspacePage() {
                 <span className="font-body-xs text-[11px] text-text-muted">
                   Bạn có thể chỉnh sửa trực tiếp nội dung từng câu thoại trước khi xuất.
                 </span>
+
+                <button
+                  type="button"
+                  onClick={handleSendToTranslate}
+                  className="px-4 py-2 rounded-xl bg-surface-container-high text-text-primary hover:opacity-90 font-label-sm text-label-sm font-bold transition-all flex items-center gap-1.5"
+                >
+                  <span>Chuyển sang Dịch</span>
+                  <span className="material-symbols-outlined text-[16px]">translate</span>
+                </button>
 
                 <button
                   type="button"
