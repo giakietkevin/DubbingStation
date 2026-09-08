@@ -24,6 +24,30 @@ interface DubbingCue {
   speaker?: string;
 }
 
+function normalizeCues(cues: DubbingCue[]): DubbingCue[] {
+  const sorted = [...cues]
+    .filter((cue) => cue.text.trim() && cue.endTime > cue.startTime)
+    .sort((a, b) => a.startTime - b.startTime || a.endTime - b.endTime);
+  const seen = new Set<string>();
+  const result: DubbingCue[] = [];
+
+  for (const cue of sorted) {
+    const text = cue.text.replace(/\s+/g, ' ').trim().toLowerCase();
+    const exactKey = `${cue.startTime.toFixed(3)}|${cue.endTime.toFixed(3)}|${text}`;
+    if (seen.has(exactKey)) continue;
+
+    const previous = result[result.length - 1];
+    const overlapsPrevious = previous && cue.startTime < previous.endTime;
+    const repeatsPrevious = previous && cue.startTime - previous.endTime < 0.15 && text === previous.text.replace(/\s+/g, ' ').trim().toLowerCase();
+    if (overlapsPrevious && repeatsPrevious) continue;
+
+    seen.add(exactKey);
+    result.push(cue);
+  }
+
+  return result.map((cue, index) => ({ ...cue, id: index + 1 }));
+}
+
 async function createTimedAudio(req: Request, cues: DubbingCue[], speakerVoiceMap: Record<string, string>, workDir: string) {
   const audioFiles: string[] = [];
   const requestUrl = new URL(req.url);
@@ -70,7 +94,8 @@ export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const video = formData.get('video');
-    const cues = JSON.parse(String(formData.get('cues') || '[]')) as DubbingCue[];
+    const rawCues = JSON.parse(String(formData.get('cues') || '[]')) as DubbingCue[];
+    const cues = normalizeCues(rawCues);
     const speakerVoiceMap = JSON.parse(String(formData.get('speakerVoiceMap') || '{}')) as Record<string, string>;
     const title = String(formData.get('title') || 'Video Dubbing Project');
 
@@ -85,7 +110,11 @@ export async function POST(req: Request) {
     const outputDir = path.join(process.cwd(), 'public', 'generated');
     const outputPath = path.join(outputDir, outputName);
     await fs.mkdir(outputDir, { recursive: true });
-    await execFileAsync(ffmpegExecutable, ['-y', '-i', inputPath, '-i', dubbedAudioPath, '-map', '0:v:0', '-map', '1:a:0', '-c:v', 'copy', '-c:a', 'aac', '-shortest', '-movflags', '+faststart', outputPath], { maxBuffer: 10 * 1024 * 1024 });
+    const dialogueWindows = cues
+      .map((cue) => `between(t\\,${cue.startTime.toFixed(3)}\\,${cue.endTime.toFixed(3)})`)
+      .join('+');
+    const audioFilter = `[0:a]volume=enable='${dialogueWindows}':volume=0[original];[original][1:a]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,loudnorm=I=-14:TP=-1.0:LRA=7[mixed]`;
+    await execFileAsync(ffmpegExecutable, ['-y', '-i', inputPath, '-i', dubbedAudioPath, '-filter_complex', audioFilter, '-map', '0:v:0', '-map', '[mixed]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', outputPath], { maxBuffer: 10 * 1024 * 1024 });
 
     const session = await getServerSession(authOptions);
     const durationSec = Math.max(1, Math.ceil(Math.max(...cues.map((cue) => cue.endTime))));

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { parseSubtitle, demoSrtContent, type SubtitleCue, type SubtitleParseResult } from '@/lib/subtitleParser';
 import { voices } from '@/data/voices';
 import type { Voice } from '@/types';
+import { detectSpeakersFromVideo } from '@/lib/speakerDiarizer';
 
 export default function DubbingWorkspacePage() {
   const [srtInput, setSrtInput] = useState<string>(demoSrtContent);
@@ -15,6 +16,7 @@ export default function DubbingWorkspacePage() {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
+  const [isDetectingSpeakers, setIsDetectingSpeakers] = useState(false);
 
   // Tự động parse phụ đề khi srtInput thay đổi
   useEffect(() => {
@@ -78,6 +80,39 @@ export default function DubbingWorkspacePage() {
       ...prev,
       [speaker]: voiceId,
     }));
+  };
+
+  const handleDetectSpeakers = async () => {
+    if (!videoFile || !parsedData || parsedData.cues.length === 0) {
+      setStatusMessage({ text: 'Cần có video và phụ đề trước khi phân tích speaker.', type: 'error' });
+      return;
+    }
+
+    setIsDetectingSpeakers(true);
+    setStatusMessage({ text: 'Đang phân tích giọng nói theo timestamp phụ đề...', type: 'success' });
+    try {
+      const detectedCues = await detectSpeakersFromVideo(videoFile, parsedData.cues);
+      const detectedSpeakers = Array.from(new Set(detectedCues.map((cue) => cue.speaker)));
+      setParsedData((previous) => previous ? {
+        ...previous,
+        cues: detectedCues,
+        speakers: detectedSpeakers,
+        hasExplicitSpeakers: true,
+      } : previous);
+      setSrtInput(detectedCues.map((cue) => `${cue.id}\n${cue.startTimeFormatted} --> ${cue.endTimeFormatted}\n[${cue.speaker}] ${cue.text}`).join('\n\n'));
+      setSpeakerVoiceMap((previous) => {
+        const next = { ...previous };
+        detectedSpeakers.forEach((speaker, index) => {
+          if (!next[speaker]) next[speaker] = voices[index % voices.length].id;
+        });
+        return next;
+      });
+      setStatusMessage({ text: `Đã phát hiện ${detectedSpeakers.length} speaker và cập nhật phụ đề.`, type: 'success' });
+    } catch (error) {
+      setStatusMessage({ text: error instanceof Error ? error.message : 'Không thể phân tích speaker từ video.', type: 'error' });
+    } finally {
+      setIsDetectingSpeakers(false);
+    }
   };
 
   const handleGenerateDubbing = async () => {
@@ -240,9 +275,12 @@ export default function DubbingWorkspacePage() {
             </div>
 
             {parsedData && !parsedData.hasExplicitSpeakers && parsedData.cues.length > 0 && (
-              <p className="text-[11px] text-signal-warning bg-signal-warning/10 border border-signal-warning/20 rounded-lg px-3 py-2">
-                Phụ đề chưa có nhãn speaker. Hệ thống đang dùng một giọng mặc định; muốn gán nhiều nhân vật, hãy dùng dạng [Speaker 1], [Speaker 2] hoặc VTT &lt;v Speaker&gt;.
-              </p>
+              <div className="text-[11px] text-signal-warning bg-signal-warning/10 border border-signal-warning/20 rounded-lg px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span>Phụ đề chưa có nhãn speaker. Có thể phân tích trực tiếp từ audio video.</span>
+                <button type="button" onClick={handleDetectSpeakers} disabled={isDetectingSpeakers} className="px-2.5 py-1 rounded-lg bg-signal-warning/20 hover:bg-signal-warning/30 font-bold disabled:opacity-50">
+                  {isDetectingSpeakers ? 'Đang phân tích...' : 'Phân tích speaker từ video'}
+                </button>
+              </div>
             )}
 
             {parsedData && parsedData.speakers.length > 0 ? (

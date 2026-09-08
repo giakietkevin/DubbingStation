@@ -190,15 +190,32 @@ export function parseSubtitle(content: string): SubtitleParseResult {
     });
   }
 
-  const totalDurationSec = cues.length > 0 ? cues[cues.length - 1].endTime : 0;
+  const deduplicatedCues: SubtitleCue[] = [];
+  const seenCueKeys = new Set<string>();
+  for (const cue of cues) {
+    const normalizedText = cue.text.replace(/\s+/g, ' ').trim().toLowerCase();
+    const key = `${cue.startTime.toFixed(3)}|${cue.endTime.toFixed(3)}|${normalizedText}`;
+    if (seenCueKeys.has(key)) continue;
+
+    const previous = deduplicatedCues[deduplicatedCues.length - 1];
+    const repeatedOverlap = previous && cue.startTime < previous.endTime &&
+      cue.startTime - previous.endTime < 0.15 &&
+      normalizedText === previous.text.replace(/\s+/g, ' ').trim().toLowerCase();
+    if (repeatedOverlap) continue;
+
+    seenCueKeys.add(key);
+    deduplicatedCues.push({ ...cue, id: deduplicatedCues.length + 1 });
+  }
+
+  const totalDurationSec = deduplicatedCues.length > 0 ? deduplicatedCues[deduplicatedCues.length - 1].endTime : 0;
 
   return {
     format,
     totalDurationSec,
-    totalCues: cues.length,
+    totalCues: deduplicatedCues.length,
     speakers: Array.from(speakersSet),
     hasExplicitSpeakers,
-    cues,
+    cues: deduplicatedCues,
   };
 }
 
