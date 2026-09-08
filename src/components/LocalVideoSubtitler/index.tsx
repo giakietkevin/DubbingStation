@@ -79,7 +79,10 @@ export default function LocalVideoSubtitler() {
         'output.wav',
       ]);
       const data = await ffmpeg.readFile('output.wav');
-      const audioBlob = new Blob([(data as Uint8Array).buffer], { type: 'audio/wav' });
+      const audioBytes = new Uint8Array(data as Uint8Array);
+      const audioBuffer = new ArrayBuffer(audioBytes.byteLength);
+      new Uint8Array(audioBuffer).set(audioBytes);
+      const audioBlob = new Blob([audioBuffer], { type: 'audio/wav' });
       addLog('Đã trích xuất Audio xong! Đang tải mô hình AI để phân tích (lần đầu sẽ mất vài phút tải mô hình)...');
 
       // 2. Chạy Whisper với Transformers.js
