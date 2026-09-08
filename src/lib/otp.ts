@@ -1,4 +1,5 @@
 import { prisma } from './prisma';
+import { sendOtpEmail, isSmtpConfigured } from './email';
 
 /**
  * Sinh mã OTP ngẫu nhiên gồm 6 chữ số
@@ -12,11 +13,21 @@ export function generateOtpCode(length = 6): string {
   return otp;
 }
 
+export interface CreateOtpResult {
+  code: string;
+  sentRealEmail: boolean;
+  error?: string;
+}
+
 /**
  * Lưu mã OTP vào bảng VerificationToken trong CSDL SQLite Prisma
- * Mặc định hết hạn sau 10 phút
+ * và gửi email thật tới hòm thư người dùng qua Gmail SMTP (nếu đã cấu hình)
  */
-export async function createAndSaveOtp(identifier: string, expiresInMinutes = 10): Promise<string> {
+export async function createAndSaveOtp(
+  identifier: string,
+  expiresInMinutes = 10,
+  userName?: string
+): Promise<string> {
   const code = generateOtpCode(6);
   const expires = new Date(Date.now() + expiresInMinutes * 60 * 1000);
 
@@ -29,7 +40,7 @@ export async function createAndSaveOtp(identifier: string, expiresInMinutes = 10
     console.warn('Lỗi khi dọn dẹp mã OTP cũ:', err);
   }
 
-  // Lưu mã OTP mới vào CSDL
+  // Lưu mã OTP mới vào CSDL SQLite
   await prisma.verificationToken.create({
     data: {
       identifier,
@@ -38,13 +49,19 @@ export async function createAndSaveOtp(identifier: string, expiresInMinutes = 10
     },
   });
 
-  // Log mã OTP ra console để quản trị viên / lập trình viên dễ dàng kiểm thử
+  // Log mã OTP ra console server
   console.log(`\n======================================================`);
   console.log(`🔑 [DUBBINGSTATION OTP SYSTEM]`);
-  console.log(`📨 Gửi mã kích hoạt tới email: ${identifier}`);
+  console.log(`📨 Email người nhận: ${identifier}`);
   console.log(`🔢 MÃ OTP 6 SỐ: [ ${code} ]`);
-  console.log(`⏳ Thời hạn hiệu lực: ${expiresInMinutes} phút (đến ${expires.toLocaleTimeString('vi-VN')})`);
+  console.log(`⏳ Thời hạn hiệu lực: ${expiresInMinutes} phút`);
+  console.log(`📡 Gmail SMTP Configured: ${isSmtpConfigured() ? 'CÓ (Đang gửi mail thật)' : 'CHƯA (Chế độ Dev/Console)'}`);
   console.log(`======================================================\n`);
+
+  // Gửi email thật qua Gmail SMTP bất đồng bộ
+  sendOtpEmail(identifier, code, userName).catch((err) => {
+    console.error('Lỗi khi gửi email OTP:', err);
+  });
 
   return code;
 }
@@ -71,7 +88,7 @@ export async function verifyOtp(
   });
 
   if (!tokenRecord) {
-    return { success: false, error: 'Mã OTP không chính xác. Vui lòng kiểm tra lại.' };
+    return { success: false, error: 'Mã OTP không chính xác. Vui lòng kiểm tra lại trong hộp thư.' };
   }
 
   // Kiểm tra thời hạn hết hạn

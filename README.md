@@ -1,142 +1,226 @@
-# DubbingStation
+# DubbingStation — AI Voice Studio & Video Dubbing Platform
 
-> All-in-One AI Voice Studio cho sáng tạo nội dung, biên tập video, giáo dục và doanh nghiệp.
+> **Nền tảng phòng thu AI All-in-One:** Chuyển đổi văn bản thành giọng nói (Text-to-Speech), lồng tiếng video theo phụ đề tự động (Subtitle Video Dubbing), nhân bản giọng nói (Voice Cloning) và 22 công cụ xử lý âm thanh WebAssembly trực tiếp trên trình duyệt.
 
-**Phiên bản:** v1.0
-**Tác giả:** Võ Phạm Gia Kiệt
-**Ngày tạo:** 05/09/2026
+[![Next.js](https://img.shields.io/badge/Next.js-14.2-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Prisma](https://img.shields.io/badge/Prisma-SQLite-2D3748?style=for-the-badge&logo=prisma)](https://www.prisma.io/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
 
-## Mục lục
+---
 
-- [Tầm nhìn và mục tiêu](#tầm-nhìn-và-mục-tiêu)
-- [Người dùng mục tiêu](#người-dùng-mục-tiêu)
-- [Tính năng cốt lõi](#tính-năng-cốt-lõi)
-- [Mô hình Credits](#mô-hình-credits)
-- [Bảng giá](#bảng-giá)
-- [Kiến trúc kỹ thuật](#kiến-trúc-kỹ-thuật)
-- [Yêu cầu phi chức năng](#yêu-cầu-phi-chức-năng)
-- [Lộ trình phát triển](#lộ-trình-phát-triển)
+## 📋 Mục Lục
 
-## Tầm nhìn và mục tiêu
+1. [Tính Năng Nổi Bật](#-tính-năng-nổi-bật)
+2. [Yêu Cầu Hệ Thống](#-yêu-cầu-hệ-thống)
+3. [Hướng Dẫn Cài Đặt & Chạy Dự Án (Quick Start)](#-hướng-dẫn-cài-đặt--chạy-dự-án-quick-start)
+4. [Cấu Hình Biến Môi Trường (.env)](#-cấu-hình-biến-môi-trường-env)
+5. [Cấu Hình Gửi Real OTP Qua Gmail SMTP](#-cấu-hình-gửi-real-otp-qua-gmail-smtp)
+6. [Hệ Thống Tài Khoản & Phân Quyền](#-hệ-thống-tài-khoản--phân-quyền)
+7. [Cơ Chế Trừ Số Dư Credits (Unified Balance)](#-cơ-chế-trừ-số-dư-credits-unified-balance)
+8. [Cấu Trúc Thư Mục Dự Án](#-cấu-trúc-thư-mục-dự-án)
+9. [Công Nghệ Sử Dụng (Tech Stack)](#-công-nghệ-sử-dụng-tech-stack)
 
-### Tầm nhìn
+---
 
-Xây dựng **DubbingStation** thành nền tảng **All-in-One AI Voice Studio** hàng đầu, cho phép người sáng tạo nội dung, biên tập viên video, giáo viên, nhà tiếp thị và doanh nghiệp tạo hoặc lồng tiếng âm thanh chất lượng studio chuyên nghiệp bằng vài cú nhấp chuột, trên nhiều ngôn ngữ.
+## ✨ Tính Năng Nổi Bật
 
-### Mục tiêu kinh doanh
+* 🎙️ **Text to Speech (TTS) Studio:** Hỗ trợ đa dạng provider (Microsoft Neural, OpenAI HD, Piper Local Free, Chị Google Viral) với tùy chỉnh tốc độ (0.5x - 2.0x), cảm xúc, cao độ (Pitch), cường độ (Volume) và thẻ ngắt nghỉ SSML.
+* 🎬 **Video Dubbing & Subtitle Auto-Sync:** Tải lên video MP4 hoặc phụ đề SRT/VTT để hệ thống tự động nhận diện khung thời gian (cues) và lồng tiếng ăn khớp từng giây.
+* 🧬 **Voice Cloning & DSP Timbre:** Tải lên từ 1 đến 10 file âm thanh mẫu để trích xuất F0, Formant F1/F2 và áp dụng bộ lọc âm thanh kỹ thuật số (DSP Biquad Filters, Chest Warmth, Clarity).
+* 🛠️ **22 WebAssembly Audio Tools (Miễn phí 100%):** Cắt audio, tăng âm lượng (Volume Booster lên 300%), đổi tốc độ, đảo ngược âm thanh, tách nhạc... xử lý 100% bằng Web Audio API ngay trên trình duyệt, không tốn Credits.
+* 🔐 **Xác Thực OTP Kích Hoạt Tài Khoản:** Đăng ký nhận ngay 50.000 Credits, gửi mã OTP 6 số bảo mật về hộp thư Gmail thật qua SMTP Nodemailer.
+* 👑 **Trang Quản Trị Hệ Thống (/admin):** Dành riêng cho tài khoản Admin duy nhất quản lý người dùng, xem danh sách mã OTP realtime, nạp/trừ credits, phân quyền và giám sát KPI.
 
-- Độ trễ xử lý TTS ngắn dưới **1,5 giây**.
-- Đạt **100.000 người dùng đăng ký** trong 6 tháng đầu.
-- Đạt tỷ lệ chuyển đổi từ dùng thử sang trả phí trên **3,5%**.
+---
 
-## Người dùng mục tiêu
+## 💻 Yêu Cầu Hệ Thống
 
-1. **Content Creators:** YouTubers, TikTokers và podcasters cần giọng đọc tự nhiên cho Shorts, Reels, TikTok hoặc video dài.
-2. **Video Editors và Film Translators:** Tự động lồng tiếng từ file phụ đề SRT/VTT, khớp với mốc thời gian.
-3. **EdTech và Course Creators:** Nhân bản giọng nói để sản xuất bài giảng tự động.
-4. **Doanh nghiệp và Marketers:** Tạo lồng tiếng đa ngôn ngữ cho video quảng cáo.
+Trước khi bắt đầu, hãy đảm bảo máy tính của bạn đã cài đặt:
 
-## Tính năng cốt lõi
+* **Node.js:** Phiên bản `>= 18.17.0` (Khuyên dùng Node.js 20 LTS)
+* **Trình quản lý gói:** `npm` (đi kèm Node.js), `yarn` hoặc `pnpm`
+* **Git:** Để clone mã nguồn từ kho lưu trữ
 
-### AI Voice Studio
+---
 
-#### Text-to-Speech (TTS)
+## 🚀 Hướng Dẫn Cài Đặt & Chạy Dự Án (Quick Start)
 
-- Hỗ trợ mục tiêu **100+ ngôn ngữ** và **3.000+ giọng đọc**.
-- Đa dạng giới tính, độ tuổi và cảm xúc.
-- Tùy chỉnh ngữ điệu, cảm xúc, tốc độ đọc (WPM), cao độ (pitch) và khoảng nghỉ.
+### Bước 1: Clone kho mã nguồn về máy
 
-#### Subtitle-to-Audio và Video Dubbing
+```bash
+git clone https://github.com/giakietkevin/DubbingStation.git
+cd DubbingStation
+```
 
-- Tải lên file phụ đề `.srt`, `.vtt` hoặc video `.mp4`.
-- Tự động nhận diện khung thời gian và tạo lồng tiếng khớp từng đoạn, từng giây với video.
+### Bước 2: Cài đặt các thư viện phụ thuộc (Dependencies)
 
-#### Speech-to-Text (STT)
+```bash
+npm install
+```
 
-- Trích xuất văn bản hoặc phụ đề từ file âm thanh và bản ghi âm.
-- Hướng tới độ chính xác cao cho quy trình biên tập và hậu kỳ.
+### Bước 3: Thiết lập tệp môi trường `.env`
 
-#### Custom Voice Cloning
+Sao chép hoặc tạo tệp `.env` tại thư mục gốc của dự án:
 
-- Tải lên hoặc ghi âm mẫu giọng dài từ **10 giây đến 1 phút**.
-- Tạo giọng đọc tùy chỉnh để lồng tiếng đa ngôn ngữ.
+```bash
+cp .env.example .env
+```
+*(Nếu chưa có `.env.example`, bạn hãy tạo tệp `.env` theo hướng dẫn ở phần bên dưới).*
 
-### 22 Free Audio Tools
+### Bước 4: Khởi tạo CSDL SQLite với Prisma
 
-Các công cụ xử lý trực tiếp trên trình duyệt, không cần cài đặt:
+Chạy lệnh để sinh mã Prisma Client và đồng bộ cấu trúc database SQLite:
 
-| Nhóm | Công cụ và khả năng |
-| --- | --- |
-| Xử lý cơ bản | Cắt âm thanh (Trim Audio), nối file (Audio Joiner), đảo ngược (Audio Reverser), tách âm thanh từ video (Video to Audio) |
-| Tối ưu âm thanh | Lọc tiếng ồn (Noise Reducer), xóa khoảng lặng (Silence Remover), tăng/giảm âm lượng từ 10% đến 300%, điều chỉnh tốc độ từ 0,25x đến 3,0x, chỉnh pitch, equalizer 5-band |
-| AI nâng cao | Bóc tách lời hát (Vocal Remover/Karaoke), tách 4 track nhạc cụ bằng AI (AI Music Splitter) |
-| Định dạng và thu âm | Chuyển đổi MP3, WAV, FLAC, OGG; ghi âm microphone trực tiếp với biểu đồ sóng (Waveform) |
+```bash
+npx prisma db push
+```
 
-## Mô hình Credits
+*(Tùy chọn: Bạn có thể chạy `npx prisma studio` để mở giao diện quản lý dữ liệu CSDL trực quan trên trình duyệt tại cổng 5555).*
 
-Tất cả dịch vụ dùng chung một số dư **Unified Credit Balance**:
+### Bước 5: Khởi động Server phát triển (Development)
 
-| Dịch vụ | Quy đổi |
-| --- | --- |
-| Text-to-Speech | 1 Credit = 1 ký tự văn bản |
-| Audio Dubbing | 50 Credits / giây âm thanh, tương đương khoảng 3.000 Credits / phút |
-| Video Dubbing và Subtitle | 100 Credits / giây video, tương đương khoảng 6.000 Credits / phút |
+```bash
+npm run dev
+```
 
-## Bảng giá
+Mở trình duyệt và truy cập: **[http://localhost:3000](http://localhost:3000)**
 
-| Gói | Giá/tháng | Credits/tháng | Tính năng chính |
-| --- | ---: | ---: | --- |
-| Free | $0 | 50.000 | Tối đa 3.000 ký tự/lần, 300 giọng chuẩn, 22 audio tools miễn phí |
-| Lite | $2,00 | 99.000 | Mở khóa 3.000+ giọng premium, tạo tối đa 20 giọng clone |
-| Starter | $9,00 | 999.000 | Ưu tiên tốc độ xử lý, tạo tối đa 100 giọng clone |
-| Growth | $19,00 | 2.499.000 | Công cụ Video Dubbing/SRT chuyên sâu, tạo tối đa 500 giọng clone |
-| Pro / Enterprise | $29,00 | 3.999.000 | API Access, tạo tối đa 1.000 giọng clone, hỗ trợ 1-on-1 |
+---
 
-## Kiến trúc kỹ thuật
+## ⚙️ Cấu Hình Biến Môi Trường (.env)
 
-### Frontend
+Tạo tệp `.env` tại thư mục gốc với nội dung mẫu sau:
 
-- Next.js (React) và TailwindCSS.
-- Web Audio API / WebAssembly cho các thao tác cắt và chỉnh sửa audio nhẹ ngay trên client, giảm tải cho server.
+```env
+# Kết nối CSDL SQLite cục bộ
+DATABASE_URL="file:./dev.db"
 
-### Backend
+# Khóa bí mật NextAuth & URL ứng dụng
+NEXTAUTH_SECRET="dubbingstation-super-secret-key-32chars-min-length-2026"
+NEXTAUTH_URL="http://localhost:3000"
 
-- Node.js / Python (FastAPI) để quản lý luồng dữ liệu, thanh toán và xử lý file.
+# OAuth Providers (Tùy chọn nếu muốn đăng nhập bằng Google)
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
 
-### AI Model Integration
+# Cấu hình gửi Real OTP kích hoạt tài khoản qua Gmail SMTP
+SMTP_USER="dia-chi-gmail-cua-ban@gmail.com"
+SMTP_PASS="xxxx xxxx xxxx xxxx"
+SMTP_FROM="DubbingStation AI <dia-chi-gmail-cua-ban@gmail.com>"
+```
 
-- Tích hợp các nhà cung cấp TTS như ElevenLabs, Microsoft Azure Speech và OpenAI Voice API.
-- Kết hợp mô hình tự host như Coqui TTS và Whisper cho STT nhằm tối ưu chi phí.
-- Audio caching cho các đoạn giọng đọc phổ biến để giảm chi phí gọi API.
+---
 
-### Cloud và Storage
+## 📧 Cấu Hình Gửi Real OTP Qua Gmail SMTP
 
-- AWS S3 hoặc Cloudflare R2 để lưu trữ file âm thanh.
-- Redis cho hàng đợi công việc rendering.
-- CDN để phân phối và phát audio với tốc độ cao.
+Hệ thống hỗ trợ gửi mã xác thực 6 số thật trực tiếp đến hòm thư Gmail của người dùng. Để kích hoạt:
 
-## Yêu cầu phi chức năng
+1. Đăng nhập vào tài khoản Google: [myaccount.google.com/security](https://myaccount.google.com/security)
+2. Bật tính năng **Xác minh 2 bước (2-Step Verification)**.
+3. Truy cập vào mục **Mật khẩu ứng dụng (App Passwords)**: [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+4. Nhập tên ứng dụng: `DubbingStation` -> Bấm **Tạo (Create)**.
+5. Google sẽ cấp mã gồm 16 chữ cái (Ví dụ: `uejy imxc dsge dmvi`).
+6. Dán thông tin vào tệp `.env`:
+   * `SMTP_USER`: Điền địa chỉ Gmail của bạn.
+   * `SMTP_PASS`: Điền 16 ký tự mật khẩu ứng dụng vừa tạo.
+7. Khởi động lại server (`npm run dev`).
 
-- **Bảo mật:** Mã hóa dữ liệu người dùng, tuân thủ GDPR.
-- **Quyền thương mại:** Người dùng giữ 100% bản quyền thương mại đối với âm thanh được tạo ra.
-- **Hiệu năng:** Auto-scaling để phục vụ hàng nghìn yêu cầu render audio đồng thời.
-- **Đa nền tảng:** Responsive trên web, định hướng phát triển ứng dụng iOS và Android.
+> 💡 **Lưu ý:** Nếu chưa điền `SMTP_USER` và `SMTP_PASS`, hệ thống sẽ tự động chuyển sang chế độ **Dev/Test**, hiển thị mã OTP ngay trên màn hình và log ra Terminal để bạn thuận tiện kiểm thử.
 
-## Lộ trình phát triển
+---
 
-### Giai đoạn 1: MVP, tháng 1-3
+## 👥 Hệ Thống Tài Khoản & Phân Quyền
 
-- Ra mắt Text-to-Speech cốt lõi với 10+ ngôn ngữ chính.
-- Tích hợp đăng ký/đăng nhập, quản lý Credits và thanh toán qua Stripe/PayPal.
-- Phát hành 10 công cụ xử lý audio cơ bản chạy trên client.
+### 1. Tài khoản Người dùng (User)
+* **Đăng ký:** Truy cập `/register` -> Điền thông tin.
+* **Kích hoạt OTP:** Hệ thống gửi mã OTP 6 số -> Nhập tại `/verify-otp`.
+* **Khuyến mãi:** Tự động nhận **50.000 Credits** vào ví CSDL ngay sau khi kích hoạt thành công.
+* **Đăng nhập:** Truy cập `/login` (Hệ thống sẽ chặn nếu tài khoản chưa kích hoạt OTP).
 
-### Giai đoạn 2: Mở rộng, tháng 4-6
+### 2. Tài khoản Quản trị viên (Super Admin)
+Hệ thống được cấu hình duy nhất **1 tài khoản Admin** có toàn quyền quản trị CSDL:
 
-- Bổ sung Subtitle-to-Audio cho file SRT và video.
-- Mở rộng lên 3.000+ giọng đọc và Custom Voice Cloning.
-- Hoàn thiện đầy đủ 22 Free Audio Tools.
+* **Tài khoản / Email:** `admin` *(hoặc `admin@dubbingstation.com`)*
+* **Mật khẩu:** `Giakiet@123`
+* **Số dư Credits:** 9.999.999 Credits (Vô hạn)
+* **Trang Quản trị:** **[http://localhost:3000/admin](http://localhost:3000/admin)**
+  * Xem thống kê tổng quan (Tổng user, số user chờ OTP, tổng credits lưu hành, số dự án).
+  * Giám sát danh sách mã OTP đang có hiệu lực trong CSDL realtime.
+  * Nạp hoặc khấu trừ Credits cho bất kỳ người dùng nào (ghi lịch sử giao dịch).
+  * Kích hoạt thủ công hoặc tạo mã OTP mới cho người dùng.
+  * Phân quyền (`FREE_USER`, `PAID_USER`, `API_DEVELOPER`).
+  * Xóa tài khoản người dùng khỏi CSDL.
 
-### Giai đoạn 3: Tăng trưởng, từ tháng 7 trở đi
+---
 
-- Cung cấp Public API cho doanh nghiệp.
-- Phát triển ứng dụng DubbingStation trên iOS và Android.
+## 💰 Cơ Chế Trừ Số Dư Credits (Unified Balance)
+
+Hệ thống quản lý Credits tập trung thông qua bảng `CreditWallet` & `CreditTransaction`:
+
+| Thao tác | Mức tiêu tốn Credits | Ghi chú |
+| :--- | :--- | :--- |
+| **Đăng ký mới** | `+50.000 Credits` | Tặng miễn phí trải nghiệm |
+| **Text to Speech (TTS)** | `1 Credit / 1 ký tự` | Provider Microsoft, Piper, Google (tối thiểu 10 cr) |
+| **OpenAI TTS HD** | `3 Credits / 1 ký tự` | Chất lượng chuẩn phòng thu quốc tế |
+| **Batch TTS (>5.000 ký tự)** | `1 Credit / 1 ký tự` | Trừ gộp 1 lần duy nhất cho toàn bộ batch |
+| **Video Dubbing** | `100 Credits / 1 giây video` | Tương đương 6.000 Credits / phút video |
+| **22 Audio Tools (WASM)** | `0 Credit (Miễn phí 100%)` | Xử lý trực tiếp trên RAM máy khách |
+
+---
+
+## 📁 Cấu Trúc Thư Mục Dự Án
+
+```text
+DubbingStation/
+├── prisma/
+│   ├── schema.prisma          # Định nghĩa Database Models (User, Wallet, Transaction, Projects)
+│   └── dev.db                 # CSDL SQLite cục bộ
+├── src/
+│   ├── app/
+│   │   ├── admin/             # Trang Quản trị Admin (/admin)
+│   │   ├── api/
+│   │   │   ├── admin/users/   # API CRUD & điều chỉnh Credits quản trị
+│   │   │   ├── auth/          # API register, send-otp, verify-otp, next-auth
+│   │   │   ├── tts/           # API generate, stream, batch TTS
+│   │   │   ├── dubbing/       # API video dubbing
+│   │   │   └── user/credits/  # API đồng bộ Credits realtime
+│   │   ├── dashboard/         # Khu vực phòng thu Studio, Dubbing, Clone, Tools
+│   │   ├── login/             # Trang Đăng nhập
+│   │   ├── register/          # Trang Đăng ký
+│   │   └── verify-otp/        # Trang Xác thực kích hoạt OTP
+│   ├── components/            # UI components (Header, Footer, StudioConsole, VoiceModal...)
+│   ├── data/                  # Dữ liệu giọng đọc, dịch vụ, bảng giá
+│   ├── lib/
+│   │   ├── auth.ts            # Cấu hình NextAuth & phân quyền Admin
+│   │   ├── email.ts           # Dịch vụ gửi Gmail SMTP HTML bằng Nodemailer
+│   │   ├── otp.ts             # Thuật toán sinh & kiểm tra OTP với SQLite
+│   │   ├── prisma.ts          # Kết nối Prisma Client Singleton
+│   │   ├── webAudio.ts        # Thuật toán xử lý âm thanh Web Audio API
+│   │   └── tts/               # DSP Timbre Morphing & TTS Synthesis
+│   └── types/                 # TypeScript interface definitions
+├── .env                       # Biến môi trường
+├── package.json
+└── README.md
+```
+
+---
+
+## 🛠️ Công Nghệ Sử Dụng (Tech Stack)
+
+* **Giao diện (Frontend):** Next.js 14 (App Router), React 18, Tailwind CSS, Material Symbols.
+* **Xác thực & Bảo mật (Auth):** NextAuth.js (JWT Strategy), Bcryptjs, Gmail SMTP (Nodemailer).
+* **Cơ sở dữ liệu (Database):** Prisma ORM, SQLite (`dev.db`).
+* **Âm thanh & AI (Audio & DSP):**
+  * `edge-tts-universal` (Microsoft Neural TTS)
+  * `wavefile` (16-bit PCM RIFF WAV Parser & Header Generator)
+  * Web Audio API & WebAssembly (Cắt, ghép, khuếch đại âm lượng, đảo chiều sóng)
+  * Biquad Direct Form II Transposed Formant Filter (F1/F2, Chest Resonance, Presence Filter)
+
+---
+
+## 📄 Bản Quyền & Tác Giả
+
+* **Tác giả:** Võ Phạm Gia Kiệt
+* **Bản quyền:** © 2026 DubbingStation AI Studio. Mọi quyền được bảo lưu.
+* Giấy phép thương mại 100% cho âm thanh được tạo ra trên nền tảng.

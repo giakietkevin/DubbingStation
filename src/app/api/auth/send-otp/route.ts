@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createAndSaveOtp } from '@/lib/otp';
+import { isSmtpConfigured } from '@/lib/email';
 
 export async function POST(req: Request) {
   try {
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
     // Kiểm tra user có tồn tại trong CSDL không
     const user = await prisma.user.findUnique({
       where: { email: cleanEmail },
-      select: { id: true, email: true, emailVerified: true },
+      select: { id: true, name: true, email: true, emailVerified: true },
     });
 
     if (!user) {
@@ -35,15 +36,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // Sinh mã OTP 6 số và lưu vào CSDL
-    const otpCode = await createAndSaveOtp(cleanEmail, 10);
+    // Sinh mã OTP 6 số, lưu vào CSDL và gửi email thật qua Gmail SMTP
+    const otpCode = await createAndSaveOtp(cleanEmail, 10, user.name || undefined);
+    const smtpReady = isSmtpConfigured();
 
     return NextResponse.json({
       success: true,
-      message: `Mã OTP đã được gửi tới email ${cleanEmail}. Vui lòng kiểm tra hộp thư.`,
+      message: smtpReady
+        ? `Mã OTP đã được gửi tới hộp thư ${cleanEmail}. Vui lòng kiểm tra hộp thư đến hoặc Spam.`
+        : `Mã OTP đã được tạo cho email ${cleanEmail}.`,
       email: cleanEmail,
-      // Cung cấp mã OTP trong response nhằm hỗ trợ môi trường dev/local test tiện lợi
-      previewOtp: otpCode,
+      isSmtpReady: smtpReady,
+      previewOtp: !smtpReady ? otpCode : undefined,
     });
   } catch (error: any) {
     console.error('Lỗi khi gửi OTP:', error);

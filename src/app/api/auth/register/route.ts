@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { createAndSaveOtp } from '@/lib/otp';
+import { isSmtpConfigured } from '@/lib/email';
 
 export async function POST(req: Request) {
   try {
@@ -80,15 +81,20 @@ export async function POST(req: Request) {
       },
     });
 
-    // Tự động sinh mã OTP và lưu vào CSDL
-    const otpCode = await createAndSaveOtp(cleanEmail, 10);
+    // Tự động sinh mã OTP, lưu vào CSDL và gửi email thật qua Gmail SMTP
+    const otpCode = await createAndSaveOtp(cleanEmail, 10, name || undefined);
+    const smtpReady = isSmtpConfigured();
 
     return NextResponse.json(
       {
-        message: 'Đăng ký thành công! Vui lòng nhập mã OTP để kích hoạt tài khoản.',
+        message: smtpReady
+          ? `Mã OTP đã được gửi tới hòm thư ${cleanEmail}. Vui lòng kiểm tra email của bạn.`
+          : 'Đăng ký thành công! Vui lòng nhập mã OTP để kích hoạt tài khoản.',
         requireOtp: true,
         email: cleanEmail,
-        previewOtp: otpCode,
+        isSmtpReady: smtpReady,
+        // Khi đã cấu hình Gmail SMTP thật: Ẩn previewOtp để bảo mật và bắt buộc mở hộp thư thật
+        previewOtp: !smtpReady ? otpCode : undefined,
         user: newUser,
       },
       { status: 201 }
