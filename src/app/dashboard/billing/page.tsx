@@ -2,7 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { pricingPlans } from '@/data/pricing';
+import type { PricingPlan } from '@/types';
+import { VietQRModal } from '@/components/dashboard/VietQRModal';
 
 interface Transaction {
   id: string;
@@ -26,6 +29,7 @@ interface SubscriptionData {
 }
 
 export default function BillingPage() {
+  const { data: session } = useSession();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [promoCode, setPromoCode] = useState<string>('LAUNCH50');
   const [appliedPromo, setAppliedPromo] = useState<boolean>(true);
@@ -37,6 +41,10 @@ export default function BillingPage() {
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  // VietQR Checkout Modal State
+  const [checkoutPlan, setCheckoutPlan] = useState<PricingPlan | null>(null);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState<boolean>(false);
 
   useEffect(() => {
     fetchBillingData();
@@ -63,6 +71,15 @@ export default function BillingPage() {
     } else {
       setAppliedPromo(false);
       setStatusMessage({ text: 'Mã khuyến mãi không hợp lệ.', type: 'error' });
+    }
+  };
+
+  const handlePlanClick = (plan: PricingPlan) => {
+    if (plan.monthlyPrice === 0) {
+      handleUpgradePlan(plan.id);
+    } else {
+      setCheckoutPlan(plan);
+      setIsCheckoutOpen(true);
     }
   };
 
@@ -295,7 +312,7 @@ export default function BillingPage() {
               <button
                 type="button"
                 disabled={isLoading}
-                onClick={() => handleUpgradePlan(plan.id)}
+                onClick={() => handlePlanClick(plan)}
                 className={`w-full py-2.5 rounded-xl font-label-md font-bold transition-all flex items-center justify-center gap-1.5 ${
                   plan.isPopular
                     ? 'bg-secondary hover:bg-secondary/90 text-white shadow-md'
@@ -309,8 +326,10 @@ export default function BillingPage() {
                   </>
                 ) : (
                   <>
-                    <span className="material-symbols-outlined text-[16px]">credit_card</span>
-                    {plan.ctaText}
+                    <span className="material-symbols-outlined text-[16px]">
+                      {plan.monthlyPrice === 0 ? 'check_circle' : 'qr_code_2'}
+                    </span>
+                    {plan.monthlyPrice === 0 ? 'Đang kích hoạt' : `Nạp ngay (${plan.name})`}
                   </>
                 )}
               </button>
@@ -318,6 +337,16 @@ export default function BillingPage() {
           );
         })}
       </div>
+
+      {/* VietQR Payment Checkout Modal */}
+      <VietQRModal
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        plan={checkoutPlan}
+        billingCycle={billingCycle}
+        appliedPromo={appliedPromo}
+        userEmail={session?.user?.email}
+      />
 
       {/* Transactions History Table */}
       <div className="bg-surface-card border border-border-glass rounded-2xl p-space-md lg:p-space-lg space-y-space-md">

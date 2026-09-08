@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authenticateApiKey } from '@/lib/apiAuth';
+import { checkRateLimit, getRateLimitHeaders } from '@/lib/rateLimit';
 import { prisma } from '@/lib/prisma';
 import { Communicate } from 'edge-tts-universal';
 import { voicePersonaProfiles } from '@/data/voiceProfiles';
@@ -18,6 +19,23 @@ export async function POST(req: Request) {
   const auth = await authenticateApiKey(req);
   if (!auth.user) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
+  }
+
+  // 1.1 Kiểm tra Rate Limiting (60 requests / phút)
+  const rateLimit = checkRateLimit(auth.user.apiKeyId, { limit: 60, windowMs: 60000 });
+  const rateLimitHeaders = getRateLimitHeaders(rateLimit);
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        error: 'Quá giới hạn tần suất gọi API (Rate limit exceeded: 60 req/min). Vui lòng thử lại sau.',
+        retryAfter: rateLimit.retryAfter,
+      },
+      {
+        status: 429,
+        headers: rateLimitHeaders,
+      }
+    );
   }
 
   try {
@@ -149,7 +167,7 @@ export async function POST(req: Request) {
         provider: selectedProvider,
         audioFormat: 'audio/mpeg',
         audioBase64: base64Audio,
-      });
+      }, { headers: rateLimitHeaders });
     }
 
     // Trả về trực tiếp Audio MP3 Binary stream
@@ -163,6 +181,7 @@ export async function POST(req: Request) {
         'X-Remaining-Balance': (auth.user.walletBalance - creditsRequired).toString(),
         'X-Voice-Id': voiceId,
         'X-Provider': selectedProvider,
+        ...rateLimitHeaders,
       },
     });
   } catch (err) {

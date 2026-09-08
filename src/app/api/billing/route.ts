@@ -52,6 +52,13 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { planId, promoCode, billingCycle = 'monthly' } = body;
 
+    if (planId && planId.toLowerCase() !== 'free') {
+      return NextResponse.json(
+        { error: 'Gói trả phí phải được thanh toán qua đơn nạp và webhook ngân hàng. Không thể cộng Credits bằng nút xác nhận.' },
+        { status: 400 },
+      );
+    }
+
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       include: { wallet: true, subscription: true },

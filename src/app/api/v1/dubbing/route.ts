@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authenticateApiKey } from '@/lib/apiAuth';
+import { checkRateLimit, getRateLimitHeaders } from '@/lib/rateLimit';
 import { prisma } from '@/lib/prisma';
 import type { SubtitleCue } from '@/lib/subtitleParser';
 
@@ -15,6 +16,23 @@ export async function POST(req: Request) {
   const auth = await authenticateApiKey(req);
   if (!auth.user) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
+  }
+
+  // Rate Limiting
+  const rateLimit = checkRateLimit(auth.user.apiKeyId, { limit: 60, windowMs: 60000 });
+  const rateLimitHeaders = getRateLimitHeaders(rateLimit);
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        error: 'Quá giới hạn tần suất gọi API (Rate limit exceeded: 60 req/min). Vui lòng thử lại sau.',
+        retryAfter: rateLimit.retryAfter,
+      },
+      {
+        status: 429,
+        headers: rateLimitHeaders,
+      }
+    );
   }
 
   try {
@@ -98,7 +116,7 @@ export async function POST(req: Request) {
       creditsDeducted: creditsRequired,
       remainingBalance: newBalance,
       speakerVoiceMap,
-    });
+    }, { headers: rateLimitHeaders });
   } catch (error) {
     console.error('API v1 Dubbing Error:', error);
     return NextResponse.json({ error: 'Lỗi xử lý lồng tiếng API.' }, { status: 500 });

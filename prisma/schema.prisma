@@ -26,6 +26,7 @@ model User {
   audioProjects AudioProject[]
   customVoices  CustomVoice[]
   apiKeys       ApiKey[]
+  paymentOrders PaymentOrder[]
 }
 
 model ApiKey {
@@ -100,6 +101,24 @@ model CreditTransaction {
   createdAt    DateTime @default(now())
 
   wallet       CreditWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+}
+
+model PaymentOrder {
+  id                    String    @id @default(cuid())
+  userId                String
+  planId                String
+  billingCycle          String
+  amountVnd             Int
+  credits               Int
+  transferContent       String    @unique
+  status                String    @default("PENDING") // PENDING, PAID, EXPIRED
+  providerTransactionId String?   @unique
+  createdAt             DateTime  @default(now())
+  paidAt                DateTime?
+
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
 }
 
 model Subscription {

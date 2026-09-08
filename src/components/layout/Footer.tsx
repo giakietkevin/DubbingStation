@@ -123,16 +123,22 @@ export const Footer: React.FC = () => {
                 <span>Đăng ký (+50K)</span>
               </Link>
               <Link
-                href="/dashboard"
+                href="/terms"
                 className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors"
               >
-                Phòng thu Dashboard
+                Điều khoản dịch vụ
               </Link>
               <Link
-                href="#terms"
+                href="/privacy"
                 className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors"
               >
-                Điều khoản & Bảo mật
+                Chính sách bảo mật
+              </Link>
+              <Link
+                href="/refund"
+                className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors"
+              >
+                Chính sách hoàn tiền
               </Link>
             </div>
           </div>
@@ -144,11 +150,16 @@ export const Footer: React.FC = () => {
             © 2026 DubbingStation AI Studio. Tất cả quyền được bảo lưu. Giấy phép thương mại tự do 100%.
           </p>
           <div className="flex items-center gap-space-md">
-            <span className="font-code-xs text-code-xs text-text-muted uppercase flex items-center gap-1.5">
+            <Link
+              href="/status"
+              className="font-code-xs text-code-xs text-text-muted hover:text-on-surface transition-colors uppercase flex items-center gap-1.5 group"
+            >
               System Status:
-              <span className="w-1.5 h-1.5 rounded-full bg-signal-success inline-block" />
-              <strong className="text-signal-success font-bold">Operational 99.99%</strong>
-            </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-signal-success inline-block group-hover:scale-125 transition-transform" />
+              <strong className="text-signal-success font-bold underline-offset-4 group-hover:underline">
+                Operational 99.99%
+              </strong>
+            </Link>
           </div>
         </div>
       </div>
