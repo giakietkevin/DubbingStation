@@ -2,7 +2,7 @@ import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { mockWhisperTranscribe } from '@/lib/whisper';
+import type { WhisperTranscriptionResult } from '@/lib/whisper';
 
 /**
  * POST /api/stt/transcribe
@@ -17,14 +17,23 @@ export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     const body = await req.json();
-    const { fileName = 'audio_record.mp3', durationSec = 20, language = 'vi' } = body;
+    const {
+      fileName = 'audio_record.mp3',
+      durationSec = 20,
+      language = 'vi',
+      transcription,
+    } = body as { fileName?: string; durationSec?: number; language?: string; transcription?: WhisperTranscriptionResult };
 
     const validDuration = Math.max(1, Math.ceil(durationSec));
     // Công thức Unified Credits cho STT: 50 credits / 1 giây audio
     const requiredCredits = validDuration * 50;
 
-    // Chạy engine nhận diện Whisper
-    const transcription = mockWhisperTranscribe(validDuration, language);
+    if (!transcription?.text?.trim() || !Array.isArray(transcription.segments) || transcription.segments.length === 0) {
+      return NextResponse.json(
+        { error: 'Không nhận được kết quả nhận diện từ file video.' },
+        { status: 400 },
+      );
+    }
 
     // Nếu người dùng đã đăng nhập, kiểm tra và trừ credit
     if (session?.user?.email) {

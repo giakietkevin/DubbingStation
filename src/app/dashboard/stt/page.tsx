@@ -10,6 +10,7 @@ import {
   exportToVTT,
   exportToTXT,
 } from '@/lib/whisper';
+import { transcribeVideoFile } from '@/lib/browserTranscriber';
 
 export default function STTWorkspacePage() {
   const router = useRouter();
@@ -33,17 +34,27 @@ export default function STTWorkspacePage() {
   };
 
   const handleTranscribe = async () => {
+    if (!file) {
+      setStatusMessage({ text: 'Vui lòng tải lên file audio hoặc video trước.', type: 'error' });
+      return;
+    }
+
     setIsTranscribing(true);
     setStatusMessage(null);
 
     try {
+      const transcriptionResult = await transcribeVideoFile(file, language, (message) => {
+        setStatusMessage({ text: message, type: 'success' });
+      });
+
       const res = await fetch('/api/stt/transcribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fileName: file ? file.name : 'Sample_Recording.mp3',
-          durationSec: 24,
+          fileName: file.name,
           language,
+          durationSec: transcriptionResult.durationSec,
+          transcription: transcriptionResult,
         }),
       });
 
@@ -63,7 +74,10 @@ export default function STTWorkspacePage() {
       });
     } catch (err) {
       console.error(err);
-      setStatusMessage({ text: 'Lỗi kết nối máy chủ khi nhận diện.', type: 'error' });
+      setStatusMessage({
+        text: err instanceof Error ? err.message : 'Không thể nhận diện file đã tải lên.',
+        type: 'error',
+      });
     } finally {
       setIsTranscribing(false);
     }
@@ -118,7 +132,7 @@ export default function STTWorkspacePage() {
               AI Speech-to-Text (Whisper AI)
             </h2>
             <span className="px-2.5 py-0.5 rounded-full bg-signal-success/15 text-signal-success font-code-xs text-[11px] font-bold">
-              Whisper Large-V3
+              Whisper Tiny (local)
             </span>
           </div>
           <p className="font-body-sm text-body-sm text-text-muted mt-1">
