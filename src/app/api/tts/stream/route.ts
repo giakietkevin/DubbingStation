@@ -312,7 +312,7 @@ export async function GET(req: Request) {
     let fullBuffer: Buffer;
 
     if (isWav) {
-      let totalRawPcm = Buffer.concat(rawPcmChunks);
+      let totalRawPcm: ReturnType<typeof applyVocalTimbreDSP> = Buffer.concat(rawPcmChunks);
       if (
         customWarmth !== undefined ||
         customBrightness !== undefined ||
