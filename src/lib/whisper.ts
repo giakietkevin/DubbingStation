@@ -47,10 +47,87 @@ export function formatTimestampVTT(seconds: number): string {
 }
 
 /**
+ * Làm sạch và khử trùng lặp các phân đoạn Whisper (Whisper Segments Deduplication)
+ * Khắc phục hiện tượng lặp câu ở biên stride (stride overlapping) mà không bỏ sót lời thoại thực
+ */
+export function cleanAndDeduplicateWhisperSegments(segments: WhisperSegment[]): WhisperSegment[] {
+  if (!Array.isArray(segments) || segments.length === 0) return [];
+
+  const sorted = [...segments]
+    .filter((s) => s.text && s.text.trim().length > 0)
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+
+  const cleanList: WhisperSegment[] = [];
+
+  const normalize = (t: string) =>
+    t.toLowerCase()
+      .replace(/[.,/#!$%^&*;:{}=\-_`~()?"'«»“”]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  for (const seg of sorted) {
+    if (cleanList.length === 0) {
+      cleanList.push({ ...seg });
+      continue;
+    }
+
+    const prev = cleanList[cleanList.length - 1];
+    const prevNorm = normalize(prev.text);
+    const currNorm = normalize(seg.text);
+
+    const timeOverlap = seg.start < prev.end;
+    const timeGap = seg.start - prev.end;
+    const isVeryClose = timeOverlap || timeGap <= 0.6;
+
+    // 1. Trùng lặp hoàn toàn
+    if (prevNorm === currNorm && isVeryClose) {
+      prev.end = Math.max(prev.end, seg.end);
+      continue;
+    }
+
+    // 2. Câu sau chứa câu trước do cắt dở ở stride boundary
+    if (isVeryClose && currNorm.startsWith(prevNorm) && currNorm.length > prevNorm.length) {
+      prev.text = seg.text;
+      prev.end = Math.max(prev.end, seg.end);
+      continue;
+    }
+
+    // 3. Câu trước chứa câu sau
+    if (isVeryClose && prevNorm.endsWith(currNorm) && prevNorm.length > currNorm.length) {
+      prev.end = Math.max(prev.end, seg.end);
+      continue;
+    }
+
+    // 4. Nếu hai câu độc lập bị đè timestamp nhẹ: điều chỉnh timestamp sát video
+    const adjusted: WhisperSegment = { ...seg };
+    if (adjusted.start < prev.end) {
+      if (prev.end - prev.start > 0.8) {
+        prev.end = Math.max(prev.start + 0.5, adjusted.start - 0.05);
+      } else {
+        adjusted.start = prev.end + 0.05;
+        if (adjusted.end <= adjusted.start) {
+          adjusted.end = adjusted.start + 1.0;
+        }
+      }
+    }
+
+    cleanList.push(adjusted);
+  }
+
+  return cleanList.map((s, idx) => ({
+    ...s,
+    id: idx + 1,
+    start: Number(s.start.toFixed(2)),
+    end: Number(s.end.toFixed(2)),
+  }));
+}
+
+/**
  * Chuyển đổi danh sách WhisperSegments thành định dạng file .SRT
  */
 export function exportToSRT(segments: WhisperSegment[]): string {
-  return segments
+  const clean = cleanAndDeduplicateWhisperSegments(segments);
+  return clean
     .map((seg, index) => {
       const startStr = formatTimestampSRT(seg.start);
       const endStr = formatTimestampSRT(seg.end);
@@ -64,7 +141,8 @@ export function exportToSRT(segments: WhisperSegment[]): string {
  * Chuyển đổi danh sách WhisperSegments thành định dạng file .VTT
  */
 export function exportToVTT(segments: WhisperSegment[]): string {
-  const body = segments
+  const clean = cleanAndDeduplicateWhisperSegments(segments);
+  const body = clean
     .map((seg, index) => {
       const startStr = formatTimestampVTT(seg.start);
       const endStr = formatTimestampVTT(seg.end);
@@ -80,7 +158,8 @@ export function exportToVTT(segments: WhisperSegment[]): string {
  * Chuyển đổi thành văn bản thuần TXT
  */
 export function exportToTXT(segments: WhisperSegment[]): string {
-  return segments
+  const clean = cleanAndDeduplicateWhisperSegments(segments);
+  return clean
     .map((seg) => {
       const speakerPrefix = seg.speaker ? `${seg.speaker}: ` : '';
       return `${speakerPrefix}${seg.text.trim()}`;

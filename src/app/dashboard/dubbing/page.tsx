@@ -2,7 +2,14 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { parseSubtitle, demoSrtContent, type SubtitleCue, type SubtitleParseResult } from '@/lib/subtitleParser';
+import {
+  parseSubtitle,
+  demoSrtContent,
+  deduplicateSubtitleCues,
+  cuesToSRT,
+  type SubtitleCue,
+  type SubtitleParseResult,
+} from '@/lib/subtitleParser';
 import { voices } from '@/data/voices';
 import type { Voice } from '@/types';
 import { detectSpeakersFromVideo } from '@/lib/speakerDiarizer';
@@ -17,6 +24,10 @@ export default function DubbingWorkspacePage() {
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
   const [isDetectingSpeakers, setIsDetectingSpeakers] = useState(false);
+
+  // Tùy chọn bảo tồn âm thanh nền & hiệu ứng phim (SFX / Foley)
+  const [keepOriginalAudio, setKeepOriginalAudio] = useState<boolean>(true);
+  const [duckingPreset, setDuckingPreset] = useState<'sfx_preserve' | 'sfx_duck_half' | 'mute_dialogue' | 'replace_all'>('sfx_preserve');
 
   // Tự động parse phụ đề khi srtInput thay đổi
   useEffect(() => {
@@ -115,6 +126,21 @@ export default function DubbingWorkspacePage() {
     }
   };
 
+  const handleCleanAndAlignSubtitle = () => {
+    if (!parsedData || parsedData.cues.length === 0) return;
+    const initialCount = parsedData.cues.length;
+    const cleaned = deduplicateSubtitleCues(parsedData.cues);
+    const newSrt = cuesToSRT(cleaned);
+    setSrtInput(newSrt);
+    const removedCount = initialCount - cleaned.length;
+    setStatusMessage({
+      text: removedCount > 0
+        ? `Đã làm sạch và khử ${removedCount} câu lặp lại, căn chỉnh timeline sát video và bảo toàn toàn bộ lời thoại!`
+        : `Timeline phụ đề đã được chuẩn hóa và căn chỉnh sát với video 100%!`,
+      type: 'success',
+    });
+  };
+
   const handleGenerateDubbing = async () => {
     if (!parsedData || parsedData.cues.length === 0) {
       setStatusMessage({ text: 'Vui lòng nhập hoặc tải lên tệp phụ đề hợp lệ.', type: 'error' });
@@ -136,6 +162,8 @@ export default function DubbingWorkspacePage() {
       formData.append('title', videoFile.name.replace(/\.[^/.]+$/, ''));
       formData.append('cues', JSON.stringify(parsedData.cues));
       formData.append('speakerVoiceMap', JSON.stringify(speakerVoiceMap));
+      formData.append('keepOriginalAudio', String(keepOriginalAudio));
+      formData.append('duckingLevel', duckingPreset);
 
       const res = await fetch('/api/dubbing/generate', {
         method: 'POST',
@@ -237,26 +265,137 @@ export default function DubbingWorkspacePage() {
 
           {/* Subtitle Input Card */}
           <div className="p-space-md rounded-2xl bg-surface-card border border-border-glass flex flex-col gap-3 flex-1">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <h3 className="font-label-lg text-label-lg font-bold text-text-primary flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary text-[20px]">subtitles</span>
                 <span>2. Phụ Đề (SRT / VTT)</span>
               </h3>
 
-              <label className="px-2.5 py-1 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-text-primary font-label-sm text-[11px] font-semibold cursor-pointer transition-colors flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px]">upload_file</span>
-                <span>Tải tệp .srt</span>
-                <input type="file" accept=".srt,.vtt,.txt" onChange={handleSubtitleFileUpload} className="hidden" />
-              </label>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleCleanAndAlignSubtitle}
+                  disabled={!parsedData || parsedData.cues.length === 0}
+                  className="px-2.5 py-1 rounded-lg bg-primary-container/20 text-primary-container hover:bg-primary-container hover:text-canvas-base font-label-sm text-[11px] font-bold transition-all flex items-center gap-1 disabled:opacity-50"
+                  title="Tự động phát hiện và loại bỏ các câu lặp trùng do Whisper chunk overlap, căn chỉnh timeline sát video và không làm mất thoại"
+                >
+                  <span className="material-symbols-outlined text-[14px]">auto_fix_high</span>
+                  <span>Khử lặp & Căn sát Timeline</span>
+                </button>
+
+                <label className="px-2.5 py-1 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-text-primary font-label-sm text-[11px] font-semibold cursor-pointer transition-colors flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px]">upload_file</span>
+                  <span>Tải tệp .srt</span>
+                  <input type="file" accept=".srt,.vtt,.txt" onChange={handleSubtitleFileUpload} className="hidden" />
+                </label>
+              </div>
             </div>
 
             <textarea
-              rows={12}
+              rows={11}
               value={srtInput}
               onChange={(e) => setSrtInput(e.target.value)}
               placeholder="Dán nội dung tệp SRT / VTT tại đây..."
               className="w-full p-3 rounded-xl bg-surface-container-lowest border border-border-glass text-text-primary font-code-xs text-[12px] focus:outline-none focus:border-primary-container leading-relaxed resize-none"
             />
+          </div>
+
+          {/* Background Audio & SFX Preservation Card */}
+          <div className="p-space-md rounded-2xl bg-surface-card border border-border-glass flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-label-lg text-label-lg font-bold text-text-primary flex items-center gap-2">
+                <span className="material-symbols-outlined text-signal-warning text-[20px]">music_cast</span>
+                <span>3. Bảo Tồn Âm Nền & SFX Phim</span>
+              </h3>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={keepOriginalAudio}
+                  onChange={(e) => setKeepOriginalAudio(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-container"></div>
+              </label>
+            </div>
+
+            <p className="font-body-xs text-[11px] text-text-muted leading-relaxed">
+              {keepOriginalAudio
+                ? 'Tự động giữ 100% âm thanh raw gốc (tiếng nổ, bước chân, tiếng súng, nhạc nền ambient) ở các đoạn im lặng không thoại. Khi đến đoạn có phụ đề thoại, hệ thống sẽ tự động hạ âm nền (Smart Ducking) để tôn giọng đọc AI mà không làm biến mất âm thanh phim.'
+                : 'Đã tắt bảo tồn âm nền. Toàn bộ audio gốc của video sẽ bị tắt, chỉ giữ lại tiếng đọc AI lồng tiếng.'}
+            </p>
+
+            {keepOriginalAudio && (
+              <div className="flex flex-col gap-2 pt-1">
+                <label className="font-label-sm text-[11px] text-text-muted uppercase font-semibold">
+                  Mức độ hạ âm nền khi có lời thoại (Audio Ducking)
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDuckingPreset('sfx_preserve')}
+                    className={`p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all ${
+                      duckingPreset === 'sfx_preserve'
+                        ? 'bg-primary-container/15 border-primary-container text-text-primary shadow-sm'
+                        : 'bg-surface-container-lowest border-border-glass text-text-muted hover:text-text-primary'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[12px] text-primary-container">🎬 Chuẩn Phim Điện Ảnh</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-primary-container/20 text-primary-container font-semibold">Giữ 15% SFX</span>
+                    </div>
+                    <span className="text-[10px] leading-tight">100% SFX khi im lặng, giữ 15% tiếng nền khi có thoại</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDuckingPreset('sfx_duck_half')}
+                    className={`p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all ${
+                      duckingPreset === 'sfx_duck_half'
+                        ? 'bg-primary-container/15 border-primary-container text-text-primary shadow-sm'
+                        : 'bg-surface-container-lowest border-border-glass text-text-muted hover:text-text-primary'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[12px] text-primary-container">🎙️ Chuẩn Vlog / Tin Tức</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-primary-container/20 text-primary-container font-semibold">Giữ 30% âm nền</span>
+                    </div>
+                    <span className="text-[10px] leading-tight">Nhạc nền to rõ hơn phía sau lời bình hoặc hướng dẫn</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDuckingPreset('mute_dialogue')}
+                    className={`p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all ${
+                      duckingPreset === 'mute_dialogue'
+                        ? 'bg-primary-container/15 border-primary-container text-text-primary shadow-sm'
+                        : 'bg-surface-container-lowest border-border-glass text-text-muted hover:text-text-primary'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[12px] text-primary-container">🔇 Tắt thoại gốc (0%)</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-primary-container/20 text-primary-container font-semibold">0% khi có thoại</span>
+                    </div>
+                    <span className="text-[10px] leading-tight">Giữ âm nền ở đoạn trống, tắt sạch tiếng khi có sub</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDuckingPreset('replace_all')}
+                    className={`p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all ${
+                      duckingPreset === 'replace_all'
+                        ? 'bg-primary-container/15 border-primary-container text-text-primary shadow-sm'
+                        : 'bg-surface-container-lowest border-border-glass text-text-muted hover:text-text-primary'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[12px] text-primary-container">⚡ Thay thế 100%</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-primary-container/20 text-primary-container font-semibold">Mute toàn bộ</span>
+                    </div>
+                    <span className="text-[10px] leading-tight">Chỉ phát duy nhất âm thanh AI lồng tiếng</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -267,7 +406,7 @@ export default function DubbingWorkspacePage() {
             <div className="flex items-center justify-between">
               <h3 className="font-label-lg text-label-lg font-bold text-text-primary flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary-container text-[20px]">group</span>
-                <span>3. Gán Giọng Đọc Theo Nhân Vật (Speaker Assignment)</span>
+                <span>4. Gán Giọng Đọc Theo Nhân Vật (Speaker Assignment)</span>
               </h3>
               <span className="px-2 py-0.5 rounded font-code-xs text-[11px] bg-surface-container-high text-text-secondary">
                 {parsedData?.speakers.length || 0} Nhân vật
@@ -338,7 +477,7 @@ export default function DubbingWorkspacePage() {
             <div className="flex items-center justify-between">
               <h3 className="font-label-lg text-label-lg font-bold text-text-primary flex items-center gap-2">
                 <span className="material-symbols-outlined text-signal-success text-[20px]">view_timeline</span>
-                <span>4. Chi Tiết Timeline ({parsedData?.cues.length || 0} Cues)</span>
+                <span>5. Chi Tiết Timeline ({parsedData?.cues.length || 0} Cues)</span>
               </h3>
               <span className="font-code-xs text-code-xs text-text-muted">
                 Tổng thời lượng: ~{totalDurationSec}s

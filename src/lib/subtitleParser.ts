@@ -62,6 +62,171 @@ export function secondsToFormattedTime(sec: number): string {
 }
 
 /**
+ * Chuẩn hóa chuỗi văn bản để so sánh độ tương đồng
+ */
+export function normalizeDialogueText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/<[^>]+>/g, '') // Bỏ thẻ HTML/VTT tag
+    .replace(/[.,/#!$%^&*;:{}=\-_`~()?"'«»“”]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Tính toán độ tương đồng giữa 2 chuỗi văn bản (0.0 - 1.0)
+ * Hỗ trợ nhận diện câu lặp lại, câu bao hàm, hoặc lặp từ do Whisper chunk overlap
+ */
+export function calculateTextSimilarity(str1: string, str2: string): number {
+  const s1 = normalizeDialogueText(str1);
+  const s2 = normalizeDialogueText(str2);
+
+  if (s1 === s2 && s1.length > 0) return 1.0;
+  if (!s1 || !s2) return 0.0;
+
+  // Nếu câu này chứa trọn vẹn câu kia
+  if (s1.includes(s2) || s2.includes(s1)) {
+    const ratio = Math.min(s1.length, s2.length) / Math.max(s1.length, s2.length);
+    if (ratio >= 0.6) return 0.88;
+  }
+
+  // So sánh cặp ký tự (Bigram Dice's Coefficient)
+  const getBigrams = (str: string) => {
+    const bigrams = new Set<string>();
+    for (let i = 0; i < str.length - 1; i++) {
+      bigrams.add(str.substring(i, i + 2));
+    }
+    return bigrams;
+  };
+
+  const bg1 = getBigrams(s1);
+  const bg2 = getBigrams(s2);
+  let intersection = 0;
+  bg1.forEach((b) => {
+    if (bg2.has(b)) intersection++;
+  });
+
+  const total = bg1.size + bg2.size;
+  return total > 0 ? (2.0 * intersection) / total : 0;
+}
+
+/**
+ * Thuật toán khử trùng lặp phụ đề thông minh (Smart Subtitle Deduplication & Video Alignment)
+ * - Loại bỏ các câu bị lặp lại do Whisper stride overlap hoặc lỗi copy/paste phụ đề
+ * - Tuyệt đối không làm mất thoại thật: giữ nguyên các câu thoại lặp có chủ đích cách xa nhau
+ * - Gộp các câu bị cắt cụt/lặp nửa câu thành câu hoàn chỉnh và kéo dài timeline tương ứng
+ * - Căn chỉnh timeline sát với video, tránh chồng lấn gây nghẽn tiếng
+ */
+export function deduplicateSubtitleCues(cues: SubtitleCue[]): SubtitleCue[] {
+  if (!Array.isArray(cues) || cues.length === 0) return [];
+
+  // 1. Sắp xếp theo startTime tăng dần
+  const sorted = [...cues]
+    .filter((c) => c.text && c.text.trim().length > 0)
+    .sort((a, b) => a.startTime - b.startTime || a.endTime - b.endTime);
+
+  const cleanCues: SubtitleCue[] = [];
+
+  for (const current of sorted) {
+    if (cleanCues.length === 0) {
+      cleanCues.push({ ...current });
+      continue;
+    }
+
+    const prev = cleanCues[cleanCues.length - 1];
+    const prevNorm = normalizeDialogueText(prev.text);
+    const currNorm = normalizeDialogueText(current.text);
+
+    // Tính độ tương đồng
+    const similarity = calculateTextSimilarity(prev.text, current.text);
+    const timeOverlap = current.startTime < prev.endTime;
+    const timeGap = current.startTime - prev.endTime; // Âm nếu overlap, dương nếu có khoảng cách
+
+    // Kiểm tra xem hai câu có phải là trùng lặp do Whisper stride overlap không
+    // (khoảng cách giữa 2 câu < 0.6s hoặc overlap, và độ tương đồng cao >= 0.75)
+    const isVeryCloseInTime = timeOverlap || timeGap <= 0.6;
+    const isSameSpeaker = prev.speaker === current.speaker || !prev.speaker || !current.speaker || prev.speaker === 'Speaker 1';
+
+    if (isSameSpeaker && isVeryCloseInTime && (similarity >= 0.75 || prevNorm === currNorm)) {
+      // TRƯỜNG HỢP A: Trùng lặp do chunk overlap -> Hợp nhất timeline để KHÔNG BỎ MẤT THOẠI
+      // Chọn câu văn bản đầy đủ hơn (dài hơn)
+      if (currNorm.length > prevNorm.length) {
+        prev.text = current.text;
+      }
+      // Kéo dài endTime đến điểm kết thúc xa nhất để không bị cắt thoại
+      prev.endTime = Math.max(prev.endTime, current.endTime);
+      prev.durationSec = Math.max(0.6, prev.endTime - prev.startTime);
+      prev.endTimeFormatted = secondsToFormattedTime(prev.endTime);
+      continue;
+    }
+
+    // TRƯỜNG HỢP B: Câu sau là phần tiếp nối bao hàm câu trước (Whisper cắt dở câu)
+    // Ví dụ: prev: "Tôi nghĩ rằng", current: "Tôi nghĩ rằng chúng ta nên bắt đầu"
+    if (isSameSpeaker && isVeryCloseInTime && currNorm.startsWith(prevNorm) && currNorm.length > prevNorm.length) {
+      prev.text = current.text;
+      prev.endTime = Math.max(prev.endTime, current.endTime);
+      prev.durationSec = Math.max(0.6, prev.endTime - prev.startTime);
+      prev.endTimeFormatted = secondsToFormattedTime(prev.endTime);
+      continue;
+    }
+
+    // TRƯỜNG HỢP C: Trùng lặp chính xác 100% về text và timeline rất gần (< 1.2s)
+    if (prevNorm === currNorm && timeGap <= 1.2 && isSameSpeaker) {
+      prev.endTime = Math.max(prev.endTime, current.endTime);
+      prev.durationSec = Math.max(0.6, prev.endTime - prev.startTime);
+      prev.endTimeFormatted = secondsToFormattedTime(prev.endTime);
+      continue;
+    }
+
+    // TRƯỜNG HỢP D: Các câu độc lập -> Giữ nguyên thoại, xử lý overlap timeline sát video
+    const adjustedCue: SubtitleCue = { ...current };
+
+    // Nếu câu sau bắt đầu trước khi câu trước kết thúc (chồng lấn timeline nhẹ):
+    // Điều chỉnh ranh giới sát với video để hai giọng không đè lên nhau
+    if (adjustedCue.startTime < prev.endTime) {
+      // Nếu câu trước đủ dài, rút ngắn nhẹ đuôi câu trước
+      if (prev.endTime - prev.startTime > 0.8) {
+        prev.endTime = Math.max(prev.startTime + 0.6, adjustedCue.startTime - 0.05);
+        prev.durationSec = prev.endTime - prev.startTime;
+        prev.endTimeFormatted = secondsToFormattedTime(prev.endTime);
+      } else {
+        // Nếu câu trước quá ngắn, đẩy câu sau lùi lại 0.05s
+        adjustedCue.startTime = prev.endTime + 0.05;
+        if (adjustedCue.endTime <= adjustedCue.startTime) {
+          adjustedCue.endTime = adjustedCue.startTime + Math.max(0.8, adjustedCue.durationSec);
+        }
+        adjustedCue.durationSec = adjustedCue.endTime - adjustedCue.startTime;
+        adjustedCue.startTimeFormatted = secondsToFormattedTime(adjustedCue.startTime);
+        adjustedCue.endTimeFormatted = secondsToFormattedTime(adjustedCue.endTime);
+      }
+    }
+
+    cleanCues.push(adjustedCue);
+  }
+
+  // Đánh số lại ID từ 1 đến N
+  return cleanCues.map((c, idx) => ({
+    ...c,
+    id: idx + 1,
+    durationSec: Math.max(0.5, c.endTime - c.startTime),
+    startTimeFormatted: secondsToFormattedTime(c.startTime),
+    endTimeFormatted: secondsToFormattedTime(c.endTime),
+  }));
+}
+
+/**
+ * Chuyển đổi danh sách SubtitleCue thành nội dung chuỗi SRT chuẩn
+ */
+export function cuesToSRT(cues: SubtitleCue[]): string {
+  return cues
+    .map((cue, idx) => {
+      const speakerPrefix = cue.speaker && cue.speaker !== 'Speaker 1' ? `[${cue.speaker}] ` : '';
+      return `${idx + 1}\n${cue.startTimeFormatted} --> ${cue.endTimeFormatted}\n${speakerPrefix}${cue.text.trim()}`;
+    })
+    .join('\n\n');
+}
+
+/**
  * Nhận diện speaker từ dòng văn bản:
  * VD: "Minh: Xin chào bạn" -> speaker = "Minh", text = "Xin chào bạn"
  * VD: "[Nhân vật 1] Chào nhé" -> speaker = "Nhân vật 1", text = "Chào nhé"
@@ -190,22 +355,10 @@ export function parseSubtitle(content: string): SubtitleParseResult {
     });
   }
 
-  const deduplicatedCues: SubtitleCue[] = [];
-  const seenCueKeys = new Set<string>();
-  for (const cue of cues) {
-    const normalizedText = cue.text.replace(/\s+/g, ' ').trim().toLowerCase();
-    const key = `${cue.startTime.toFixed(3)}|${cue.endTime.toFixed(3)}|${normalizedText}`;
-    if (seenCueKeys.has(key)) continue;
+  const deduplicatedCues = deduplicateSubtitleCues(cues);
 
-    const previous = deduplicatedCues[deduplicatedCues.length - 1];
-    const repeatedOverlap = previous && cue.startTime < previous.endTime &&
-      cue.startTime - previous.endTime < 0.15 &&
-      normalizedText === previous.text.replace(/\s+/g, ' ').trim().toLowerCase();
-    if (repeatedOverlap) continue;
-
-    seenCueKeys.add(key);
-    deduplicatedCues.push({ ...cue, id: deduplicatedCues.length + 1 });
-  }
+  const finalSpeakersSet = new Set<string>();
+  deduplicatedCues.forEach((c) => finalSpeakersSet.add(c.speaker));
 
   const totalDurationSec = deduplicatedCues.length > 0 ? deduplicatedCues[deduplicatedCues.length - 1].endTime : 0;
 
@@ -213,7 +366,7 @@ export function parseSubtitle(content: string): SubtitleParseResult {
     format,
     totalDurationSec,
     totalCues: deduplicatedCues.length,
-    speakers: Array.from(speakersSet),
+    speakers: Array.from(finalSpeakersSet.size > 0 ? finalSpeakersSet : speakersSet),
     hasExplicitSpeakers,
     cues: deduplicatedCues,
   };

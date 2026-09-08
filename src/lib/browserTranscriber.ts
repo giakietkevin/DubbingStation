@@ -1,4 +1,4 @@
-import type { WhisperSegment, WhisperTranscriptionResult } from '@/lib/whisper';
+import { cleanAndDeduplicateWhisperSegments, type WhisperSegment, type WhisperTranscriptionResult } from '@/lib/whisper';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
 
@@ -140,7 +140,7 @@ export async function transcribeVideoFile(
   });
 
   const chunks = Array.isArray(output.chunks) ? output.chunks : [];
-  const segments: WhisperSegment[] = chunks
+  const rawSegments: WhisperSegment[] = chunks
     .map((chunk: { timestamp?: [number | null, number | null]; text?: string }, index: number) => {
       const [start, end] = chunk.timestamp || [null, null];
       return {
@@ -152,13 +152,16 @@ export async function transcribeVideoFile(
     })
     .filter((segment: WhisperSegment) => segment.text && segment.end > segment.start);
 
-  if (segments.length === 0 && output.text?.trim()) {
-    segments.push({ id: 1, start: 0, end: durationSec, text: output.text.trim() });
+  if (rawSegments.length === 0 && output.text?.trim()) {
+    rawSegments.push({ id: 1, start: 0, end: durationSec, text: output.text.trim() });
   }
 
-  if (segments.length === 0) {
+  if (rawSegments.length === 0) {
     throw new Error('Whisper không tìm thấy lời thoại trong file này.');
   }
+
+  // Khử trùng lặp và căn chỉnh sát timeline video, không làm mất thoại
+  const segments = cleanAndDeduplicateWhisperSegments(rawSegments);
 
   return {
     text: output.text.trim(),

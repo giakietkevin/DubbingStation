@@ -92,10 +92,10 @@
 > **Trạng thái**: ✅ Hoàn thành 100%
 
 #### Danh Sách Công Việc Đã Triển Khai
-- [x] `P3-01`: **Subtitle Parser đa định dạng** (`src/lib/subtitleParser.ts`) hỗ trợ `.srt`, `.vtt`, `.ass`.
-- [x] `P3-02`: Giao diện gán giọng đa nhân vật (**Multi-Speaker Voice Assignment UI**) tại `/dashboard/dubbing`.
-- [x] `P3-03`: API Lồng tiếng phụ đề (`/api/dubbing/generate`) với cơ chế tính cước `100 Credits / giây video`.
-- [x] `P3-04`: Workspace upload video xem trước và đồng bộ timeline phụ đề.
+- [x] `P3-01`: **Subtitle Parser đa định dạng** (`src/lib/subtitleParser.ts`) hỗ trợ `.srt`, `.vtt`, `.ass`. Tích hợp **Smart Deduplication & Timeline Alignment** tự động khử câu lặp do Whisper stride overlap, căn chỉnh sát timeline video và bảo toàn 100% lời thoại thực.
+- [x] `P3-02`: Giao diện gán giọng đa nhân vật (**Multi-Speaker Voice Assignment UI**) tại `/dashboard/dubbing` kèm nút 1-click làm sạch phụ đề và căn sát timeline video.
+- [x] `P3-03`: API Lồng tiếng video (`/api/dubbing/generate`) với cơ chế tính cước `100 Credits / giây video`. Tích hợp **Movie Ambient & SFX Preservation**: Giữ nguyên 100% âm thanh raw (tiếng nổ, bước chân, tiếng súng, nhạc nền) ở đoạn không có thoại, và tự động hạ âm nền (Smart Audio Ducking: 15% chuẩn điện ảnh, 30% vlog, 0% tắt thoại gốc) ở các đoạn có thoại AI.
+- [x] `P3-04`: Workspace upload video xem trước, đồng bộ timeline phụ đề và tùy chọn mức độ Ducking âm nền.
 
 ---
 
@@ -189,8 +189,8 @@ Phase 0 (Foundation)
 | :--- | :--- | :---: |
 | **Bảo mật & Auth** | Đăng ký tài khoản nhận ngay 50.000 Credits; OTP gửi qua Gmail SMTP; Admin Panel bảo vệ nghiêm ngặt. | ✅ **ĐẠT** |
 | **Text to Speech** | Phát âm chuẩn tiếng Việt 3 miền, không ngắt quãng; hỗ trợ SSML pauses; trừ credits chính xác 1 char = 1 cr. | ✅ **ĐẠT** |
-| **Video Dubbing** | Căn chỉnh thời lượng phụ đề ăn khớp từng giây; xuất file MP4 qua FFmpeg m4a/aac chuẩn chỉnh. | ✅ **ĐẠT** |
-| **Whisper STT** | Bóc băng nhận diện âm thanh đa ngôn ngữ với độ chính xác cao; xuất SRT, VTT, TXT mượt mà. | ✅ **ĐẠT** |
+| **Video Dubbing** | Căn chỉnh thời lượng phụ đề ăn khớp từng giây; giữ nguyên 100% âm thanh raw/SFX ở đoạn không thoại; Smart Audio Ducking ở đoạn có thoại; xuất file MP4 qua FFmpeg chuẩn chỉnh. | ✅ **ĐẠT** |
+| **Whisper STT & SRT** | Bóc băng nhận diện âm thanh; tự động khử trùng lặp do stride overlap; căn chỉnh timeline sát video và bảo toàn 100% lời thoại thực; xuất SRT, VTT, TXT mượt mà. | ✅ **ĐẠT** |
 | **Voice Cloning** | DSP Timbre morphing điều chỉnh Formants F1/F2, Chest Warmth, Presence tạo chất giọng độc bản. | ✅ **ĐẠT** |
 | **22 WASM Tools** | Xử lý 100% phía trình duyệt không cần internet; không tốn credit; tải file WAV/MP3 tức thời. | ✅ **ĐẠT** |
 | **VietQR Checkout** | Tạo mã QR chuyển khoản ngân hàng tự động kèm cú pháp chuyển khoản chính xác; nâng cấp số dư tức thì. | ✅ **ĐẠT** |

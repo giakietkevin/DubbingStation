@@ -9,6 +9,7 @@ import {
   exportToSRT,
   exportToVTT,
   exportToTXT,
+  cleanAndDeduplicateWhisperSegments,
 } from '@/lib/whisper';
 import { transcribeVideoFile } from '@/lib/browserTranscriber';
 
@@ -87,6 +88,20 @@ export default function STTWorkspacePage() {
     setSegments((prev) =>
       prev.map((seg) => (seg.id === id ? { ...seg, text: newText } : seg))
     );
+  };
+
+  const handleCleanAndAlignSegments = () => {
+    if (segments.length === 0) return;
+    const initialCount = segments.length;
+    const cleanList = cleanAndDeduplicateWhisperSegments(segments);
+    setSegments(cleanList);
+    const removedCount = initialCount - cleanList.length;
+    setStatusMessage({
+      text: removedCount > 0
+        ? `Đã làm sạch và khử ${removedCount} câu trùng lặp do Whisper stride, căn chỉnh timeline sát video!`
+        : `Toàn bộ ${cleanList.length} câu thoại đã được căn chỉnh timeline sát video và bảo toàn nguyên vẹn thoại 100%!`,
+      type: 'success',
+    });
   };
 
   const handleDownloadFormat = (format: 'srt' | 'vtt' | 'txt') => {
@@ -278,6 +293,16 @@ export default function STTWorkspacePage() {
 
               {segments.length > 0 && (
                 <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleCleanAndAlignSegments}
+                    className="px-2.5 py-1 rounded-lg bg-primary-container/20 text-primary-container hover:bg-primary-container hover:text-canvas-base font-code-xs text-[11px] font-bold transition-all flex items-center gap-1"
+                    title="Khử các câu trùng lặp do Whisper chunk overlap, căn sát timeline video mà không bỏ sót thoại"
+                  >
+                    <span className="material-symbols-outlined text-[13px]">auto_fix_high</span>
+                    <span>Khử lặp & Căn sát Timeline</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => handleDownloadFormat('srt')}

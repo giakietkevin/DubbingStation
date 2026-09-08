@@ -7,6 +7,7 @@ import { fetchFile } from '@ffmpeg/util';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import * as transformers from '@huggingface/transformers';
+import { cleanAndDeduplicateWhisperSegments, exportToVTT, type WhisperSegment } from '@/lib/whisper';
 
 export default function LocalVideoSubtitler() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -118,16 +119,18 @@ export default function LocalVideoSubtitler() {
 
       addLog('Nhận diện xong!');
 
-      // 3. Xây dựng nội dung file .vtt
-      let vttContent = 'WEBVTT\n\n';
+      // 3. Xây dựng nội dung file .vtt (khử lặp và căn sát timeline video)
       // @ts-ignore
       const chunks = result.chunks || [];
-      chunks.forEach((chunk: any) => {
-        const start = formatVTTTime(chunk.timestamp[0]);
-        // Bắt lỗi timestamp[1] null nếu là đoạn cuối
-        const end = formatVTTTime(chunk.timestamp[1] || chunk.timestamp[0] + 3);
-        vttContent += `${start} --> ${end}\n${chunk.text.trim()}\n\n`;
-      });
+      const rawSegments: WhisperSegment[] = chunks.map((chunk: any, index: number) => ({
+        id: index + 1,
+        start: Number(chunk.timestamp[0] ?? 0),
+        end: Number(chunk.timestamp[1] ?? (chunk.timestamp[0] ?? 0) + 3),
+        text: (chunk.text || '').trim(),
+      })).filter((s: WhisperSegment) => s.text && s.end > s.start);
+
+      const cleanSegments = cleanAndDeduplicateWhisperSegments(rawSegments);
+      const vttContent = exportToVTT(cleanSegments);
 
       // Tạo Blob VTT và render lên Video
       const vttBlob = new Blob([vttContent], { type: 'text/vtt' });
