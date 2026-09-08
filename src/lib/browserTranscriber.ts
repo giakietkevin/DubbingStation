@@ -1,8 +1,11 @@
 import type { WhisperSegment, WhisperTranscriptionResult } from '@/lib/whisper';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile } from '@ffmpeg/util';
 
 type ProgressHandler = (message: string) => void;
 
 let transcriberPromise: Promise<any> | null = null;
+let ffmpegPromise: Promise<FFmpeg> | null = null;
 
 const languageNames: Record<string, string> = {
   vi: 'vietnamese',
@@ -33,18 +36,61 @@ async function getTranscriber(onProgress: ProgressHandler): Promise<any> {
   return transcriberPromise;
 }
 
+async function extractAudioWithFFmpeg(file: File, onProgress: ProgressHandler): Promise<{ samples: Float32Array; durationSec: number }> {
+  if (!ffmpegPromise) {
+    const ffmpeg = new FFmpeg();
+    ffmpeg.on('progress', ({ progress }) => {
+      onProgress(`Đang giải mã audio trên thiết bị: ${Math.round(progress * 100)}%`);
+    });
+    ffmpegPromise = ffmpeg.load().then(() => ffmpeg);
+  }
+
+  const ffmpeg = await ffmpegPromise;
+  const inputName = `input-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  const outputName = `decoded-${Date.now()}.wav`;
+
+  try {
+    await ffmpeg.writeFile(inputName, await fetchFile(file));
+    await ffmpeg.exec(['-i', inputName, '-vn', '-ac', '1', '-ar', '16000', '-c:a', 'pcm_s16le', outputName]);
+    const output = await ffmpeg.readFile(outputName);
+    const bytes = typeof output === 'string' ? new TextEncoder().encode(output) : new Uint8Array(output);
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const isRiff = bytes.length >= 4 && bytes[0] === 82 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 70;
+    if (bytes.length < 44 || !isRiff) {
+      throw new Error('Không thể đọc audio sau khi giải mã.');
+    }
+
+    const sampleRate = view.getUint32(24, true);
+    const frameCount = Math.floor((bytes.length - 44) / 2);
+    const samples = new Float32Array(frameCount);
+    for (let index = 0; index < frameCount; index += 1) {
+      samples[index] = view.getInt16(44 + index * 2, true) / 32768;
+    }
+    return { samples, durationSec: frameCount / sampleRate };
+  } finally {
+    await ffmpeg.deleteFile(inputName).catch(() => undefined);
+    await ffmpeg.deleteFile(outputName).catch(() => undefined);
+  }
+}
+
 async function extractAudio(file: File, onProgress: ProgressHandler): Promise<{ samples: Float32Array; durationSec: number }> {
   onProgress('Đang đọc audio từ video...');
   const AudioContextConstructor = window.AudioContext ||
     (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
 
   if (!AudioContextConstructor) {
-    throw new Error('Trình duyệt không hỗ trợ giải mã audio.');
+    return extractAudioWithFFmpeg(file, onProgress);
   }
 
   const audioContext = new AudioContextConstructor();
   try {
-    const decoded = await audioContext.decodeAudioData(await file.arrayBuffer());
+    let decoded: AudioBuffer;
+    try {
+      decoded = await audioContext.decodeAudioData(await file.arrayBuffer());
+    } catch {
+      onProgress('Trình duyệt không giải mã được file này, đang chuyển sang bộ giải mã tương thích mobile...');
+      return await extractAudioWithFFmpeg(file, onProgress);
+    }
     const durationSec = decoded.duration;
     const sampleCount = Math.ceil(durationSec * 16000);
     const samples = new Float32Array(sampleCount);
