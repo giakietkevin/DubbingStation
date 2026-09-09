@@ -33,6 +33,32 @@ async function checkHasAudio(filePath: string): Promise<boolean> {
   }
 }
 
+/**
+ * Lấy chính xác thời lượng (duration theo giây) của file audio bằng ffmpeg
+ */
+async function getAudioDuration(filePath: string): Promise<number> {
+  try {
+    const { stderr } = await execFileAsync(ffmpegExecutable, ['-i', filePath]);
+    const match = /Duration:\s*(\d+):(\d+):(\d+\.\d+)/.exec(stderr);
+    if (match) {
+      const hours = Number(match[1]);
+      const minutes = Number(match[2]);
+      const seconds = Number(match[3]);
+      return hours * 3600 + minutes * 60 + seconds;
+    }
+  } catch (error: any) {
+    const stderr = String(error?.stderr || '');
+    const match = /Duration:\s*(\d+):(\d+):(\d+\.\d+)/.exec(stderr);
+    if (match) {
+      const hours = Number(match[1]);
+      const minutes = Number(match[2]);
+      const seconds = Number(match[3]);
+      return hours * 3600 + minutes * 60 + seconds;
+    }
+  }
+  return 2.0;
+}
+
 interface TimeInterval {
   start: number;
   end: number;
@@ -80,12 +106,12 @@ async function createTimedAudio(
     const cue = cues[i];
     const ttsUrl = new URL('/api/tts/stream', origin);
     ttsUrl.searchParams.set('text', cue.text);
-    ttsUrl.searchParams.set('voiceId', speakerVoiceMap[cue.speaker || ''] || 'vivos-nam-saigon');
+    ttsUrl.searchParams.set('voiceId', speakerVoiceMap[cue.speaker || ''] || 'capcut-nam-film');
 
     // Căn chỉnh tốc độ đọc tự nhiên tương ứng với thời lượng cue
     const cueDuration = Math.max(0.6, cue.endTime - cue.startTime);
     const estimatedSpeechDuration = Math.max(0.5, cue.text.trim().length / 13);
-    const targetSpeed = Math.max(0.85, Math.min(1.85, estimatedSpeechDuration / cueDuration));
+    const targetSpeed = Math.max(0.9, Math.min(1.65, estimatedSpeechDuration / cueDuration));
     ttsUrl.searchParams.set('speed', targetSpeed.toFixed(2));
 
     const response = await fetch(ttsUrl, { cache: 'no-store' });
@@ -102,23 +128,52 @@ async function createTimedAudio(
   const args = ['-y'];
   for (const audioFile of audioFiles) args.push('-i', audioFile);
 
-  // Không cắt cụt âm thanh ở đuôi câu, cho phép câu nói hoàn tất tự nhiên trước khi câu sau xuất hiện
-  const filterParts = cues.map((cue, index) => {
-    const nextCue = cues[index + 1];
-    const cueDuration = Math.max(0.6, cue.endTime - cue.startTime);
-    const maxAllowedDuration = nextCue
-      ? Math.max(cueDuration, Math.min(cueDuration * 1.35, nextCue.startTime - cue.startTime - 0.05))
-      : cueDuration + 2.5;
+  // Xử lý timeline chuẩn điện ảnh: KHÔNG CẮT CỤT TỪ (Zero word truncation)
+  // Tính toán thời lượng thực tế của từng câu thoại và co giãn tốc độ tự nhiên bằng atempo
+  const filterParts: string[] = [];
 
-    const fadeDuration = Math.min(0.08, cueDuration / 4);
+  for (let index = 0; index < cues.length; index++) {
+    const cue = cues[index];
+    const nextCue = cues[index + 1];
+    const audioPath = audioFiles[index];
+    const actualDuration = await getAudioDuration(audioPath);
+
+    // Thời gian cho phép từ khi bắt đầu cue này cho đến khi câu thoại tiếp theo bắt đầu
+    const availableTime = nextCue
+      ? Math.max(0.5, nextCue.startTime - cue.startTime)
+      : Math.max(actualDuration, cue.endTime - cue.startTime + 2.5);
+
     const delayMs = Math.max(0, Math.round(cue.startTime * 1000));
 
-    return `[${index}:a]atrim=duration=${maxAllowedDuration.toFixed(3)},asetpts=PTS-STARTPTS,afade=t=out:st=${Math.max(0, maxAllowedDuration - fadeDuration).toFixed(3)}:d=${fadeDuration.toFixed(3)},adelay=${delayMs}:all=1[a${index}]`;
-  });
+    // Nếu âm thanh đọc dài hơn khoảng thời gian trước khi câu tiếp theo xuất hiện:
+    // Dùng atempo để co giãn nhịp điệu mượt mà, KHÔNG BỊ CẮT PHỤT MẤT CHỮ!
+    let tempoFilter = '';
+    if (actualDuration > availableTime && availableTime > 0.3) {
+      const speedRatio = Math.min(1.85, actualDuration / (availableTime - 0.04));
+      if (speedRatio > 1.05) {
+        if (speedRatio <= 2.0) {
+          tempoFilter = `atempo=${speedRatio.toFixed(3)},`;
+        } else {
+          tempoFilter = `atempo=2.0,atempo=${(speedRatio / 2.0).toFixed(3)},`;
+        }
+      }
+    }
 
-  filterParts.push(
-    `${cues.map((_, index) => `[a${index}]`).join('')}amix=inputs=${cues.length}:duration=longest:dropout_transition=0,loudnorm=I=-14:TP=-1.0:LRA=7,volume=4dB[dub]`
-  );
+    // afade=t=in:st=0:d=0.03 để chống click/pop khi mix, adelay để khớp chính xác timeline
+    filterParts.push(
+      `[${index}:a]${tempoFilter}afade=t=in:st=0:d=0.03,asetpts=PTS-STARTPTS,adelay=${delayMs}:all=1[a${index}]`
+    );
+  }
+
+  // Cinema Studio Vocal Mastering Chain:
+  // 1. amix với normalize=0 để giữ 100% âm lượng đồng đều cho mọi nhân vật
+  // 2. highpass=f=75: loại bỏ tạp âm ù dải siêu trầm (sub-bass rumble)
+  // 3. equalizer 3kHz (+2.2dB): tăng độ nét (presence & clarity), giúp thoại cắt qua nhạc nền
+  // 4. equalizer 260Hz (+1.4dB): làm dày âm trầm, tạo độ ấm truyền cảm chuẩn cinema (warmth)
+  // 5. acompressor: nén nhẹ broadcast để âm lượng các câu nói đồng đều, tự nhiên, không bị hụt tiếng
+  const inputsStr = cues.map((_, index) => `[a${index}]`).join('');
+  const studioVocalChain = `amix=inputs=${cues.length}:duration=longest:dropout_transition=0:normalize=0,highpass=f=75,equalizer=f=3000:t=q:w=1.2:g=2.2,equalizer=f=260:t=q:w=1.0:g=1.4,acompressor=threshold=0.12:ratio=2.5:attack=15:release=140:makeup=1.4,volume=2.5dB[dub]`;
+  filterParts.push(`${inputsStr}${studioVocalChain}`);
 
   const filterScriptPath = path.join(workDir, 'dubbed-audio-filter.txt');
   await fs.writeFile(filterScriptPath, filterParts.join(';\n'), 'utf8');
@@ -153,13 +208,25 @@ export async function POST(req: Request) {
     // Tùy chọn giữ âm thanh nền / hiệu ứng SFX phim
     const keepOriginalAudio = formData.get('keepOriginalAudio') !== 'false';
     const duckingPreset = String(formData.get('duckingLevel') || 'sfx_preserve');
-    let duckingVolume = 0.15; // Mặc định giữ 15% tiếng nền (SFX, tiếng nổ, nhạc nền) ở đoạn có thoại
+
+    // Cấu hình Sidechain Compressor chuẩn âm thanh điện ảnh
+    // Âm thanh gốc [0:a] sẽ tự động giảm nhẹ khi giọng lồng tiếng [1:a] cất lên
+    // và mượt mà tăng trở lại khi giọng lồng tiếng kết thúc (smooth dynamic ducking)
+    let sidechainThreshold = 0.035;
+    let sidechainRatio = 3.5; // Giảm ~7dB, giữ lại 45% âm thanh nền/SFX sống động
+    let sidechainAttack = 100; // ms
+    let sidechainRelease = 450; // ms
+
     if (duckingPreset === 'sfx_duck_half') {
-      duckingVolume = 0.30;
+      sidechainThreshold = 0.045;
+      sidechainRatio = 2.2; // Giảm nhẹ ~4dB
+      sidechainAttack = 120;
+      sidechainRelease = 500;
     } else if (duckingPreset === 'mute_dialogue') {
-      duckingVolume = 0.0;
-    } else if (duckingPreset === 'replace_all') {
-      duckingVolume = 0.0;
+      sidechainThreshold = 0.02;
+      sidechainRatio = 8.0; // Giảm sâu ~16dB cho video có nhiều thoại gốc
+      sidechainAttack = 60;
+      sidechainRelease = 300;
     }
 
     if (!(video instanceof File) || video.size === 0) {
@@ -187,15 +254,11 @@ export async function POST(req: Request) {
       : false;
 
     if (hasOriginalAudio) {
-      // Hợp nhất các khoảng thoại để tạo volume ducking mượt mà cho âm thanh nền
-      const dialogueIntervals = mergeDialogueIntervals(cues, 0.08, 0.15);
-      const dialogueWindows = dialogueIntervals
-        .map((interval) => `between(t,${interval.start.toFixed(3)},${interval.end.toFixed(3)})`)
-        .join('+');
-
-      // Ở đoạn không có thoại: volume = 1.0 (100% âm thanh raw/SFX gốc)
-      // Ở đoạn có thoại: volume = duckingVolume (giữ lại SFX/nhạc nền phim theo tỷ lệ)
-      const audioFilter = `[0:a]volume=enable='${dialogueWindows}':volume=${duckingVolume}[ducked_orig];[ducked_orig][1:a]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,loudnorm=I=-14:TP=-1.0:LRA=7[mixed]`;
+      // Dynamic Sidechain Compression:
+      // [0:a][1:a]sidechaincompress tự động lắng nghe giọng nói thực tế trên [1:a]
+      // để hạ nhạc nền [0:a] một cách êm ái, KHÔNG BỊ NGẮT QUÃNG ĐỘT NGỘT, KHÔNG HẪNG TIẾNG.
+      // Sau đó mix với giọng lồng tiếng và qua alimiter (mastering limiter) chống vỡ tiếng tuyệt đối!
+      const audioFilter = `[0:a][1:a]sidechaincompress=threshold=${sidechainThreshold}:ratio=${sidechainRatio}:attack=${sidechainAttack}:release=${sidechainRelease}:makeup=1[ducked_orig];[ducked_orig][1:a]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[mixed_raw];[mixed_raw]alimiter=limit=0.96:attack=5:release=50:asc=true[mixed]`;
 
       await execFileAsync(
         ffmpegExecutable,

@@ -340,7 +340,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const text = searchParams.get('text') || 'Xin chào, đây là phòng thu giọng nói DubbingStation.';
-    const voiceId = searchParams.get('voiceId') || 'vivos-nam-saigon';
+    const voiceId = searchParams.get('voiceId') || 'capcut-nam-film';
     const speed = parseFloat(searchParams.get('speed') || '1.0');
     const customPitch = searchParams.get('pitch');
     const customRate = searchParams.get('rate');

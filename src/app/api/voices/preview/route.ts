@@ -16,7 +16,7 @@ const MODELS_DIR = join(process.cwd(), 'models', 'piper');
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const voiceId = searchParams.get('voiceId') || 'vivos-nam-saigon';
+    const voiceId = searchParams.get('voiceId') || 'capcut-nam-film';
     const customPitch = searchParams.get('pitch');
     const customRate = searchParams.get('rate');
     const customVolume = searchParams.get('volume');

@@ -45,7 +45,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { text, voiceId = 'vivos-nam-saigon', speed = 1.0, provider = 'microsoft', responseFormat = 'audio' } = body;
+    const { text, voiceId = 'capcut-nam-film', speed = 1.0, provider = 'capcut', responseFormat = 'audio' } = body;
 
     if (!text || typeof text !== 'string' || !text.trim()) {
       return NextResponse.json({ error: 'Nội dung "text" không được để trống.' }, { status: 400 });
