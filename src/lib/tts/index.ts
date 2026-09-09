@@ -21,4 +21,5 @@ export * from './huggingface';
 export * from './capcut';
 export * from './piper';
 export * from './openai';
+export * from './edgeDirect';
 export * from './dsp';

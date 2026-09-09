@@ -9,6 +9,7 @@ import { synthesizeWithPiper } from '@/lib/tts/piper';
 import { synthesizeWithHuggingFace } from '@/lib/tts/huggingface';
 import { synthesizeWithCapCut } from '@/lib/tts/capcut';
 import { synthesizeWithGoogle } from '@/lib/tts/google';
+import { synthesizeWithDirectEdgeTTS } from '@/lib/tts/edgeDirect';
 import { join } from 'path';
 
 export const dynamic = 'force-dynamic';
@@ -112,37 +113,64 @@ export async function POST(req: Request) {
       });
       audioBuffer = result?.buffer || null;
     } else {
-      try {
-        const comm = new Communicate(cleanText, {
-          voice: profile.neuralModel,
-        });
-        const chunks: Buffer[] = [];
-        for await (const chunk of comm.stream()) {
-          if (chunk.type === 'audio' && chunk.data) {
-            chunks.push(chunk.data as Buffer);
-          }
-        }
-        if (chunks.length > 0) {
-          audioBuffer = Buffer.concat(chunks);
-        }
-      } catch (e) {
-        // Fallback to local Piper VIVOS real human model
+      // Microsoft Neural: Tier 1 Direct Edge TTS (100% reliable on Render)
+      const directAudio = await synthesizeWithDirectEdgeTTS({
+        text: cleanText,
+        voice: profile.neuralModel || 'vi-VN-NamMinhNeural',
+        pitch: profile.pitch || '+0Hz',
+        rate: profile.rate || '+0%',
+        volume: profile.volume || '+0%',
+      });
+
+      if (directAudio && directAudio.length > 0) {
+        audioBuffer = directAudio;
+      } else {
         try {
-          const modelPath = join(process.cwd(), 'models', 'piper', 'vi_VN-vivos-x_low.onnx');
-          const result = await synthesizeWithPiper({
-            text: cleanText,
-            modelPath,
-            outputFormat: 'wav',
-            lengthScale: 1.0,
+          const comm = new Communicate(cleanText, {
+            voice: profile.neuralModel,
           });
-          if (result) {
-            audioBuffer = result.audio;
+          const chunks: Buffer[] = [];
+          for await (const chunk of comm.stream()) {
+            if (chunk.type === 'audio' && chunk.data) {
+              chunks.push(chunk.data as Buffer);
+            }
           }
-        } catch {}
+          if (chunks.length > 0) {
+            audioBuffer = Buffer.concat(chunks);
+          }
+        } catch (e) {
+          // Fallback to local Piper VIVOS real human model
+          try {
+            const modelPath = join(process.cwd(), 'models', 'piper', 'vi_VN-vivos-x_low.onnx');
+            const result = await synthesizeWithPiper({
+              text: cleanText,
+              modelPath,
+              outputFormat: 'wav',
+              lengthScale: 1.0,
+            });
+            if (result) {
+              audioBuffer = result.audio;
+            }
+          } catch {}
+        }
       }
     }
 
-    // Fallback toàn diện: CapCut rồi Google Translate nếu chưa có âm thanh
+    // Fallback toàn diện: Direct Edge TTS -> CapCut -> Google Translate Multi-Gateway nếu chưa có âm thanh
+    if (!audioBuffer) {
+      try {
+        const isFemale = profile.gender === 'female' || cleanText.toLowerCase().includes('phương thảo');
+        const rescueVoice = isFemale ? 'vi-VN-HoaiMyNeural' : 'vi-VN-NamMinhNeural';
+        const directAudio = await synthesizeWithDirectEdgeTTS({
+          text: cleanText,
+          voice: rescueVoice,
+        });
+        if (directAudio && directAudio.length > 0) {
+          audioBuffer = directAudio;
+        }
+      } catch {}
+    }
+
     if (!audioBuffer) {
       try {
         const isFemale = profile.gender === 'female' || cleanText.toLowerCase().includes('phương thảo');

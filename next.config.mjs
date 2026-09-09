@@ -1,11 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    serverComponentsExternalPackages: ['ffmpeg-static', 'onnxruntime-node', '@huggingface/transformers'],
+    serverComponentsExternalPackages: ['ffmpeg-static', 'onnxruntime-node', '@huggingface/transformers', 'ws', 'edge-tts-universal'],
   },
   webpack: (config, { isServer }) => {
     if (isServer) {
-      config.externals = [...(config.externals || []), 'onnxruntime-node', '@huggingface/transformers'];
+      config.externals = [...(config.externals || []), 'onnxruntime-node', '@huggingface/transformers', 'ws', 'edge-tts-universal'];
     } else {
       config.resolve.fallback = {
         ...config.resolve.fallback,

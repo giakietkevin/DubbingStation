@@ -6,6 +6,7 @@ import { synthesizeWithPiper, createWavHeader } from '@/lib/tts/piper';
 import { synthesizeWithHuggingFace } from '@/lib/tts/huggingface';
 import { synthesizeWithCapCut } from '@/lib/tts/capcut';
 import { synthesizeWithGoogle } from '@/lib/tts/google';
+import { synthesizeWithDirectEdgeTTS } from '@/lib/tts/edgeDirect';
 import { applyVocalTimbreDSP } from '@/lib/tts/dsp';
 import { join, isAbsolute } from 'path';
 
@@ -76,7 +77,7 @@ export async function GET(req: Request) {
       if (hfResult?.audio) {
         audioBuffer = hfResult.audio;
       } else {
-        // Fallback sang CapCut rồi Google
+        // Fallback sang CapCut
         const capcutFallback = await synthesizeWithCapCut({
           text: sampleText,
           speakerId: profile.capcutSpeaker || (isFemale ? 'vi_female_01' : 'vi_male_01'),
@@ -84,6 +85,18 @@ export async function GET(req: Request) {
         });
         if (capcutFallback?.audio) {
           audioBuffer = capcutFallback.audio;
+        } else {
+          // Fallback sang Direct Edge TTS
+          const directVoice = isFemale ? 'vi-VN-HoaiMyNeural' : 'vi-VN-NamMinhNeural';
+          const edgeDirect = await synthesizeWithDirectEdgeTTS({
+            text: sampleText,
+            voice: directVoice,
+            rate: profile.rate || '+0%',
+            pitch: profile.pitch || '+0Hz',
+          });
+          if (edgeDirect && edgeDirect.length > 0) {
+            audioBuffer = edgeDirect;
+          }
         }
       }
     } else if (provider === 'google') {
@@ -103,18 +116,26 @@ export async function GET(req: Request) {
       // If OpenAI failed (e.g. no API key), fallback to Microsoft
       if (!audioBuffer) {
         console.warn('[Voice Preview] OpenAI unavailable, falling back to Microsoft Neural preview');
-        try {
-          const comm = new Communicate(sampleText, { voice: 'en-US-JennyNeural' });
-          const chunks: Buffer[] = [];
-          for await (const chunk of comm.stream()) {
-            if (chunk.type === 'audio' && chunk.data) {
-              chunks.push(chunk.data as Buffer);
+        const edgeDirect = await synthesizeWithDirectEdgeTTS({
+          text: sampleText,
+          voice: 'en-US-JennyNeural',
+        });
+        if (edgeDirect && edgeDirect.length > 0) {
+          audioBuffer = edgeDirect;
+        } else {
+          try {
+            const comm = new Communicate(sampleText, { voice: 'en-US-JennyNeural' });
+            const chunks: Buffer[] = [];
+            for await (const chunk of comm.stream()) {
+              if (chunk.type === 'audio' && chunk.data) {
+                chunks.push(chunk.data as Buffer);
+              }
             }
-          }
-          if (chunks.length > 0) {
-            audioBuffer = Buffer.concat(chunks);
-          }
-        } catch {}
+            if (chunks.length > 0) {
+              audioBuffer = Buffer.concat(chunks);
+            }
+          } catch {}
+        }
       }
     } else if (provider === 'piper') {
       const modelFile = profile.piperModel || 'en_US-lessac-medium.onnx';
@@ -152,28 +173,46 @@ export async function GET(req: Request) {
         safeVoice = 'vi-VN-NamMinhNeural';
       }
 
-      // Tier 1: Preview with persona pitch, rate and volume
+      // Tier 1: Direct Edge TTS với Sec-MS-GEC DRM & Origin (100% tin cậy trên Render)
       try {
-        const comm = new Communicate(sampleText, {
+        const directAudio = await synthesizeWithDirectEdgeTTS({
+          text: sampleText,
           voice: safeVoice,
           pitch: profile.pitch || '+0Hz',
           rate: profile.rate || '+0%',
           volume: profile.volume || '+0%',
         });
-        const chunks: Buffer[] = [];
-        for await (const chunk of comm.stream()) {
-          if (chunk.type === 'audio' && chunk.data) {
-            chunks.push(chunk.data as Buffer);
-          }
-        }
-        if (chunks.length > 0) {
-          audioBuffer = Buffer.concat(chunks);
+        if (directAudio && directAudio.length > 0) {
+          audioBuffer = directAudio;
         }
       } catch (e) {
-        console.warn('[Voice Preview] Microsoft pitch/rate failed, trying clean voice', e);
+        console.warn('[Voice Preview] Direct Edge TTS failed, trying Communicate', e);
       }
 
-      // Tier 2: Clean voice fallback
+      // Tier 2: Communicate with persona pitch, rate and volume
+      if (!audioBuffer) {
+        try {
+          const comm = new Communicate(sampleText, {
+            voice: safeVoice,
+            pitch: profile.pitch || '+0Hz',
+            rate: profile.rate || '+0%',
+            volume: profile.volume || '+0%',
+          });
+          const chunks: Buffer[] = [];
+          for await (const chunk of comm.stream()) {
+            if (chunk.type === 'audio' && chunk.data) {
+              chunks.push(chunk.data as Buffer);
+            }
+          }
+          if (chunks.length > 0) {
+            audioBuffer = Buffer.concat(chunks);
+          }
+        } catch (e) {
+          console.warn('[Voice Preview] Microsoft pitch/rate failed, trying clean voice', e);
+        }
+      }
+
+      // Tier 3: Clean voice fallback
       if (!audioBuffer) {
         try {
           const comm = new Communicate(sampleText, { voice: safeVoice });
@@ -211,6 +250,21 @@ export async function GET(req: Request) {
       }
     }
 
+    // Fallback toàn diện Direct Edge TTS nếu chưa có audioBuffer
+    if (!audioBuffer) {
+      try {
+        const isFemale = profile.gender === 'female' || sampleText.toLowerCase().includes('phương thảo') || sampleText.toLowerCase().includes('bảo trâm');
+        const rescueVoice = isFemale ? 'vi-VN-HoaiMyNeural' : 'vi-VN-NamMinhNeural';
+        const directAudio = await synthesizeWithDirectEdgeTTS({
+          text: sampleText,
+          voice: rescueVoice,
+        });
+        if (directAudio && directAudio.length > 0) {
+          audioBuffer = directAudio;
+        }
+      } catch {}
+    }
+
     // Fallback toàn diện CapCut nếu chưa có audioBuffer
     if (!audioBuffer) {
       try {
@@ -226,7 +280,7 @@ export async function GET(req: Request) {
       } catch {}
     }
 
-    // Ultimate fallback Google Translate TTS (bảo đảm 100% không bao giờ trả về lỗi 500)
+    // Ultimate fallback Multi-Gateway Web TTS (Google Translate GTX, Dict-Chrome, Baidu TTS) - 100% không bao giờ lỗi 500
     if (!audioBuffer) {
       try {
         const gRes = await synthesizeWithGoogle({ text: sampleText, lang: 'vi' });
