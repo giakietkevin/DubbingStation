@@ -7,6 +7,8 @@ import { voicePersonaProfiles } from '@/data/voiceProfiles';
 import { synthesizeWithOpenAI } from '@/lib/tts/openai';
 import { synthesizeWithPiper } from '@/lib/tts/piper';
 import { synthesizeWithHuggingFace } from '@/lib/tts/huggingface';
+import { synthesizeWithCapCut } from '@/lib/tts/capcut';
+import { synthesizeWithGoogle } from '@/lib/tts/google';
 import { join } from 'path';
 
 export const dynamic = 'force-dynamic';
@@ -80,7 +82,16 @@ export async function POST(req: Request) {
 
     // 4. Tổng hợp âm thanh qua Neural Engine
     let audioBuffer: Buffer | null = null;
-    if (selectedProvider === 'huggingface') {
+    if (selectedProvider === 'capcut') {
+      const capcutResult = await synthesizeWithCapCut({
+        text: cleanText,
+        speakerId: profile.capcutSpeaker || 'vi_male_01',
+        speed,
+      });
+      if (capcutResult?.audio) {
+        audioBuffer = capcutResult.audio;
+      }
+    } else if (selectedProvider === 'huggingface') {
       const hfModel = profile.hfModel || 'facebook/mms-tts-vie';
       const hfResult = await synthesizeWithHuggingFace({
         text: cleanText,
@@ -129,6 +140,30 @@ export async function POST(req: Request) {
           }
         } catch {}
       }
+    }
+
+    // Fallback toàn diện: CapCut rồi Google Translate nếu chưa có âm thanh
+    if (!audioBuffer) {
+      try {
+        const isFemale = profile.gender === 'female' || cleanText.toLowerCase().includes('phương thảo');
+        const capcutRes = await synthesizeWithCapCut({
+          text: cleanText,
+          speakerId: profile.capcutSpeaker || (isFemale ? 'vi_female_01' : 'vi_male_01'),
+          speed,
+        });
+        if (capcutRes?.audio) {
+          audioBuffer = capcutRes.audio;
+        }
+      } catch {}
+    }
+
+    if (!audioBuffer) {
+      try {
+        const gRes = await synthesizeWithGoogle({ text: cleanText, lang: 'vi', speed });
+        if (gRes?.audio) {
+          audioBuffer = gRes.audio;
+        }
+      } catch {}
     }
 
     if (!audioBuffer) {

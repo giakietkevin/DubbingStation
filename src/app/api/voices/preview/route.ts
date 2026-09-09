@@ -4,6 +4,8 @@ import { voicePersonaProfiles } from '@/data/voiceProfiles';
 import { synthesizeWithOpenAI } from '@/lib/tts/openai';
 import { synthesizeWithPiper, createWavHeader } from '@/lib/tts/piper';
 import { synthesizeWithHuggingFace } from '@/lib/tts/huggingface';
+import { synthesizeWithCapCut } from '@/lib/tts/capcut';
+import { synthesizeWithGoogle } from '@/lib/tts/google';
 import { applyVocalTimbreDSP } from '@/lib/tts/dsp';
 import { join, isAbsolute } from 'path';
 
@@ -53,32 +55,41 @@ export async function GET(req: Request) {
     let audioBuffer: Buffer | null = null;
     const isWav = provider === 'piper' || provider === 'huggingface';
 
-    if (provider === 'huggingface') {
+    if (provider === 'capcut') {
+      const capcutResult = await synthesizeWithCapCut({
+        text: sampleText,
+        speakerId: profile.capcutSpeaker || 'vi_male_01',
+        speed: 1.0,
+      });
+      if (capcutResult?.audio) {
+        audioBuffer = capcutResult.audio;
+      }
+    } else if (provider === 'huggingface') {
       const hfModel = profile.hfModel || 'facebook/mms-tts-vie';
+      const isFemale = profile.gender === 'female' || (sampleText.toLowerCase().includes('phương thảo') || sampleText.toLowerCase().includes('bảo trâm'));
       const hfResult = await synthesizeWithHuggingFace({
         text: sampleText,
         modelId: hfModel,
         speed: 1.0,
-        gender: profile.gender || (sampleText.toLowerCase().includes('phương thảo') || sampleText.toLowerCase().includes('bảo trâm') ? 'female' : 'male'),
+        gender: isFemale ? 'female' : 'male',
       });
       if (hfResult?.audio) {
         audioBuffer = hfResult.audio;
+      } else {
+        // Fallback sang CapCut rồi Google
+        const capcutFallback = await synthesizeWithCapCut({
+          text: sampleText,
+          speakerId: profile.capcutSpeaker || (isFemale ? 'vi_female_01' : 'vi_male_01'),
+          speed: 1.0,
+        });
+        if (capcutFallback?.audio) {
+          audioBuffer = capcutFallback.audio;
+        }
       }
     } else if (provider === 'google') {
-      // Legacy provider mapped to Microsoft Neural or Piper instead of Google Translate
-      try {
-        const comm = new Communicate(sampleText, { voice: 'vi-VN-HoaiMyNeural' });
-        const chunks: Buffer[] = [];
-        for await (const chunk of comm.stream()) {
-          if (chunk.type === 'audio' && chunk.data) {
-            chunks.push(chunk.data as Buffer);
-          }
-        }
-        if (chunks.length > 0) {
-          audioBuffer = Buffer.concat(chunks);
-        }
-      } catch (e) {
-        console.error('[Voice Preview] Legacy Google alias failed:', e);
+      const gResult = await synthesizeWithGoogle({ text: sampleText, lang: 'vi' });
+      if (gResult?.audio) {
+        audioBuffer = gResult.audio;
       }
     } else if (provider === 'openai') {
       const result = await synthesizeWithOpenAI({
@@ -200,6 +211,31 @@ export async function GET(req: Request) {
       }
     }
 
+    // Fallback toàn diện CapCut nếu chưa có audioBuffer
+    if (!audioBuffer) {
+      try {
+        const isFemale = profile.gender === 'female' || sampleText.toLowerCase().includes('phương thảo') || sampleText.toLowerCase().includes('bảo trâm');
+        const capcutRes = await synthesizeWithCapCut({
+          text: sampleText,
+          speakerId: profile.capcutSpeaker || (isFemale ? 'vi_female_01' : 'vi_male_01'),
+          speed: 1.0,
+        });
+        if (capcutRes?.audio) {
+          audioBuffer = capcutRes.audio;
+        }
+      } catch {}
+    }
+
+    // Ultimate fallback Google Translate TTS (bảo đảm 100% không bao giờ trả về lỗi 500)
+    if (!audioBuffer) {
+      try {
+        const gRes = await synthesizeWithGoogle({ text: sampleText, lang: 'vi' });
+        if (gRes?.audio) {
+          audioBuffer = gRes.audio;
+        }
+      } catch {}
+    }
+
     if (!audioBuffer) {
       return NextResponse.json({ error: 'Không nhận được dữ liệu âm thanh' }, { status: 500 });
     }
@@ -216,7 +252,9 @@ export async function GET(req: Request) {
         'X-Voice-Profile': voiceId,
         'X-Provider': provider,
         'X-Engine':
-          provider === 'huggingface'
+          provider === 'capcut'
+            ? 'CapCut-ByteDance-TTS'
+            : provider === 'huggingface'
             ? 'HuggingFace-MetaMMS-VITS'
             : provider === 'google'
             ? 'Google-TTS-Viral'

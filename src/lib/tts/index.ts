@@ -1,4 +1,4 @@
-export type TTSProvider = 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface';
+export type TTSProvider = 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface' | 'capcut';
 
 export interface TTSProviderOptions {
   provider: TTSProvider;
@@ -15,3 +15,10 @@ export interface TTSResult {
   provider: TTSProvider;
   voice: string;
 }
+
+export * from './google';
+export * from './huggingface';
+export * from './capcut';
+export * from './piper';
+export * from './openai';
+export * from './dsp';

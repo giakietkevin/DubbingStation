@@ -22,7 +22,10 @@ export async function GET(req: Request) {
       }
 
       // Filter by Category
-      if (category === 'dataset') {
+      if (category === 'capcut') {
+        const isCapcut = voice.provider === 'capcut' || voice.tags.includes('CapCut') || voice.tags.includes('TikTok');
+        if (!isCapcut) return false;
+      } else if (category === 'dataset') {
         const isDataset =
           voice.tags.includes('VIVOS') ||
           voice.tags.includes('Common Voice') ||

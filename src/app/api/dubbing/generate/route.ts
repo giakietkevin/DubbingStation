@@ -13,6 +13,9 @@ import { deduplicateSubtitleCues, type SubtitleCue } from '@/lib/subtitleParser'
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 7200;
+
+const MAX_DUBBING_CUES = 2000;
 
 const execFileAsync = promisify(execFile);
 const ffmpegExecutable = ffmpegPath || path.join(process.cwd(), 'node_modules', 'ffmpeg-static', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
@@ -117,7 +120,9 @@ async function createTimedAudio(
     `${cues.map((_, index) => `[a${index}]`).join('')}amix=inputs=${cues.length}:duration=longest:dropout_transition=0,loudnorm=I=-14:TP=-1.0:LRA=7,volume=4dB[dub]`
   );
 
-  args.push('-filter_complex', filterParts.join(';'), '-map', '[dub]', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', outputPath);
+  const filterScriptPath = path.join(workDir, 'dubbed-audio-filter.txt');
+  await fs.writeFile(filterScriptPath, filterParts.join(';\n'), 'utf8');
+  args.push('-filter_complex_script', filterScriptPath, '-map', '[dub]', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', outputPath);
   await execFileAsync(ffmpegExecutable, args, { maxBuffer: 10 * 1024 * 1024 });
   return outputPath;
 }
@@ -163,8 +168,8 @@ export async function POST(req: Request) {
     if (!Array.isArray(cues) || cues.length === 0) {
       return NextResponse.json({ error: 'Vui lòng cung cấp phụ đề hợp lệ.' }, { status: 400 });
     }
-    if (cues.length > 300) {
-      return NextResponse.json({ error: 'Video tối đa 300 cue mỗi lần lồng tiếng.' }, { status: 400 });
+    if (cues.length > MAX_DUBBING_CUES) {
+      return NextResponse.json({ error: `Video tối đa ${MAX_DUBBING_CUES} cue mỗi lần lồng tiếng.` }, { status: 400 });
     }
 
     const inputPath = path.join(workDir, `${crypto.randomUUID()}-${video.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`);

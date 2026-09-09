@@ -13,7 +13,7 @@ export interface Voice {
   isPremium?: boolean;
   age?: 'young' | 'adult' | 'senior';
   useCase?: string;
-  provider?: 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface';
+  provider?: 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface' | 'capcut';
   isCustom?: boolean;
   customPitch?: string;
   customRate?: string;

@@ -4,10 +4,11 @@ export interface VoicePersonaConfig {
   rate: string;  // VD: '-10%', '+15%'
   volume: string;
   samplePhrase: string;
-  provider?: 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface';
+  provider?: 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface' | 'capcut';
   openAIVoice?: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
   piperModel?: string;
   hfModel?: string;
+  capcutSpeaker?: string;
   gender?: 'male' | 'female';
 }
 
@@ -106,18 +107,19 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
   // 3. VIVOS DATASET CORPUS (AILAB - ĐHQG TP.HCM • HUGGING FACE)
   // ==========================================
   'vivos-nam-saigon': {
-    neuralModel: 'vi_VN-25hours_single-low',
+    neuralModel: 'vi-VN-NamMinhNeural',
     pitch: '+0Hz',
     rate: '+0%',
     volume: '+5%',
     samplePhrase: 'Chào mọi người, mình là Minh Trí từ VIVOS corpus. Giọng nói người thật Nam Bộ mộc mạc, tự nhiên và gần gũi.',
     provider: 'huggingface',
     piperModel: 'vi_VN-25hours_single-low.onnx',
-    hfModel: 'rhasspy/piper-voices/vi_VN-25hours_single-low',
+    hfModel: 'facebook/mms-tts-vie',
+    capcutSpeaker: 'vi_male_01',
     gender: 'male',
   },
   'vivos-nu-hanoi': {
-    neuralModel: 'facebook/mms-tts-vie',
+    neuralModel: 'vi-VN-HoaiMyNeural',
     pitch: '+0Hz',
     rate: '+0%',
     volume: '+0%',
@@ -125,17 +127,19 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     provider: 'huggingface',
     piperModel: 'vi_VN-vivos-x_low.onnx',
     hfModel: 'facebook/mms-tts-vie',
+    capcutSpeaker: 'vi_female_01',
     gender: 'female',
   },
   'vivos-bao-tram': {
-    neuralModel: 'vi_VN-vivos-x_low',
+    neuralModel: 'vi-VN-HoaiMyNeural',
     pitch: '+0Hz',
     rate: '+0%',
     volume: '+5%',
     samplePhrase: 'Xin chào, đây là giọng đọc Bảo Trâm từ bộ dữ liệu VIVOS của AILAB trên Hugging Face, giọng nữ người thật Nam Bộ mộc mạc.',
     provider: 'huggingface',
     piperModel: 'vi_VN-vivos-x_low.onnx',
-    hfModel: 'rhasspy/piper-voices/vi_VN-vivos-x_low',
+    hfModel: 'facebook/mms-tts-vie',
+    capcutSpeaker: 'vi_female_02',
     gender: 'female',
   },
 
@@ -143,7 +147,7 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
   // 4. MOZILLA COMMON VOICE 17.0 (ĐA VÙNG MIỀN • HUGGING FACE)
   // ==========================================
   'cv-nam-mientrung': {
-    neuralModel: 'facebook/mms-tts-vie',
+    neuralModel: 'vi-VN-NamMinhNeural',
     pitch: '+0Hz',
     rate: '+0%',
     volume: '+4%',
@@ -151,10 +155,11 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     provider: 'huggingface',
     piperModel: 'vi_VN-25hours_single-low.onnx',
     hfModel: 'facebook/mms-tts-vie',
+    capcutSpeaker: 'vi_male_02',
     gender: 'male',
   },
   'cv-nu-nghetinh': {
-    neuralModel: 'facebook/mms-tts-vie',
+    neuralModel: 'vi-VN-HoaiMyNeural',
     pitch: '+0Hz',
     rate: '+0%',
     volume: '+2%',
@@ -162,21 +167,23 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     provider: 'huggingface',
     piperModel: 'vi_VN-vivos-x_low.onnx',
     hfModel: 'facebook/mms-tts-vie',
+    capcutSpeaker: 'vi_female_01',
     gender: 'female',
   },
   'cv-bac-sau-mientay': {
-    neuralModel: 'vi_VN-25hours_single-low',
+    neuralModel: 'vi-VN-NamMinhNeural',
     pitch: '+0Hz',
     rate: '+0%',
     volume: '+8%',
     samplePhrase: 'Mấy đứa nhỏ về chơi miền Tây hả con? Ngồi xuống đây uống miếng trà, ăn trái cây miệt vườn với chú Sáu nè!',
     provider: 'huggingface',
     piperModel: 'vi_VN-25hours_single-low.onnx',
-    hfModel: 'rhasspy/piper-voices/vi_VN-25hours_single-low',
+    hfModel: 'facebook/mms-tts-vie',
+    capcutSpeaker: 'vi_male_01',
     gender: 'male',
   },
   'cv-nam-phoco': {
-    neuralModel: 'facebook/mms-tts-vie',
+    neuralModel: 'vi-VN-NamMinhNeural',
     pitch: '+0Hz',
     rate: '+0%',
     volume: '+4%',
@@ -184,10 +191,11 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     provider: 'huggingface',
     piperModel: 'vi_VN-25hours_single-low.onnx',
     hfModel: 'facebook/mms-tts-vie',
+    capcutSpeaker: 'vi_male_01',
     gender: 'male',
   },
   'cv-nu-congso': {
-    neuralModel: 'facebook/mms-tts-vie',
+    neuralModel: 'vi-VN-HoaiMyNeural',
     pitch: '+0Hz',
     rate: '+0%',
     volume: '+0%',
@@ -195,6 +203,7 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     provider: 'huggingface',
     piperModel: 'vi_VN-vivos-x_low.onnx',
     hfModel: 'facebook/mms-tts-vie',
+    capcutSpeaker: 'vi_female_01',
     gender: 'female',
   },
 
@@ -202,7 +211,7 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
   // 5. OPENSLR 57 DATASET (STUDIO MASTER • HUGGING FACE)
   // ==========================================
   'openslr-audiobook-nam': {
-    neuralModel: 'facebook/mms-tts-vie',
+    neuralModel: 'vi-VN-NamMinhNeural',
     pitch: '+0Hz',
     rate: '+0%',
     volume: '+6%',
@@ -210,10 +219,11 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     provider: 'huggingface',
     piperModel: 'vi_VN-25hours_single-low.onnx',
     hfModel: 'facebook/mms-tts-vie',
+    capcutSpeaker: 'vi_male_01',
     gender: 'male',
   },
   'openslr-nu-thuyetminh': {
-    neuralModel: 'facebook/mms-tts-vie',
+    neuralModel: 'vi-VN-HoaiMyNeural',
     pitch: '+0Hz',
     rate: '+0%',
     volume: '+4%',
@@ -221,10 +231,11 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     provider: 'huggingface',
     piperModel: 'vi_VN-vivos-x_low.onnx',
     hfModel: 'facebook/mms-tts-vie',
+    capcutSpeaker: 'vi_female_02',
     gender: 'female',
   },
   'openslr-nam-cinematic': {
-    neuralModel: 'facebook/mms-tts-vie',
+    neuralModel: 'vi-VN-NamMinhNeural',
     pitch: '+0Hz',
     rate: '+0%',
     volume: '+8%',
@@ -232,6 +243,7 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     provider: 'huggingface',
     piperModel: 'vi_VN-25hours_single-low.onnx',
     hfModel: 'facebook/mms-tts-vie',
+    capcutSpeaker: 'vi_male_01',
     gender: 'male',
   },
 
@@ -556,5 +568,49 @@ export const voicePersonaProfiles: Record<string, VoicePersonaConfig> = {
     samplePhrase: 'Greetings, I am John from Piper TTS.',
     provider: 'piper',
     piperModel: 'en_US-lessac-medium.onnx',
+  },
+
+  // ==========================================
+  // 15. CAPCUT / BYTEDANCE TIKTOK VOICES
+  // ==========================================
+  'capcut-nam-film': {
+    neuralModel: 'vi_male_01',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+0%',
+    samplePhrase: 'Chào mừng các bạn đã quay trở lại với kênh tóm tắt phim, hôm nay chúng ta sẽ cùng khám phá một bộ phim vô cùng kịch tính.',
+    provider: 'capcut',
+    capcutSpeaker: 'vi_male_01',
+    gender: 'male',
+  },
+  'capcut-nam-reviewer': {
+    neuralModel: 'vi_male_02',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+0%',
+    samplePhrase: 'Đây chính là món đồ công nghệ đáng mua nhất trong tầm giá mà bạn nhất định không nên bỏ lỡ!',
+    provider: 'capcut',
+    capcutSpeaker: 'vi_male_02',
+    gender: 'male',
+  },
+  'capcut-nu-sweet': {
+    neuralModel: 'vi_female_01',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+0%',
+    samplePhrase: 'Hôm nay mình sẽ hướng dẫn các bạn làm một món ăn siêu ngon và cực kỳ đơn giản tại nhà nhé!',
+    provider: 'capcut',
+    capcutSpeaker: 'vi_female_01',
+    gender: 'female',
+  },
+  'capcut-nu-story': {
+    neuralModel: 'vi_female_02',
+    pitch: '+0Hz',
+    rate: '+0%',
+    volume: '+0%',
+    samplePhrase: 'Có những ngày bình yên như thế, chỉ cần một góc nhỏ tĩnh lặng để cảm nhận trọn vẹn vẻ đẹp của cuộc sống.',
+    provider: 'capcut',
+    capcutSpeaker: 'vi_female_02',
+    gender: 'female',
   },
 };

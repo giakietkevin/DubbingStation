@@ -170,7 +170,13 @@ export default function DubbingWorkspacePage() {
         body: formData,
       });
 
-      const data = await res.json();
+      const responseText = await res.text();
+      let data: { error?: string; videoUrl?: string; creditsDeducted?: number } = {};
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        data.error = responseText.slice(0, 300);
+      }
 
       if (!res.ok) {
         setStatusMessage({ text: data.error || 'Lồng tiếng thất bại', type: 'error' });
@@ -180,7 +186,7 @@ export default function DubbingWorkspacePage() {
 
       setGeneratedVideoUrl(data.videoUrl || 'https://www.w3schools.com/html/mov_bbb.mp4');
       setStatusMessage({
-        text: `Lồng tiếng video thành công! Đã trừ ${data.creditsDeducted.toLocaleString('vi-VN')} Credits.`,
+        text: `Lồng tiếng video thành công! Đã trừ ${(data.creditsDeducted || 0).toLocaleString('vi-VN')} Credits.`,
         type: 'success',
       });
     } catch (err) {
@@ -454,9 +460,18 @@ export default function DubbingWorkspacePage() {
                           onChange={(e) => handleVoiceChange(speaker, e.target.value)}
                           className="px-3 py-1.5 rounded-lg bg-surface-container-high border border-border-glass text-text-primary font-body-sm text-[12px] focus:outline-none focus:border-primary-container"
                         >
+                          <optgroup label="🎬 Giọng CapCut & TikTok Viral">
+                            {voices
+                              .filter((v) => v.provider === 'capcut' || v.tags.includes('CapCut'))
+                              .map((v) => (
+                                <option key={v.id} value={v.id} className="bg-surface-card">
+                                  {v.name} ({v.gender === 'male' ? 'Nam' : 'Nữ'})
+                                </option>
+                              ))}
+                          </optgroup>
                           <optgroup label="🤗 Hugging Face & Dataset Voices (VIVOS • Common Voice • OpenSLR)">
                             {voices
-                              .filter((v) => v.country === 'VIỆT NAM')
+                              .filter((v) => v.country === 'VIỆT NAM' && v.provider !== 'capcut' && !v.tags.includes('CapCut'))
                               .map((v) => (
                                 <option key={v.id} value={v.id} className="bg-surface-card">
                                   {v.name} ({v.gender === 'male' ? 'Nam' : 'Nữ'})

@@ -81,7 +81,11 @@ export async function synthesizeWithHuggingFace(
 
   // Tier 1: Gọi Hugging Face Serverless Inference API cho mô hình MMS/VITS
   try {
-    const cleanModel = modelId.replace('Xenova/', 'facebook/');
+    let cleanModel = modelId.replace('Xenova/', 'facebook/');
+    if (cleanModel.includes('piper-voices') || !cleanModel.includes('/')) {
+      cleanModel = 'facebook/mms-tts-vie';
+    }
+
     const hfToken = process.env.HUGGINGFACE_API_KEY || process.env.HF_TOKEN || '';
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -91,24 +95,34 @@ export async function synthesizeWithHuggingFace(
       headers['Authorization'] = `Bearer ${hfToken}`;
     }
 
-    const apiUrl = `https://api-inference.huggingface.co/models/${cleanModel}`;
-    const res = await fetch(apiUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ inputs: text }),
-      signal: AbortSignal.timeout(6000),
-    });
+    const endpoints = [
+      `https://router.huggingface.co/hf-inference/models/${cleanModel}`,
+      `https://api-inference.huggingface.co/models/${cleanModel}`,
+    ];
 
-    if (res.ok) {
-      const arrayBuf = await res.arrayBuffer();
-      const audioBuffer = Buffer.from(arrayBuf);
-      if (audioBuffer.length > 200) {
-        return {
-          audio: audioBuffer,
-          sampleRate: 16000,
-          model: `HuggingFace-API-${cleanModel}`,
-          durationMs: Date.now() - startTime,
-        };
+    for (const apiUrl of endpoints) {
+      try {
+        const res = await fetch(apiUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ inputs: text }),
+          signal: AbortSignal.timeout(4000),
+        });
+
+        if (res.ok) {
+          const arrayBuf = await res.arrayBuffer();
+          const audioBuffer = Buffer.from(arrayBuf);
+          if (audioBuffer.length > 200) {
+            return {
+              audio: audioBuffer,
+              sampleRate: 16000,
+              model: `HuggingFace-API-${cleanModel}`,
+              durationMs: Date.now() - startTime,
+            };
+          }
+        }
+      } catch {
+        // Try next endpoint
       }
     }
   } catch (apiErr) {

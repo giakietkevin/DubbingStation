@@ -185,7 +185,72 @@ export const voices: Voice[] = [
   },
 
   // ==========================================
-  // 4. TIẾNG ANH (US & UK) & ĐIỆN ẢNH HOLLYWOOD
+  // 4. CAPCUT / BYTEDANCE VIRAL VOICES
+  // Đặc trưng: Giọng đọc chính thức của CapCut & TikTok, cực kỳ tự nhiên, quen thuộc với video ngắn
+  // ==========================================
+  {
+    id: 'capcut-nam-film',
+    name: 'Nam Trầm Ấm (CapCut Tóm Tắt Phim)',
+    country: 'VIỆT NAM',
+    countryCode: 'vi-VN',
+    avatarInitials: 'CP',
+    gender: 'male',
+    style: 'CapCut Official • Trầm ấm & Lôi cuốn • Chuyên review phim kinh điển',
+    tags: ['CapCut', 'TikTok', 'Tóm Tắt Phim', 'Người Thật'],
+    previewUrl: '/api/voices/preview?voiceId=capcut-nam-film&gender=male',
+    isPremium: false,
+    age: 'adult',
+    useCase: 'Tóm Tắt Phim, Review Điện Ảnh, Truyện Tranh & Kể Chuyện',
+    provider: 'capcut',
+  },
+  {
+    id: 'capcut-nam-reviewer',
+    name: 'Nam Hoạt Ngôn (CapCut Reviewer)',
+    country: 'VIỆT NAM',
+    countryCode: 'vi-VN',
+    avatarInitials: 'CR',
+    gender: 'male',
+    style: 'CapCut Official • Năng động & Dứt khoát • Viral Reviewer TikTok',
+    tags: ['CapCut', 'TikTok', 'Reviewer', 'Hoạt Ngôn'],
+    previewUrl: '/api/voices/preview?voiceId=capcut-nam-reviewer&gender=male',
+    isPremium: false,
+    age: 'young',
+    useCase: 'Review Công Nghệ, Giới Thiệu Sản Phẩm & Tin Nhanh TikTok',
+    provider: 'capcut',
+  },
+  {
+    id: 'capcut-nu-sweet',
+    name: 'Nữ Ngọt Ngào (CapCut Hot Trend)',
+    country: 'VIỆT NAM',
+    countryCode: 'vi-VN',
+    avatarInitials: 'CS',
+    gender: 'female',
+    style: 'CapCut Official • Ngọt ngào & Tự nhiên • Top thịnh hành mạng xã hội',
+    tags: ['CapCut', 'TikTok', 'Ngọt Ngào', 'Hot Trend'],
+    previewUrl: '/api/voices/preview?voiceId=capcut-nu-sweet&gender=female',
+    isPremium: false,
+    age: 'young',
+    useCase: 'Vlog Đời Sống, Nấu Ăn, Làm Đẹp & Mẹo Vặt Hàng Ngày',
+    provider: 'capcut',
+  },
+  {
+    id: 'capcut-nu-story',
+    name: 'Nữ Kể Chuyện (CapCut Truyền Cảm)',
+    country: 'VIỆT NAM',
+    countryCode: 'vi-VN',
+    avatarInitials: 'CN',
+    gender: 'female',
+    style: 'CapCut Official • Truyền cảm & Dịu dàng • Podcast và tản văn',
+    tags: ['CapCut', 'TikTok', 'Kể Chuyện', 'Truyền Cảm'],
+    previewUrl: '/api/voices/preview?voiceId=capcut-nu-story&gender=female',
+    isPremium: false,
+    age: 'young',
+    useCase: 'Đọc Truyện Ngắn, Tâm Sự Đêm Khuya & Video Suy Ngẫm',
+    provider: 'capcut',
+  },
+
+  // ==========================================
+  // 5. TIẾNG ANH (US & UK) & ĐIỆN ẢNH HOLLYWOOD
   // ==========================================
   {
     id: 'epic-trailer-marcus',

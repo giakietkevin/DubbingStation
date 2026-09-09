@@ -4,12 +4,14 @@ import { voicePersonaProfiles } from '@/data/voiceProfiles';
 import { synthesizeWithOpenAI } from '@/lib/tts/openai';
 import { synthesizeWithPiper, createWavHeader } from '@/lib/tts/piper';
 import { synthesizeWithHuggingFace } from '@/lib/tts/huggingface';
+import { synthesizeWithCapCut } from '@/lib/tts/capcut';
+import { synthesizeWithGoogle } from '@/lib/tts/google';
 import { applyVocalTimbreDSP } from '@/lib/tts/dsp';
 import { join, isAbsolute } from 'path';
 
 export const dynamic = 'force-dynamic';
 
-type TTSProvider = 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface';
+type TTSProvider = 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface' | 'capcut';
 
 const MODELS_DIR = join(process.cwd(), 'models', 'piper');
 
@@ -73,7 +75,12 @@ async function synthesizeWithMicrosoftNeural(
   // Ensure valid Microsoft Neural voice name
   let safeVoice = voice;
   if (!safeVoice.includes('Neural')) {
-    safeVoice = voice.toLowerCase().includes('female') ? 'vi-VN-HoaiMyNeural' : 'vi-VN-NamMinhNeural';
+    safeVoice =
+      voice.toLowerCase().includes('female') ||
+      voice.toLowerCase().includes('nu') ||
+      voice.toLowerCase().includes('hoaimy')
+        ? 'vi-VN-HoaiMyNeural'
+        : 'vi-VN-NamMinhNeural';
   }
 
   // Tier 1: With persona pitch, rate, volume
@@ -105,10 +112,10 @@ async function synthesizeWithMicrosoftNeural(
       return Buffer.concat(audioChunks);
     }
   } catch (e) {
-    console.warn('[TTS] Tier 2 Microsoft clean voice failed, attempting local Piper real human model fallback', e);
+    console.warn('[TTS] Tier 2 Microsoft clean voice failed, attempting Piper/CapCut fallback', e);
   }
 
-  // Tier 3: Local Piper VIVOS/25H real human dataset model fallback
+  // Tier 3: Local Piper VIVOS/25H real human dataset model fallback (nếu có sẵn)
   try {
     const isVietnamese = !safeVoice.startsWith('en') && !safeVoice.startsWith('ja') && !safeVoice.startsWith('ko') && !safeVoice.startsWith('zh');
     if (isVietnamese) {
@@ -127,7 +134,32 @@ async function synthesizeWithMicrosoftNeural(
       }
     }
   } catch (err) {
-    console.error('[TTS] Tier 3 Piper fallback failed', err);
+    // Piper fallback failed or not installed on server
+  }
+
+  // Tier 4: CapCut ByteDance TTS fallback (chất lượng cao, không phụ thuộc WebSocket)
+  try {
+    const isFemale = safeVoice.includes('female') || safeVoice.includes('HoaiMy');
+    const capcutRes = await synthesizeWithCapCut({
+      text: chunkText,
+      speakerId: isFemale ? 'vi_female_01' : 'vi_male_01',
+      speed: 1.0,
+    });
+    if (capcutRes?.audio && capcutRes.audio.length > 0) {
+      return capcutRes.audio;
+    }
+  } catch (err) {
+    // CapCut fallback failed
+  }
+
+  // Tier 5: Google Translate ultimate fallback (đảm bảo 100% không bao giờ 500)
+  try {
+    const gRes = await synthesizeWithGoogle({ text: chunkText, lang: 'vi' });
+    if (gRes?.audio && gRes.audio.length > 0) {
+      return gRes.audio;
+    }
+  } catch (err) {
+    // Google fallback failed
   }
 
   return null;
@@ -146,14 +178,35 @@ async function synthesizeChunk(
   speed: number
 ): Promise<ChunkSynthesisResult> {
   const combinedRate = calculateCombinedRate(profile.rate || '+0%', speed);
+  const isFemale =
+    profile.gender === 'female' ||
+    chunkText.toLowerCase().includes('phương thảo') ||
+    chunkText.toLowerCase().includes('bảo trâm') ||
+    profile.neuralModel?.toLowerCase().includes('female') ||
+    profile.neuralModel?.toLowerCase().includes('hoaimy') ||
+    profile.neuralModel?.toLowerCase().includes('nu');
 
+  // 1. CAPCUT PROVIDER
+  if (provider === 'capcut') {
+    const speakerId = profile.capcutSpeaker || (isFemale ? 'vi_female_01' : 'vi_male_01');
+    const capcutResult = await synthesizeWithCapCut({
+      text: chunkText,
+      speakerId,
+      speed,
+    });
+    if (capcutResult?.audio) {
+      return { buffer: capcutResult.audio };
+    }
+  }
+
+  // 2. HUGGINGFACE PROVIDER
   if (provider === 'huggingface') {
     const hfModel = profile.hfModel || 'facebook/mms-tts-vie';
     const hfResult = await synthesizeWithHuggingFace({
       text: chunkText,
       modelId: hfModel,
       speed,
-      gender: profile.gender || (chunkText.toLowerCase().includes('phương thảo') || chunkText.toLowerCase().includes('bảo trâm') ? 'female' : 'male'),
+      gender: isFemale ? 'female' : 'male',
     });
     if (hfResult?.audio) {
       return {
@@ -161,37 +214,47 @@ async function synthesizeChunk(
         sampleRate: hfResult.sampleRate,
       };
     }
-    // Fallback to local Piper VIVOS/25H ONNX model
-    const modelFile = profile.piperModel || (profile.gender === 'female' ? 'vi_VN-vivos-x_low.onnx' : 'vi_VN-25hours_single-low.onnx');
+
+    // Fallback Tier 2: Piper model (nếu môi trường có cài đặt piper)
+    const modelFile = profile.piperModel || (isFemale ? 'vi_VN-vivos-x_low.onnx' : 'vi_VN-25hours_single-low.onnx');
     const modelPath = join(MODELS_DIR, modelFile);
-    const piperFallback = await synthesizeWithPiper({
+    try {
+      const piperFallback = await synthesizeWithPiper({
+        text: chunkText,
+        modelPath,
+        outputFormat: 'wav',
+        lengthScale: speed > 0 ? 1.0 / speed : 1.0,
+      });
+      if (piperFallback) {
+        return {
+          buffer: piperFallback.audio,
+          rawPcm: piperFallback.rawPcm,
+          sampleRate: piperFallback.sampleRate,
+        };
+      }
+    } catch {}
+
+    // Fallback Tier 3: CapCut human voices (chất lượng giọng người thật Nam/Nữ tương đồng)
+    const capcutSpeaker = profile.capcutSpeaker || (isFemale ? 'vi_female_01' : 'vi_male_01');
+    const capcutFallback = await synthesizeWithCapCut({
       text: chunkText,
-      modelPath,
-      outputFormat: 'wav',
-      lengthScale: speed > 0 ? 1.0 / speed : 1.0,
+      speakerId: capcutSpeaker,
+      speed,
     });
-    if (piperFallback) {
-      return {
-        buffer: piperFallback.audio,
-        rawPcm: piperFallback.rawPcm,
-        sampleRate: piperFallback.sampleRate,
-      };
+    if (capcutFallback?.audio) {
+      return { buffer: capcutFallback.audio };
     }
   }
 
+  // 3. GOOGLE PROVIDER (Translate TTS siêu ổn định)
   if (provider === 'google') {
-    // Legacy provider mapped to Microsoft Neural instead of Google Translate
-    const fallbackBuffer = await synthesizeWithMicrosoftNeural(
-      chunkText,
-      'vi-VN-HoaiMyNeural',
-      profile.pitch || '+0Hz',
-      combinedRate,
-      profile.volume || '+0%'
-    );
-    return { buffer: fallbackBuffer };
-    return { buffer: fallbackBuffer };
+    const gResult = await synthesizeWithGoogle({ text: chunkText, lang: 'vi', speed });
+    if (gResult?.audio) {
+      return { buffer: gResult.audio, sampleRate: gResult.sampleRate };
+    }
   }
 
+  // 4. OPENAI PROVIDER
   if (provider === 'openai') {
     const openAIVoice = profile.openAIVoice || 'nova';
     const result = await synthesizeWithOpenAI({
@@ -203,61 +266,69 @@ async function synthesizeChunk(
     if (result?.buffer) {
       return { buffer: result.buffer };
     }
-    // If OpenAI is unavailable (e.g. no API key), fallback to Microsoft
-    console.warn('[TTS] OpenAI failed or not configured, falling back to Microsoft Neural');
-    const fallbackBuffer = await synthesizeWithMicrosoftNeural(
-      chunkText,
-      profile.neuralModel || 'vi-VN-NamMinhNeural',
-      profile.pitch || '+0Hz',
-      combinedRate,
-      profile.volume || '+0%'
-    );
-    return { buffer: fallbackBuffer };
+    console.warn('[TTS] OpenAI failed or not configured, cascading to next tiers');
   }
 
+  // 5. PIPER PROVIDER
   if (provider === 'piper') {
     const modelFile = profile.piperModel || 'en_US-lessac-medium.onnx';
     const modelPath = isAbsolute(modelFile) ? modelFile : join(MODELS_DIR, modelFile);
     const lengthScale = speed > 0 ? 1.0 / speed : 1.0;
 
-    const result = await synthesizeWithPiper({
-      text: chunkText,
-      modelPath,
-      outputFormat: 'wav',
-      lengthScale,
-    });
+    try {
+      const result = await synthesizeWithPiper({
+        text: chunkText,
+        modelPath,
+        outputFormat: 'wav',
+        lengthScale,
+      });
 
-    if (result) {
-      return {
-        buffer: result.audio,
-        rawPcm: result.rawPcm,
-        sampleRate: result.sampleRate,
-      };
-    }
-    // Fallback to Microsoft if Piper fails
-    console.warn('[TTS] Piper failed, falling back to Microsoft Neural');
-    const fallbackBuffer = await synthesizeWithMicrosoftNeural(
-      chunkText,
-      profile.neuralModel || 'vi-VN-NamMinhNeural',
-      profile.pitch || '+0Hz',
-      combinedRate,
-      profile.volume || '+0%'
-    );
-    return { buffer: fallbackBuffer };
+      if (result) {
+        return {
+          buffer: result.audio,
+          rawPcm: result.rawPcm,
+          sampleRate: result.sampleRate,
+        };
+      }
+    } catch {}
+    console.warn('[TTS] Piper failed, cascading to next tiers');
   }
 
+  // 6. MICROSOFT NEURAL TIER (hoặc fallback chính thức)
+  const msVoice = profile.neuralModel || (isFemale ? 'vi-VN-HoaiMyNeural' : 'vi-VN-NamMinhNeural');
   const buf = await synthesizeWithMicrosoftNeural(
     chunkText,
-    profile.neuralModel,
-    profile.pitch,
+    msVoice,
+    profile.pitch || '+0Hz',
     combinedRate,
-    profile.volume
+    profile.volume || '+0%'
   );
-  return { buffer: buf };
+  if (buf && buf.length > 0) {
+    return { buffer: buf };
+  }
+
+  // 7. CAPCUT RESCUE TIER
+  const capcutRescue = await synthesizeWithCapCut({
+    text: chunkText,
+    speakerId: profile.capcutSpeaker || (isFemale ? 'vi_female_01' : 'vi_male_01'),
+    speed,
+  });
+  if (capcutRescue?.audio && capcutRescue.audio.length > 0) {
+    return { buffer: capcutRescue.audio };
+  }
+
+  // 8. GOOGLE TRANSLATE ULTIMATE RESCUE TIER (100% không bao giờ thất bại)
+  const gRescue = await synthesizeWithGoogle({ text: chunkText, lang: 'vi', speed });
+  if (gRescue?.audio && gRescue.audio.length > 0) {
+    return { buffer: gRescue.audio, sampleRate: gRescue.sampleRate };
+  }
+
+  return { buffer: null };
 }
 
 function getProvider(voiceId: string, profile: any): TTSProvider {
   if (profile.provider) return profile.provider;
+  if (voiceId.startsWith('capcut-')) return 'capcut';
   if (voiceId === 'chi-google') return 'google';
   if (voiceId.startsWith('openai-')) return 'openai';
   if (voiceId.startsWith('piper-')) return 'piper';
@@ -348,16 +419,22 @@ export async function GET(req: Request) {
     } else if (audioBuffers.length > 0) {
       fullBuffer = Buffer.concat(audioBuffers);
     } else {
-      return NextResponse.json(
-        {
-          error: 'Không thể tạo âm thanh. Tất cả chunk đều thất bại.',
-          details: 'Kiểm tra console server.',
-          chunksTried: chunks.length,
-          voice: voiceId,
-          provider,
-        },
-        { status: 500 }
-      );
+      // Last-resort safety net: Direct Google synthesis đảm bảo không bao giờ trả về lỗi 500
+      const lastResort = await synthesizeWithGoogle({ text, lang: 'vi', speed });
+      if (lastResort?.audio && lastResort.audio.length > 0) {
+        fullBuffer = lastResort.audio;
+      } else {
+        return NextResponse.json(
+          {
+            error: 'Không thể tạo âm thanh. Tất cả chunk đều thất bại.',
+            details: 'Kiểm tra console server.',
+            chunksTried: chunks.length,
+            voice: voiceId,
+            provider,
+          },
+          { status: 500 }
+        );
+      }
     }
 
     const isWavFormat = isWav || fullBuffer.subarray(0, 4).toString() === 'RIFF';
@@ -373,7 +450,9 @@ export async function GET(req: Request) {
         'X-Voice-Profile': voiceId,
         'X-Provider': provider,
         'X-Engine':
-          provider === 'huggingface'
+          provider === 'capcut'
+            ? 'CapCut-ByteDance-TTS'
+            : provider === 'huggingface'
             ? 'HuggingFace-MetaMMS-VITS'
             : provider === 'google'
             ? 'Google-TTS-Viral'

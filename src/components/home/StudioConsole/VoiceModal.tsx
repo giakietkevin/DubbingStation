@@ -45,6 +45,7 @@ interface VocalFingerprint {
 
 const categories = [
   { id: 'all', label: 'Tất cả' },
+  { id: 'capcut', label: '🎬 CapCut & TikTok' },
   { id: 'custom', label: '⭐ Giọng Của Tôi' },
   { id: 'dataset', label: '🎧 VIVOS • Common Voice • OpenSLR' },
   { id: 'huggingface', label: '🤗 Hugging Face Models' },
@@ -499,6 +500,9 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
 
     if (activeCategory === 'custom') {
       return v.isCustom === true;
+    }
+    if (activeCategory === 'capcut') {
+      return v.provider === 'capcut' || v.tags.includes('CapCut') || v.tags.includes('TikTok');
     }
     if (activeCategory === 'dataset') {
       return (

@@ -22,6 +22,7 @@ export default function VoicesPage() {
 
   const categories = [
     { id: 'all', label: 'Tất cả giọng đọc' },
+    { id: 'capcut', label: '🎬 CapCut & TikTok (Hot Trend)' },
     { id: 'dataset', label: '🎧 VIVOS • Common Voice • OpenSLR (11 Giọng Mới)' },
     { id: 'huggingface', label: '🤗 Hugging Face Models' },
     { id: 'vivos', label: '🇻🇳 VIVOS (AILAB)' },
