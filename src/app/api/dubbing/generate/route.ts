@@ -244,7 +244,7 @@ export async function POST(req: Request) {
 
     const dubbedAudioPath = await createTimedAudio(req, cues, speakerVoiceMap, workDir);
     const outputName = `${title.replace(/[^a-zA-Z0-9._-]/g, '_')}-dubbed-${Date.now()}.mp4`;
-    const outputDir = path.join(process.cwd(), 'public', 'generated');
+    const outputDir = process.env.GENERATED_DIR || path.join(process.cwd(), 'public', 'generated');
     const outputPath = path.join(outputDir, outputName);
     await fs.mkdir(outputDir, { recursive: true });
 
@@ -334,7 +334,7 @@ export async function POST(req: Request) {
             name: outputName,
             type: 'DUBBING',
             inputData: JSON.stringify({ cues, speakerVoiceMap, duckingPreset }),
-            outputUrl: `/generated/${outputName}`,
+            outputUrl: `/api/generated/${encodeURIComponent(outputName)}`,
             durationSec,
             creditsUsed: requiredCredits,
             status: 'COMPLETED',
@@ -348,7 +348,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       projectId,
-      videoUrl: `/generated/${outputName}`,
+      videoUrl: `/api/generated/${encodeURIComponent(outputName)}`,
       fileName: outputName,
       durationSec,
       creditsDeducted: requiredCredits,

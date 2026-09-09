@@ -4,6 +4,7 @@ ENV NODE_ENV=production \
     PORT=7860 \
     HOSTNAME=0.0.0.0 \
     DATABASE_URL=file:/data/dev.db \
+    GENERATED_DIR=/data/generated \
     PYTHONUNBUFFERED=1 \
     PIPER_MODELS_DIR=/app/models/piper
 
@@ -25,8 +26,8 @@ COPY models ./models
 
 RUN npx prisma generate \
     && npm run build \
-    && mkdir -p /data public/generated \
-    && chmod -R a+rwX /data public/generated
+    && mkdir -p /data/generated public/generated \
+    && chmod -R a+rwX /data/generated public/generated
 
 EXPOSE 7860
 
