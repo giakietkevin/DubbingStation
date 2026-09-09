@@ -60,19 +60,16 @@ export const Header: React.FC = () => {
             href="/"
             className="flex items-center gap-space-xs transition-opacity hover:opacity-90 shrink-0"
           >
-            <div className="relative h-8 w-8">
+            <div className="relative h-10 w-28">
               <Image
-                src="https://lh3.googleusercontent.com/aida/AEtjO1V-UY2Vq84aP1TGSemuRsNV1QLsuv0qyihz872V7JRpt1zfIbe9cIcDboSo_rWDyuvk8eaaPBuLPjwDmmAsaaZvwip7xi_08PfNZjMWz5P5yUyrTzfJFlgXqv7qhNxrukI8RmCWfvAHRvGZAsCvXTne6arYNyYhnqHk_h9YjyTPddJTATjRAp7gdgsIk7ua_L9M7OHLBE2KOTx9F295HOnIl8F6D8O5IqMVcDOtVMA8Yy6MFVFWnIprww"
+                src="/logo.png"
                 alt="DubbingStation Logo"
                 fill
-                sizes="32px"
+                sizes="112px"
                 className="object-contain"
                 priority
               />
             </div>
-            <span className="font-headline-sm text-headline-sm tracking-tight text-primary font-bold">
-              DubbingStation
-            </span>
           </Link>
 
           {/* Desktop Navigation Links */}

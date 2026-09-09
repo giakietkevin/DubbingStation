@@ -156,9 +156,9 @@ export default function VoicesPage() {
       </div>
 
       {/* Featured Dataset Banner */}
-      <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-surface-card to-blue-950/40 border border-emerald-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-[0_0_25px_rgba(16,185,129,0.1)]">
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-[#202020]/70 via-surface-card to-[#3a3a3a]/70 border border-[#888888]/40 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-[0_0_25px_rgba(180,180,180,0.12)]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-[#888888]/20 text-[#d0d0d0] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined text-[24px]">graphic_eq</span>
           </div>
           <div>
@@ -166,7 +166,7 @@ export default function VoicesPage() {
               <span className="font-bold text-[14px] text-text-primary">
                 Đã cập nhật 11 giọng đọc mới từ 3 Dataset AI lớn
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">
+              <span className="px-2 py-0.5 rounded-full bg-[#888888]/20 text-[#d0d0d0] font-bold text-[10px]">
                 MỚI
               </span>
             </div>
@@ -179,7 +179,7 @@ export default function VoicesPage() {
         <button
           type="button"
           onClick={() => setSelectedCategory('dataset')}
-          className="px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 font-bold text-[12px] transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5"
+          className="px-4 py-2 rounded-xl bg-[#888888]/20 hover:bg-[#888888]/30 text-[#d0d0d0] border border-[#888888]/40 font-bold text-[12px] transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5"
         >
           <span>Lọc 11 giọng mới</span>
           <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
@@ -404,7 +404,7 @@ export default function VoicesPage() {
                           {voice.name}
                         </span>
                         {voice.tags.includes('VIVOS') && (
-                          <span className="px-1.5 py-0.5 rounded font-code-xs text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          <span className="px-1.5 py-0.5 rounded font-code-xs text-[10px] font-bold bg-[#888888]/20 text-[#d0d0d0] border border-[#888888]/30">
                             VIVOS AILAB
                           </span>
                         )}
@@ -414,12 +414,12 @@ export default function VoicesPage() {
                           </span>
                         )}
                         {voice.tags.includes('OpenSLR') && (
-                          <span className="px-1.5 py-0.5 rounded font-code-xs text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                          <span className="px-1.5 py-0.5 rounded font-code-xs text-[10px] font-bold bg-[#666666]/20 text-[#c0c0c0] border border-[#666666]/30">
                             OPENSLR 57 STUDIO
                           </span>
                         )}
                         {(voice.provider === 'huggingface' || voice.tags.includes('Hugging Face')) && (
-                          <span className="px-1.5 py-0.5 rounded font-code-xs text-[10px] font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
+                          <span className="px-1.5 py-0.5 rounded font-code-xs text-[10px] font-bold bg-[#999999]/20 text-[#dddddd] border border-[#999999]/30">
                             🤗 HUGGING FACE
                           </span>
                         )}

@@ -51,7 +51,7 @@ export const metadata: Metadata = {
       'Tổng hợp giọng nói AI chuẩn phòng thu & lồng tiếng video tự động theo timeline phụ đề.',
   },
   icons: {
-    icon: '/favicon.ico',
+    icon: '/logo.png',
   },
 };
 

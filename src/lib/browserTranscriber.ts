@@ -18,19 +18,32 @@ const languageNames: Record<string, string> = {
 async function getTranscriber(onProgress: ProgressHandler): Promise<any> {
   if (!transcriberPromise) {
     const transformersModuleUrl = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/dist/transformers.min.js';
-    transcriberPromise = import(/* webpackIgnore: true */ transformersModuleUrl).then(({ pipeline }) => pipeline(
-      'automatic-speech-recognition',
-      'Xenova/whisper-tiny',
-      {
-        dtype: 'fp32',
-        device: 'wasm',
+    transcriberPromise = import(/* webpackIgnore: true */ transformersModuleUrl).then(async ({ pipeline }) => {
+      const supportsWebGPU = 'gpu' in navigator;
+      onProgress(supportsWebGPU ? 'Đang khởi tạo Whisper bằng WebGPU...' : 'Đang khởi tạo Whisper bản nhẹ...');
+
+      const pipelineOptions = {
+        dtype: supportsWebGPU ? 'fp16' : 'q8',
+        device: supportsWebGPU ? 'webgpu' : 'wasm',
         progress_callback: (progress: { status?: string; progress?: number }) => {
           if (progress.status === 'progress' && typeof progress.progress === 'number') {
             onProgress(`Đang tải mô hình Whisper: ${Math.round(progress.progress)}%`);
           }
         },
-      },
-    ));
+      };
+
+      try {
+        return await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny', pipelineOptions);
+      } catch (error) {
+        if (!supportsWebGPU) throw error;
+        onProgress('WebGPU không khả dụng, đang chuyển sang Whisper bản nhẹ...');
+        return pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny', {
+          ...pipelineOptions,
+          dtype: 'q8',
+          device: 'wasm',
+        });
+      }
+    });
   }
 
   return transcriberPromise;
@@ -110,6 +123,12 @@ async function extractAudio(file: File, onProgress: ProgressHandler): Promise<{ 
       }
 
       samples[index] = mixedSample / channelData.length;
+
+      // Yield periodically so long recordings do not freeze the page.
+      if (index > 0 && index % 160000 === 0) {
+        onProgress(`Đang chuẩn hóa audio: ${Math.round((index / sampleCount) * 100)}%`);
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      }
     }
 
     return { samples, durationSec };
@@ -133,8 +152,8 @@ export async function transcribeVideoFile(
 
   const output = await transcriber(samples, {
     return_timestamps: true,
-    chunk_length_s: 30,
-    stride_length_s: 5,
+    chunk_length_s: 15,
+    stride_length_s: 3,
     task: 'transcribe',
     ...(language !== 'auto' ? { language: languageNames[language] || language } : {}),
   });

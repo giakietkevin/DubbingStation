@@ -12,7 +12,7 @@ export const Hero: React.FC = () => {
 
       <div className="max-w-max-width-content mx-auto px-gutter-desktop flex flex-col items-center text-center">
         {/* Tag Pill */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface-container-high text-on-surface shadow-[0_0_20px_rgba(0,242,254,0.12)]">
+           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface-container-high text-on-surface shadow-[0_0_20px_rgba(183,135,87,0.12)]">
           <span
             aria-hidden="true"
             className="material-symbols-outlined text-primary-container text-[18px]"
@@ -44,7 +44,7 @@ export const Hero: React.FC = () => {
         <div className="mt-space-lg flex flex-wrap items-center justify-center gap-3">
           <Link
             href="/dashboard"
-            className="px-6 py-3.5 rounded-xl font-bold text-[14px] bg-gradient-to-r from-primary-container via-primary-fixed to-accent-violet-bright text-surface-card shadow-glow-cyan hover:shadow-[0_0_36px_rgba(0,242,254,0.6)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+               className="px-6 py-3.5 rounded-xl font-bold text-[14px] bg-gradient-to-r from-primary-container via-primary-fixed to-accent-violet-bright text-surface-card shadow-glow-cyan hover:shadow-[0_0_36px_rgba(183,135,87,0.32)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
           >
             <span className="material-symbols-outlined text-[20px]">mic</span>
             <span>Vào Studio TTS Ngay</span>
