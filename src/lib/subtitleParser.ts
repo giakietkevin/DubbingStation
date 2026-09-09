@@ -3,6 +3,8 @@
  * Trích xuất cấu trúc phụ đề, hỗ trợ tính toán timeline và nhận diện nhân vật (Speaker)
  */
 
+import { removeRepeatedText } from '@/lib/whisper';
+
 export interface SubtitleCue {
   id: number;
   startTime: number; // Đơn vị giây (seconds)
@@ -123,6 +125,8 @@ export function deduplicateSubtitleCues(cues: SubtitleCue[]): SubtitleCue[] {
   // 1. Sắp xếp theo startTime tăng dần
   const sorted = [...cues]
     .filter((c) => c.text && c.text.trim().length > 0)
+    .map((c) => ({ ...c, text: removeRepeatedText(c.text) }))
+    .filter((c) => c.text.length > 0)
     .sort((a, b) => a.startTime - b.startTime || a.endTime - b.endTime);
 
   const cleanCues: SubtitleCue[] = [];

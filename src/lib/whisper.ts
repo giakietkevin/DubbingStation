@@ -47,6 +47,50 @@ export function formatTimestampVTT(seconds: number): string {
 }
 
 /**
+ * Whisper đôi khi chèn lại cùng một cụm từ nhiều lần trong một chunk.
+ * Chỉ gộp khi các từ lặp liền nhau và chiếm phần lớn segment, tránh xóa
+ * những câu lặp có chủ đích ở các timestamp khác nhau.
+ */
+export function removeRepeatedText(text: string): string {
+  const cleaned = text.replace(/\s+/g, ' ').trim();
+  const words = cleaned.split(' ');
+  if (words.length < 8) return cleaned;
+
+  const normalizedWords = words.map((word) =>
+    word.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ''),
+  );
+
+  for (let size = Math.min(14, Math.floor(words.length / 2)); size >= 2; size -= 1) {
+    for (let start = 0; start + size * 2 <= words.length; start += 1) {
+      const pattern = normalizedWords.slice(start, start + size).join(' ');
+      let repetitions = 1;
+      let cursor = start + size;
+
+      while (
+        cursor + size <= words.length &&
+        normalizedWords.slice(cursor, cursor + size).join(' ') === pattern
+      ) {
+        repetitions += 1;
+        cursor += size;
+      }
+
+      const repeatedWordCount = repetitions * size;
+      const coverage = repeatedWordCount / words.length;
+      if (repetitions >= 2 && (repetitions >= 3 || coverage >= 0.55)) {
+        const deduplicated = [
+          ...words.slice(0, start),
+          ...words.slice(start, start + size),
+          ...words.slice(cursor),
+        ];
+        return deduplicated.join(' ').replace(/\s+([,.!?;:])/g, '$1').trim();
+      }
+    }
+  }
+
+  return cleaned;
+}
+
+/**
  * Làm sạch và khử trùng lặp các phân đoạn Whisper (Whisper Segments Deduplication)
  * Khắc phục hiện tượng lặp câu ở biên stride (stride overlapping) mà không bỏ sót lời thoại thực
  */
@@ -55,6 +99,8 @@ export function cleanAndDeduplicateWhisperSegments(segments: WhisperSegment[]): 
 
   const sorted = [...segments]
     .filter((s) => s.text && s.text.trim().length > 0)
+    .map((s) => ({ ...s, text: removeRepeatedText(s.text) }))
+    .filter((s) => s.text.length > 0)
     .sort((a, b) => a.start - b.start || a.end - b.end);
 
   const cleanList: WhisperSegment[] = [];

@@ -155,6 +155,8 @@ export async function transcribeVideoFile(
     chunk_length_s: 15,
     stride_length_s: 3,
     task: 'transcribe',
+    no_repeat_ngram_size: 3,
+    repetition_penalty: 1.08,
     ...(language !== 'auto' ? { language: languageNames[language] || language } : {}),
   });
 
