@@ -184,7 +184,7 @@ export async function transcribeVideoFile(
 
   return {
     text: output.text.trim(),
-    language,
+    language: language === 'auto' ? String(output.language || 'auto') : language,
     durationSec,
     segments,
   };

@@ -79,6 +79,22 @@ export function cleanAndDeduplicateWhisperSegments(segments: WhisperSegment[]): 
     const timeGap = seg.start - prev.end;
     const isVeryClose = timeOverlap || timeGap <= 0.6;
 
+    // Whisper stride can repeat a cue without placing it directly next to the
+    // original. Check a short recent window while avoiding long-range repeats
+    // that may be intentional dialogue or song lyrics.
+    const recentDuplicate = cleanList
+      .slice(-4)
+      .find((candidate) => {
+        const candidateNorm = normalize(candidate.text);
+        const gap = seg.start - candidate.end;
+        return candidateNorm.length >= 8 && candidateNorm === currNorm && gap <= 3.5;
+      });
+
+    if (recentDuplicate && recentDuplicate !== prev) {
+      recentDuplicate.end = Math.max(recentDuplicate.end, seg.end);
+      continue;
+    }
+
     // 1. Trùng lặp hoàn toàn
     if (prevNorm === currNorm && isVeryClose) {
       prev.end = Math.max(prev.end, seg.end);

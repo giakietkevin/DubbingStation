@@ -36,7 +36,7 @@ function isNonTranslatable(text: string): boolean {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Tier 1: OpenAI Translation (nếu có OPENAI_API_KEY)
-async function translateWithOpenAI(text: string, sourceLanguage: string, targetLanguage: string): Promise<string | null> {
+async function translateWithOpenAI(text: string, sourceLanguage: string, targetLanguage: string, context = ''): Promise<string | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
 
@@ -53,7 +53,9 @@ async function translateWithOpenAI(text: string, sourceLanguage: string, targetL
         messages: [
           {
             role: 'system',
-            content: `Translate subtitle dialogue from ${sourceLanguage} to ${targetLanguage}. Return only the translated dialogue, preserving meaning, natural tone, and punctuation. Do not add explanations.`,
+            content: `You are a professional audiovisual subtitle translator. Translate from ${sourceLanguage} to ${targetLanguage}.
+          Preserve the speaker's intent, emotion, register, humor, implied meaning, and natural conversational flow. Translate meaning, not individual words. Use the nearby subtitle context only to resolve pronouns, omitted subjects, references, and tone. Do not merge or split lines. Keep names, numbers, proper nouns, and technical terms accurate. Return only the translated dialogue, with no explanations.
+          ${context}`,
           },
           { role: 'user', content: text },
         ],
@@ -64,6 +66,61 @@ async function translateWithOpenAI(text: string, sourceLanguage: string, targetL
     if (!response.ok) return null;
     const data = await response.json();
     return data.choices?.[0]?.message?.content?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+async function translateCueBatchWithOpenAI(
+  cues: TranslationCue[],
+  sourceLanguage: string,
+  targetLanguage: string,
+): Promise<string[] | null> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey || cues.length === 0) return null;
+
+  const context = cues.map((cue, index) => ({
+    index,
+    speaker: cue.speaker || 'unknown',
+    start: cue.startTime,
+    end: cue.endTime,
+    text: cue.text,
+  }));
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0.25,
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'system',
+            content: `Translate this subtitle sequence from ${sourceLanguage} to ${targetLanguage} as a professional subtitle translator. Preserve the exact cue order and return JSON only in the form {"translations":[{"index":0,"text":"..."}]}. Translate naturally by meaning, preserving emotion, speaker intent, references, humor, and register. Keep each cue concise enough for its original duration; never merge cues, add explanations, or alter timestamps. Use surrounding cues to resolve context.`,
+          },
+          { role: 'user', content: JSON.stringify(context) },
+        ],
+      }),
+      signal: AbortSignal.timeout(20000),
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { translations?: Array<{ index?: number; text?: string }> };
+    const translations = parsed.translations || [];
+    if (translations.length !== cues.length) return null;
+
+    const ordered = translations
+      .sort((a, b) => Number(a.index) - Number(b.index))
+      .map((item) => String(item.text || '').trim());
+    return ordered.every(Boolean) ? ordered : null;
   } catch {
     return null;
   }
@@ -229,9 +286,14 @@ async function translateBatchCues(
   targetLanguage: string
 ): Promise<string[] | null> {
   if (cuesBatch.length === 1) {
-    const single = await translateSingleText(cuesBatch[0].text, sourceLanguage, targetLanguage);
+    const adjacentContext = `Nearby subtitle context: cue ${cuesBatch[0].startTime.toFixed(2)}s-${cuesBatch[0].endTime.toFixed(2)}s, speaker ${cuesBatch[0].speaker || 'unknown'}.`;
+    const single = await translateWithOpenAI(cuesBatch[0].text, sourceLanguage, targetLanguage, adjacentContext)
+      || await translateSingleText(cuesBatch[0].text, sourceLanguage, targetLanguage);
     return [single];
   }
+
+  const contextualOpenAI = await translateCueBatchWithOpenAI(cuesBatch, sourceLanguage, targetLanguage);
+  if (contextualOpenAI) return contextualOpenAI;
 
   const combinedText = cuesBatch.map((c) => (c.text.trim() ? c.text.trim() : '...')).join(CUE_DELIMITER);
 

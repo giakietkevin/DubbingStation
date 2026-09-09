@@ -28,6 +28,9 @@ export default function TranslatePage() {
   const [targetLanguage, setTargetLanguage] = useState('vi');
   const [sourceText, setSourceText] = useState('');
   const [cues, setCues] = useState<TranslationCue[]>([]);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState('');
+  const [videoName, setVideoName] = useState('');
+  const [currentTime, setCurrentTime] = useState(0);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ text: string; error?: boolean } | null>(null);
 
@@ -46,6 +49,15 @@ export default function TranslatePage() {
     setStatus(parsed.cues.length ? { text: `Đã nạp ${parsed.cues.length} đoạn phụ đề.` } : { text: 'Không tìm thấy cue hợp lệ.', error: true });
   };
 
+  const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+    setVideoPreviewUrl(URL.createObjectURL(file));
+    setVideoName(file.name);
+    setCurrentTime(0);
+  };
+
   const translate = async () => {
     const workingCues = cues.length > 0
       ? cues
@@ -56,7 +68,7 @@ export default function TranslatePage() {
     }
     setCues(workingCues);
     setBusy(true);
-    setStatus({ text: 'Đang dịch từng đoạn và giữ nguyên timeline...' });
+    setStatus({ text: 'Đang dịch theo ngữ cảnh hội thoại và giữ nguyên timeline video...' });
     try {
       const response = await fetch('/api/translate', {
         method: 'POST',
@@ -100,7 +112,19 @@ export default function TranslatePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-md">
         <section className="lg:col-span-5 p-space-md rounded-2xl bg-surface-card border border-border-glass flex flex-col gap-3">
-          <h3 className="font-label-lg text-label-lg font-bold text-text-primary">1. Phụ đề gốc</h3>
+          <h3 className="font-label-lg text-label-lg font-bold text-text-primary">1. Video và phụ đề gốc</h3>
+          <label className="border-2 border-dashed border-border-glass rounded-xl p-4 text-center cursor-pointer text-text-muted hover:border-primary-container transition-colors">
+            {videoName ? `Video: ${videoName}` : 'Tải video để đối chiếu bản dịch theo timeline'}
+            <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} />
+          </label>
+          {videoPreviewUrl && (
+            <video
+              src={videoPreviewUrl}
+              controls
+              onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+              className="w-full rounded-xl bg-black aspect-video object-contain"
+            />
+          )}
           <div className="grid grid-cols-2 gap-2">
             <select value={sourceLanguage} onChange={(e) => setSourceLanguage(e.target.value)} className="px-3 py-2 rounded-xl bg-surface-container-lowest border border-border-glass text-text-primary"><option value="auto">Tự động nhận diện</option>{languageOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
             <select value={targetLanguage} onChange={(e) => setTargetLanguage(e.target.value)} className="px-3 py-2 rounded-xl bg-surface-container-lowest border border-border-glass text-text-primary">{languageOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
@@ -112,7 +136,14 @@ export default function TranslatePage() {
 
         <section className="lg:col-span-7 p-space-md rounded-2xl bg-surface-card border border-border-glass flex flex-col gap-3">
           <div className="flex items-center justify-between"><h3 className="font-label-lg text-label-lg font-bold text-text-primary">2. Bản dịch ({cues.length} đoạn)</h3><div className="flex gap-2"><button type="button" disabled={!cues.length} onClick={() => download('srt')} className="px-3 py-1.5 rounded-lg bg-surface-container-high text-text-primary disabled:opacity-40">.SRT</button><button type="button" disabled={!cues.length} onClick={() => download('vtt')} className="px-3 py-1.5 rounded-lg bg-surface-container-high text-text-primary disabled:opacity-40">.VTT</button></div></div>
-          <div className="flex flex-col gap-2 max-h-[620px] overflow-y-auto">{cues.map((cue) => <div key={cue.id} className="p-3 rounded-xl bg-surface-container-lowest border border-border-glass"><div className="flex justify-between text-[11px] text-text-muted font-code-xs"><span>#{cue.id} {cue.speaker || ''}</span><span>{cue.startTimeFormatted} → {cue.endTimeFormatted}</span></div><p className="mt-1 text-[12px] text-text-muted">{cue.text}</p><textarea value={cue.translatedText} onChange={(e) => setCues((current) => current.map((item) => item.id === cue.id ? { ...item, translatedText: e.target.value } : item))} rows={2} className="mt-2 w-full p-2 rounded-lg bg-surface-container-high/40 text-text-primary resize-none" /></div>)}</div>
+          <div className="flex flex-col gap-2 max-h-[620px] overflow-y-auto">{cues.map((cue) => {
+            const isActive = currentTime >= cue.startTime && currentTime <= cue.endTime;
+            return <div key={cue.id} className={`p-3 rounded-xl border transition-colors ${isActive ? 'bg-primary-container/10 border-primary-container' : 'bg-surface-container-lowest border-border-glass'}`}>
+              <div className="flex justify-between text-[11px] text-text-muted font-code-xs"><span>#{cue.id} {cue.speaker || ''}</span><span>{cue.startTimeFormatted} → {cue.endTimeFormatted}</span></div>
+              <p className="mt-1 text-[12px] text-text-muted">{cue.text}</p>
+              <textarea value={cue.translatedText} onChange={(e) => setCues((current) => current.map((item) => item.id === cue.id ? { ...item, translatedText: e.target.value } : item))} rows={2} className="mt-2 w-full p-2 rounded-lg bg-surface-container-high/40 text-text-primary resize-none" />
+            </div>;
+          })}</div>
           {cues.length > 0 && <button type="button" onClick={sendToDubbing} className="py-3 rounded-xl bg-secondary-container text-on-secondary-container font-bold">Dùng bản dịch để lồng tiếng</button>}
         </section>
       </div>

@@ -17,7 +17,7 @@ export default function STTWorkspacePage() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [audioPreviewUrl, setAudioPreviewUrl] = useState<string>('');
-  const [language, setLanguage] = useState<string>('vi');
+  const [language, setLanguage] = useState<string>('auto');
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
   const [transcription, setTranscription] = useState<WhisperTranscriptionResult | null>(null);
   const [segments, setSegments] = useState<WhisperSegment[]>([]);
@@ -53,7 +53,7 @@ export default function STTWorkspacePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fileName: file.name,
-          language,
+          language: transcriptionResult.language,
           durationSec: transcriptionResult.durationSec,
           transcription: transcriptionResult,
         }),
@@ -70,7 +70,7 @@ export default function STTWorkspacePage() {
       setTranscription(data.transcription);
       setSegments(data.transcription.segments);
       setStatusMessage({
-        text: `Nhận diện giọng nói thành công! Đã trừ ${data.creditsDeducted.toLocaleString('vi-VN')} Credits.`,
+        text: `Nhận diện ${transcriptionResult.language === 'auto' ? 'tự động' : transcriptionResult.language} thành công! Đã trừ ${data.creditsDeducted.toLocaleString('vi-VN')} Credits.`,
         type: 'success',
       });
     } catch (err) {
