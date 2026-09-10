@@ -8,7 +8,12 @@ import { synthesizeWithCapCut } from '@/lib/tts/capcut';
 import { synthesizeWithGoogle } from '@/lib/tts/google';
 import { synthesizeWithDirectEdgeTTS } from '@/lib/tts/edgeDirect';
 import { applyVocalTimbreDSP } from '@/lib/tts/dsp';
-import { join, isAbsolute } from 'path';
+import { synthesizeWithXTTS } from '@/lib/tts/xtts';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import crypto from 'crypto';
+import { join, isAbsolute, basename } from 'path';
 
 export const dynamic = 'force-dynamic';
 
@@ -408,6 +413,43 @@ export async function GET(req: Request) {
     const customF1 = searchParams.get('f1') ? parseInt(searchParams.get('f1')!, 10) : undefined;
     const customF2 = searchParams.get('f2') ? parseInt(searchParams.get('f2')!, 10) : undefined;
     const providerParam = searchParams.get('provider') as TTSProvider | null;
+
+    if (voiceId.startsWith('custom-')) {
+      const session = await getServerSession(authOptions);
+      if (!session?.user?.email) {
+        return NextResponse.json({ error: 'Đăng nhập để sử dụng voice clone của bạn.' }, { status: 401 });
+      }
+      const customVoiceId = voiceId.slice('custom-'.length);
+      const customVoice = await prisma.customVoice.findFirst({
+        where: { id: customVoiceId, user: { email: session.user.email } },
+      });
+      if (!customVoice?.modelKey) {
+        return NextResponse.json({ error: 'Không tìm thấy audio reference của voice clone.' }, { status: 404 });
+      }
+
+      const referencePath = join(process.cwd(), 'public', 'user-voices', isAbsolute(customVoice.modelKey) ? basename(customVoice.modelKey) : basename(customVoice.modelKey));
+      const outputPath = join(process.cwd(), 'public', 'generated', `xtts-${crypto.randomUUID()}.wav`);
+      const buffer = await synthesizeWithXTTS({
+        text: cleanAndChunkText(text, 4000).join(' '),
+        speakerWav: referencePath,
+        language: customVoice.language,
+        outputPath,
+      });
+      if (!buffer) {
+        return NextResponse.json({ error: 'XTTS chưa sẵn sàng. Hãy cài Coqui XTTS và thử lại.' }, { status: 503 });
+      }
+      return new NextResponse(new Uint8Array(buffer), {
+        status: 200,
+        headers: {
+          'Content-Type': 'audio/wav',
+          'Content-Length': buffer.byteLength.toString(),
+          'Cache-Control': 'no-store',
+          'X-Voice-Profile': voiceId,
+          'X-Provider': 'xtts',
+          'X-Engine': 'Coqui-XTTS-v2',
+        },
+      });
+    }
 
     const baseProfile = voicePersonaProfiles[voiceId] || {
       neuralModel: customModel || (voiceId.includes('female') ? 'vi-VN-HoaiMyNeural' : 'vi-VN-NamMinhNeural'),

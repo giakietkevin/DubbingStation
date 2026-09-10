@@ -13,8 +13,8 @@ interface ControlDeckProps {
   onSpeedChange: (speed: number) => void;
   isGenerating: boolean;
   onGenerate: () => void;
-  provider: 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface' | 'capcut';
-  onProviderChange: (provider: 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface' | 'capcut') => void;
+  provider: 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface' | 'capcut' | 'xtts';
+  onProviderChange: (provider: 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface' | 'capcut' | 'xtts') => void;
 }
 
 export const ControlDeck: React.FC<ControlDeckProps> = ({

@@ -20,7 +20,7 @@ export const StudioConsole: React.FC = () => {
   const [selectedVoice, setSelectedVoice] = useState<Voice>(defaultVoice);
   const [selectedEmotion, setSelectedEmotion] = useState<string>('Tự nhiên');
   const [speed, setSpeed] = useState<number>(1.0);
-  const [provider, setProvider] = useState<'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface' | 'capcut'>('huggingface');
+  const [provider, setProvider] = useState<'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface' | 'capcut' | 'xtts'>('huggingface');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
@@ -40,7 +40,9 @@ export const StudioConsole: React.FC = () => {
 
   const handleSelectVoice = (voice: Voice) => {
     setSelectedVoice(voice);
-    if (voice.provider) {
+    if (voice.id.startsWith('custom-')) {
+      setProvider('xtts');
+    } else if (voice.provider) {
       setProvider(voice.provider);
     } else if (voice.tags.includes('CapCut') || voice.tags.includes('TikTok')) {
       setProvider('capcut');
@@ -74,7 +76,7 @@ export const StudioConsole: React.FC = () => {
     setAudioUrl('');
   };
 
-  const handleProviderChange = (newProvider: 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface' | 'capcut') => {
+  const handleProviderChange = (newProvider: 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface' | 'capcut' | 'xtts') => {
     setProvider(newProvider);
     setAudioUrl('');
   };

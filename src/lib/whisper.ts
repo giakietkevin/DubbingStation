@@ -57,7 +57,7 @@ export function removeRepeatedText(text: string): string {
   if (words.length < 8) return cleaned;
 
   const normalizedWords = words.map((word) =>
-    word.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ''),
+    word.toLowerCase().replace(/[^a-z0-9\u00c0-\u024f]+/g, ''),
   );
 
   for (let size = Math.min(14, Math.floor(words.length / 2)); size >= 2; size -= 1) {

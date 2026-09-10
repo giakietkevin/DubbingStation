@@ -24,6 +24,7 @@ https://dubbing-station.onrender.com/
 - [Mô hình Credits](#mô-hình-credits)
 - [Bảng giá](#bảng-giá)
 - [Kiến trúc kỹ thuật](#kiến-trúc-kỹ-thuật)
+- [Hướng dẫn chạy Docker & Local Coqui XTTS (Voice Clone)](#hướng-dẫn-chạy-docker--local-coqui-xtts-voice-clone)
 - [Yêu cầu phi chức năng](#yêu-cầu-phi-chức-năng)
 - [Lộ trình phát triển](#lộ-trình-phát-triển)
 
@@ -67,10 +68,13 @@ Xây dựng **DubbingStation** thành nền tảng **All-in-One AI Voice Studio*
 - Trích xuất văn bản hoặc phụ đề từ file âm thanh và bản ghi âm.
 - Hướng tới độ chính xác cao cho quy trình biên tập và hậu kỳ.
 
-#### Custom Voice Cloning
+#### Custom Voice Cloning (Local Coqui XTTS-v2)
 
-- Tải lên hoặc ghi âm mẫu giọng dài từ **10 giây đến 1 phút**.
-- Tạo giọng đọc tùy chỉnh để lồng tiếng đa ngôn ngữ.
+- **Zero-Shot Voice Cloning:** Tích hợp mô hình **Coqui XTTS-v2** chạy trực tiếp offline/local, không gửi giọng nói lên bên thứ ba.
+- **Audio mẫu ngắn gọn:** Chỉ cần tải lên file âm thanh WAV/MP3 hoặc thu âm trực tiếp từ microphone từ **10 đến 30 giây**.
+- **Tính năng Thử XTTS trực tiếp (Inline Synthesis Test):** Kiểm tra và nghe thử giọng clone đọc câu thoại bất kỳ ngay trên bảng điều khiển `/dashboard/clone` trước khi đưa vào dự án chính.
+- **Tích hợp đồng bộ Studio:** Giọng clone sau khi tạo tự động hiển thị trong Studio Console (`/dashboard`), sẵn sàng cho các tác vụ Text-to-Speech, Subtitle Dubbing và lồng tiếng video.
+- **Quản lý an toàn:** Lưu trữ cục bộ bảo mật tại `public/user-voices/`, hỗ trợ tải lại mẫu giọng gốc hoặc xóa bỏ hoàn toàn dữ liệu.
 
 ### 22 Free Audio Tools
 
@@ -123,6 +127,7 @@ Tất cả dịch vụ dùng chung một số dư **Unified Credit Balance**:
 - **Speech-to-Text:** mô hình `Xenova/whisper-tiny` của Hugging Face thông qua Transformers.js, chạy bằng WASM trong trình duyệt và tạo timestamp cho từng đoạn thoại.
 - **Dịch phụ đề:** OpenAI `gpt-4o-mini` qua Chat Completions API; Google Translate endpoint được dùng làm phương án dự phòng.
 - **Text-to-Speech:** Microsoft Neural TTS qua `edge-tts-universal`, OpenAI `tts-1-hd`, Piper TTS chạy local bằng Python với model ONNX, và Google Translate TTS làm fallback.
+- **Voice Cloning (Zero-Shot TTS):** Mô hình **Coqui XTTS-v2** (`tts_models/multilingual/multi-dataset/xtts_v2`) chạy cục bộ thông qua pipeline Python `scripts/xtts_synthesize.py` và wrapper Node.js `src/lib/tts/xtts.ts`. Hỗ trợ nhân bản voice timbre đa ngôn ngữ từ audio tham chiếu gốc mà không cần huấn luyện lại mạng nơ-ron.
 - **Xử lý giọng:** điều chỉnh tốc độ, pitch, volume, fade và loudness normalization trước khi xuất audio.
 - **Định dạng phụ đề:** hỗ trợ SRT, VTT và TXT với timestamp theo từng cue.
 
@@ -150,6 +155,73 @@ Tất cả dịch vụ dùng chung một số dư **Unified Credit Balance**:
 6. Cấu hình SePay webhook tới `https://username-dubbingstation.hf.space/api/payments/sepay`.
 
 Space phải chạy ở port `7860`, đã được khai báo trong metadata README và Dockerfile. Build có thể mất vài phút vì phải cài Piper và các dependency âm thanh.
+
+## Hướng dẫn chạy Docker & Local Coqui XTTS (Voice Clone)
+
+Hệ thống hỗ trợ đóng gói trọn gói toàn bộ ứng dụng Next.js, Piper TTS và mô hình **Coqui XTTS-v2** vào một Docker image duy nhất.
+
+### 1. Build Docker Image
+
+Chạy lệnh build trong thư mục gốc của dự án:
+
+```bash
+docker build --load --progress=plain -t dubbingstation-xtts .
+```
+
+> **Lưu ý:** Quá trình build lần đầu sẽ tải và cài đặt các phụ thuộc PyTorch, TTS, spacy, transformers và biên dịch Next.js 14. Thời gian build khoảng 5 – 10 phút tùy theo tốc độ mạng và CPU.
+
+### 2. Khởi chạy Docker Container
+
+Khởi chạy container với volume persistent lưu trữ database, audio tải lên và cache model weights của XTTS (~2.5GB):
+
+```bash
+docker run -d \
+  -p 7860:7860 \
+  -v dubbingstation-data:/data \
+  --name dubbingstation \
+  dubbingstation-xtts
+```
+
+Nếu máy chủ có GPU NVIDIA và đã cài NVIDIA Container Toolkit, bạn có thể kích hoạt tăng tốc GPU cho XTTS:
+
+```bash
+docker run -d \
+  --gpus all \
+  -e XTTS_USE_GPU=true \
+  -p 7860:7860 \
+  -v dubbingstation-data:/data \
+  --name dubbingstation \
+  dubbingstation-xtts
+```
+
+### 3. Các biến môi trường quan trọng
+
+| Biến môi trường | Mặc định | Ý nghĩa |
+| --- | --- | --- |
+| `COQUI_TOS_AGREED` | `1` | Tự động đồng ý điều khoản bản quyền CPML của Coqui để chạy headless |
+| `TTS_HOME` | `/data/tts-cache` | Thư mục lưu trữ model weights XTTS-v2 để tránh tải lại sau khi khởi động lại container |
+| `XTTS_MODEL` | `tts_models/multilingual/multi-dataset/xtts_v2` | Định danh model clone giọng Coqui |
+| `XTTS_USE_GPU` | `false` | Bật (`true`) / tắt (`false`) chế độ tăng tốc GPU CUDA |
+| `DATABASE_URL` | `file:/data/dev.db` | Đường dẫn SQLite database lưu trong volume data |
+| `GENERATED_DIR` | `/data/generated` | Thư mục lưu audio/video đầu ra |
+
+### 4. Quy trình sử dụng tính năng Clone giọng nói
+
+1. **Truy cập trang nhân bản giọng:**
+   Mở trình duyệt vào `http://localhost:7860/dashboard/clone` (hoặc `http://localhost:3000/dashboard/clone` trên môi trường dev).
+2. **Thiết lập mẫu huấn luyện:**
+   - Nhập tên đại diện cho giọng (VD: *Giọng Kể Chuyện Của Tôi*).
+   - Chọn giới tính (Nam / Nữ / Trung tính) và ngôn ngữ chuẩn.
+   - Chọn chế độ: **Instant Clone** (5.000 Credits) hoặc **Professional Clone** (20.000 Credits).
+   - Tải lên tệp âm thanh giọng nói mẫu (10 – 30 giây, định dạng WAV/MP3) hoặc thu âm trực tiếp.
+   - Đánh dấu đồng ý cam kết bản quyền và bấm **"Nhân Bản Giọng Ngay"**.
+3. **Thử nghiệm sinh giọng trực tiếp với XTTS (Inline Test):**
+   - Tại danh sách "Giọng Độc Quyền Của Bạn", bấm nút **"Thử XTTS"** trên card giọng tương ứng.
+   - Nhập đoạn văn bản bạn muốn đọc thử.
+   - Bấm **"Đọc thử"**: Hệ thống sẽ gọi API `/api/clone/synthesize` để Coqui XTTS-v2 nạp audio mẫu của bạn và sinh audio giọng đọc mới tại chỗ.
+4. **Sử dụng trong Studio:**
+   - Bấm nút **"Dùng"** để chuyển thẳng sang Studio Console (`/dashboard?voice=custom-...`).
+   - Giọng clone sẽ tự động đồng bộ vào danh sách chọn giọng (*Voice Selector*), áp dụng cho cả tính năng chuyển văn bản thành giọng nói (TTS) và lồng tiếng phụ đề video (Dubbing).
 
 ## Yêu cầu phi chức năng
 

@@ -137,6 +137,31 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
 
   // Load custom voices from localStorage
   useEffect(() => {
+    let cancelled = false;
+
+    fetch('/api/clone')
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (cancelled || !Array.isArray(data?.voices)) return;
+        const apiVoices: Voice[] = data.voices.map((voice: any) => ({
+          id: voice.id,
+          name: voice.name,
+          country: voice.language || 'CUSTOM',
+          countryCode: voice.language || 'custom',
+          avatarInitials: voice.name.slice(0, 2).toUpperCase(),
+          gender: voice.gender === 'male' ? 'male' : 'female',
+          style: 'Giọng clone từ audio của bạn',
+          tags: ['Custom Voice', 'XTTS Clone'],
+          provider: 'xtts',
+          previewUrl: voice.sampleUrl,
+        }));
+        setCustomVoices((current) => {
+          const localOnly = current.filter((item) => !apiVoices.some((item2) => item2.id === item.id));
+          return [...apiVoices, ...localOnly];
+        });
+      })
+      .catch(() => undefined);
+
     try {
       const saved = localStorage.getItem('dubbing_custom_voices');
       if (saved) {
@@ -148,6 +173,10 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
     } catch (e) {
       console.warn('Failed to load custom voices from localStorage', e);
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (!isOpen) return null;
@@ -165,7 +194,9 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
       audioRef.current = new Audio();
     }
 
-    const soundUrl = voice.previewUrl || `/api/voices/preview?voiceId=${voice.id}&gender=${voice.gender}`;
+    const soundUrl = voice.id.startsWith('custom-')
+      ? `/api/tts/stream?voiceId=${encodeURIComponent(voice.id)}&provider=xtts&text=${encodeURIComponent(customPreviewText)}`
+      : voice.previewUrl || `/api/voices/preview?voiceId=${voice.id}&gender=${voice.gender}`;
     audioRef.current.src = soundUrl;
     audioRef.current.play().catch((err) => console.log('Audio preview error', err));
     setPlayingVoiceId(voice.id);

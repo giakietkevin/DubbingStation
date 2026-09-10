@@ -32,6 +32,10 @@ export default function VoiceClonePage() {
   // Danh sách giọng clone đã tạo
   const [myVoices, setMyVoices] = useState<ClonedVoice[]>([]);
   const [activePlayingId, setActivePlayingId] = useState<string | null>(null);
+  const [testingVoiceId, setTestingVoiceId] = useState<string | null>(null);
+  const [testText, setTestText] = useState('Xin chào, đây là giọng nói AI độc bản của tôi bằng mô hình Coqui XTTS v2.');
+  const [isSynthesizing, setIsSynthesizing] = useState(false);
+  const [testAudioUrl, setTestAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Load custom voices on mount
@@ -59,12 +63,12 @@ export default function VoiceClonePage() {
           const parsed = JSON.parse(local);
           if (Array.isArray(parsed)) {
             const localCloned: ClonedVoice[] = parsed.map((v: any) => ({
-              id: v.id,
+              id: v.id.startsWith('custom-') ? v.id : `custom-${v.id}`,
               name: v.name,
               gender: v.gender || 'female',
               language: v.countryCode || 'vi-VN',
-              modelKey: v.baseModel || 'vi-VN-NamMinhNeural',
-              sampleUrl: v.previewUrl || `/api/voices/preview?voiceId=custom&pitch=${encodeURIComponent(v.customPitch || '+0Hz')}`,
+                modelKey: v.baseModel || 'custom-uploaded-sample',
+                sampleUrl: v.previewUrl || '',
               status: 'ready',
               createdAt: 'Gần đây',
             }));
@@ -102,22 +106,26 @@ export default function VoiceClonePage() {
       setStatusMessage({ text: 'Bạn phải đồng ý với cam kết bản quyền và sự cho phép sử dụng giọng nói.', type: 'error' });
       return;
     }
+    if (!file) {
+      setStatusMessage({ text: 'Vui lòng tải lên audio mẫu của chính bạn trước khi tạo voice.', type: 'error' });
+      return;
+    }
 
     setIsLoading(true);
     setStatusMessage(null);
 
     try {
+      const formData = new FormData();
+      formData.append('name', voiceName);
+      formData.append('gender', gender);
+      formData.append('language', language);
+      formData.append('cloneType', cloneType);
+      formData.append('consentAgreed', String(consentAgreed));
+      formData.append('sampleAudio', file);
+
       const res = await fetch('/api/clone', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: voiceName,
-          gender,
-          language,
-          cloneType,
-          consentAgreed,
-          fileName: file ? file.name : 'voice_sample.wav',
-        }),
+        body: formData,
       });
 
       const data = await res.json();
@@ -129,7 +137,7 @@ export default function VoiceClonePage() {
       }
 
       setStatusMessage({
-        text: `Nhân bản giọng "${voiceName}" thành công! Đã trừ ${data.creditsDeducted.toLocaleString('vi-VN')} Credits.`,
+        text: `Đã tạo hồ sơ giọng "${voiceName}" và lưu đúng audio của bạn. Đã trừ ${data.creditsDeducted.toLocaleString('vi-VN')} Credits.`,
         type: 'success',
       });
 
@@ -155,12 +163,60 @@ export default function VoiceClonePage() {
         audioRef.current = new Audio();
       }
       audioRef.current.src = sampleUrl;
-      audioRef.current.play();
-      setActivePlayingId(voiceId);
+      audioRef.current.preload = 'auto';
+      audioRef.current.play().then(() => setActivePlayingId(voiceId)).catch(() => setActivePlayingId(null));
 
       audioRef.current.onended = () => {
         setActivePlayingId(null);
       };
+    }
+  };
+
+  const handleSynthesizeTest = async (voiceId: string) => {
+    if (!testText.trim()) return;
+    setIsSynthesizing(true);
+    setTestAudioUrl(null);
+    setStatusMessage(null);
+    try {
+      const res = await fetch('/api/clone/synthesize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voiceId, text: testText.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatusMessage({ text: data.error || 'Tạo giọng thất bại. Hãy kiểm tra Coqui XTTS local.', type: 'error' });
+        return;
+      }
+      setTestAudioUrl(data.audioUrl);
+      if (audioRef.current) {
+        audioRef.current.src = data.audioUrl;
+        audioRef.current.play().catch(() => undefined);
+      }
+      setStatusMessage({ text: 'XTTS đã tạo audio thành công!', type: 'success' });
+    } catch (err) {
+      console.error(err);
+      setStatusMessage({ text: 'Lỗi kết nối khi gọi XTTS synthesis.', type: 'error' });
+    } finally {
+      setIsSynthesizing(false);
+    }
+  };
+
+  const handleDeleteVoice = async (voiceId: string) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa giọng nói nhân bản này không?')) return;
+    try {
+      const res = await fetch(`/api/clone?id=${encodeURIComponent(voiceId)}`, { method: 'DELETE' });
+      if (res.ok) {
+        setMyVoices((prev) => prev.filter((v) => v.id !== voiceId));
+        setStatusMessage({ text: 'Đã xóa giọng nhân bản thành công.', type: 'success' });
+        if (testingVoiceId === voiceId) setTestingVoiceId(null);
+      } else {
+        const data = await res.json();
+        setStatusMessage({ text: data.error || 'Xóa thất bại', type: 'error' });
+      }
+    } catch (err) {
+      console.error(err);
+      setStatusMessage({ text: 'Lỗi kết nối khi xóa giọng.', type: 'error' });
     }
   };
 
@@ -378,7 +434,7 @@ export default function VoiceClonePage() {
             {/* Action Button */}
             <button
               type="button"
-              disabled={isLoading || !consentAgreed || !voiceName.trim()}
+              disabled={isLoading || !consentAgreed || !voiceName.trim() || !file}
               onClick={handleCreateClone}
               className={`w-full py-3.5 rounded-xl font-headline-sm font-bold text-surface-card flex items-center justify-center gap-2 transition-all ${
                 isLoading || !consentAgreed || !voiceName.trim()
@@ -434,54 +490,144 @@ export default function VoiceClonePage() {
               <div className="space-y-3 max-h-[580px] overflow-y-auto pr-1">
                 {myVoices.map((voice) => {
                   const isPlaying = activePlayingId === voice.id;
+                  const isTesting = testingVoiceId === voice.id;
                   return (
                     <div
                       key={voice.id}
-                      className="p-3.5 bg-surface-container rounded-xl border border-border-glass hover:border-primary-container/40 transition-all flex items-center justify-between gap-3"
+                      className="p-3.5 bg-surface-container rounded-xl border border-border-glass hover:border-primary-container/40 transition-all flex flex-col gap-3"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary-container/20 text-primary-container flex items-center justify-center font-bold text-label-md">
-                          {voice.name.slice(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <h4 className="font-label-md text-on-surface font-bold truncate max-w-[160px]">
-                            {voice.name}
-                          </h4>
-                          <div className="flex items-center gap-2 text-body-xs text-text-muted mt-0.5">
-                            <span>{voice.gender === 'female' ? 'Nữ' : voice.gender === 'male' ? 'Nam' : 'Trung tính'}</span>
-                            <span>•</span>
-                            <span>{voice.language}</span>
-                            <span className="px-1.5 py-0.2 rounded text-[10px] bg-signal-success/20 text-signal-success font-semibold">
-                              Sẵn sàng
-                            </span>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-primary-container/20 text-primary-container flex items-center justify-center font-bold text-label-md">
+                            {voice.name.slice(0, 2).toUpperCase()}
                           </div>
+                          <div>
+                            <h4 className="font-label-md text-on-surface font-bold truncate max-w-[160px]">
+                              {voice.name}
+                            </h4>
+                            <div className="flex items-center gap-2 text-body-xs text-text-muted mt-0.5">
+                              <span>{voice.gender === 'female' ? 'Nữ' : voice.gender === 'male' ? 'Nam' : 'Trung tính'}</span>
+                              <span>•</span>
+                              <span>{voice.language}</span>
+                              <span className="px-1.5 py-0.2 rounded text-[10px] bg-signal-success/20 text-signal-success font-semibold">
+                                Sẵn sàng
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          {voice.sampleUrl && (
+                            <button
+                              type="button"
+                              onClick={() => togglePlaySample(voice.id, voice.sampleUrl)}
+                              className={`h-8 w-8 rounded-full flex items-center justify-center transition-all ${
+                                isPlaying
+                                  ? 'bg-primary-container text-surface-card shadow-glow-cyan'
+                                  : 'bg-surface-container-high text-primary-container hover:bg-primary-container hover:text-surface-card'
+                              }`}
+                              title="Nghe thử giọng mẫu gốc"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                {isPlaying ? 'pause' : 'play_arrow'}
+                              </span>
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTestingVoiceId(isTesting ? null : voice.id);
+                              setTestAudioUrl(null);
+                            }}
+                            className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold transition-all flex items-center gap-1 ${
+                              isTesting
+                                ? 'bg-primary-container text-surface-card border-primary-container shadow-glow-cyan'
+                                : 'bg-surface-container-high border-border-glass text-text-secondary hover:text-primary-container hover:border-primary-container'
+                            }`}
+                            title="Thử sinh giọng đọc bằng XTTS"
+                          >
+                            <span className="material-symbols-outlined text-[15px]">science</span>
+                            <span>Thử XTTS</span>
+                          </button>
+
+                          <Link
+                            href={`/dashboard?voice=${voice.id}`}
+                            className="px-2.5 py-1 rounded-lg bg-surface-container-high border border-border-glass text-[11px] font-bold text-on-surface hover:text-primary-container hover:border-primary-container transition-all"
+                          >
+                            Dùng
+                          </Link>
+
+                          {voice.sampleUrl && (
+                            <a
+                              href={voice.sampleUrl}
+                              download
+                              className="p-1.5 rounded-lg bg-surface-container-high text-text-secondary hover:text-on-surface transition-colors"
+                              title="Tải audio mẫu của bạn"
+                            >
+                              <span className="material-symbols-outlined text-[17px]">download</span>
+                            </a>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteVoice(voice.id)}
+                            className="p-1.5 rounded-lg bg-surface-container-high text-text-muted hover:text-signal-danger hover:bg-signal-danger/10 transition-colors"
+                            title="Xóa giọng này"
+                          >
+                            <span className="material-symbols-outlined text-[17px]">delete</span>
+                          </button>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        {voice.sampleUrl && (
-                          <button
-                            type="button"
-                            onClick={() => togglePlaySample(voice.id, voice.sampleUrl)}
-                            className={`h-8 w-8 rounded-full flex items-center justify-center transition-all ${
-                              isPlaying
-                                ? 'bg-primary-container text-surface-card shadow-glow-cyan'
-                                : 'bg-surface-container-high text-primary-container hover:bg-primary-container hover:text-surface-card'
-                            }`}
-                            title="Nghe thử giọng mẫu"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">
-                              {isPlaying ? 'pause' : 'play_arrow'}
+                      {/* Dropdown Test XTTS Inline */}
+                      {isTesting && (
+                        <div className="pt-3 border-t border-border-glass/60 space-y-2 animate-fadeIn">
+                          <div className="text-[12px] font-semibold text-text-secondary flex items-center justify-between">
+                            <span className="flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[15px] text-primary-container">psychology</span>
+                              Thử nghiệm tổng hợp giọng với Coqui XTTS:
                             </span>
-                          </button>
-                        )}
-                        <Link
-                          href={`/dashboard?voice=${voice.id}`}
-                          className="px-2.5 py-1 rounded-lg bg-surface-container-high border border-border-glass text-[11px] font-bold text-on-surface hover:text-primary-container hover:border-primary-container transition-all"
-                        >
-                          Dùng
-                        </Link>
-                      </div>
+                            <span className="text-[11px] text-text-muted">Local XTTS Engine</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={testText}
+                              onChange={(e) => setTestText(e.target.value)}
+                              placeholder="Nhập câu bạn muốn giọng đọc thử..."
+                              className="flex-1 px-3 py-1.5 bg-surface-card border border-border-glass rounded-lg text-body-xs text-on-surface focus:outline-none focus:border-primary-container"
+                            />
+                            <button
+                              type="button"
+                              disabled={isSynthesizing || !testText.trim()}
+                              onClick={() => handleSynthesizeTest(voice.id)}
+                              className="px-3 py-1.5 bg-primary-container text-surface-card rounded-lg font-bold text-label-sm hover:opacity-90 transition-opacity flex items-center gap-1.5 disabled:opacity-50"
+                            >
+                              {isSynthesizing ? (
+                                <>
+                                  <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+                                  <span>Đang chạy XTTS...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="material-symbols-outlined text-[16px]">record_voice_over</span>
+                                  <span>Đọc thử</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          {testAudioUrl && (
+                            <div className="p-2 bg-surface-card/70 rounded-lg border border-primary-container/30 flex items-center justify-between gap-2">
+                              <span className="text-[11px] text-signal-success font-medium flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                                Đã tạo audio từ XTTS thành công:
+                              </span>
+                              <audio src={testAudioUrl} controls className="h-7 max-w-[220px]" autoPlay />
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

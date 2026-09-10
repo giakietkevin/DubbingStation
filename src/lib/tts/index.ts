@@ -23,3 +23,4 @@ export * from './piper';
 export * from './openai';
 export * from './edgeDirect';
 export * from './dsp';
+export * from './xtts';
