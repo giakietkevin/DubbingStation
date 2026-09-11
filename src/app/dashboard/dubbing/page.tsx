@@ -266,14 +266,43 @@ export default function DubbingWorkspacePage() {
         <div className="lg:col-span-5 flex flex-col gap-space-md">
           {/* Video Upload Card */}
           <div className="p-space-md rounded-2xl bg-surface-card border border-border-glass flex flex-col gap-3">
-            <h3 className="font-label-lg text-label-lg font-bold text-text-primary flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary-container text-[20px]">video_file</span>
-              <span>1. Tệp Video Gốc</span>
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-label-lg text-label-lg font-bold text-text-primary flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary-container text-[20px]">video_file</span>
+                <span>1. Tệp Video Gốc</span>
+              </h3>
+              {videoPreviewUrl && (
+                <label className="px-3 py-1 rounded-lg bg-surface-container-high hover:bg-primary-container hover:text-canvas-base text-primary-container text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm">
+                  <span className="material-symbols-outlined text-[16px]">change_circle</span>
+                  <span>Đổi video khác</span>
+                  <input type="file" accept="video/*" onChange={handleVideoUpload} className="hidden" />
+                </label>
+              )}
+            </div>
 
             {videoPreviewUrl ? (
-              <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center">
-                <video src={videoPreviewUrl} controls className="w-full h-full object-contain" />
+              <div className="flex flex-col gap-2">
+                <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center">
+                  <video src={videoPreviewUrl} controls className="w-full h-full object-contain" />
+                </div>
+                {videoFile && (
+                  <div className="flex items-center justify-between text-[11px] text-text-muted bg-surface-container px-3 py-2 rounded-lg">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <span className="material-symbols-outlined text-primary-container text-[16px]">check_circle</span>
+                      <span className="truncate max-w-[180px] sm:max-w-[240px] font-medium text-text-primary">
+                        {videoFile.name}
+                      </span>
+                      <span className="text-[10px] text-text-muted">
+                        ({(videoFile.size / (1024 * 1024)).toFixed(1)} MB)
+                      </span>
+                    </div>
+                    <label className="text-primary-container hover:underline font-bold cursor-pointer flex items-center gap-1 shrink-0 ml-2">
+                      <span className="material-symbols-outlined text-[15px]">sync</span>
+                      <span>Đổi video</span>
+                      <input type="file" accept="video/*" onChange={handleVideoUpload} className="hidden" />
+                    </label>
+                  </div>
+                )}
               </div>
             ) : (
               <label className="border-2 border-dashed border-border-glass hover:border-primary-container/60 rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors bg-surface-container-lowest/50 hover:bg-surface-container-lowest">

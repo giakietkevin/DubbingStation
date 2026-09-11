@@ -381,65 +381,95 @@ export default function VietSubWorkspacePage() {
         <div className="lg:col-span-5 flex flex-col gap-space-md">
           {/* Card 1: Tệp Video & Trình xem trước Live Sub */}
           <div className="p-space-md rounded-2xl bg-surface-card border border-border-glass flex flex-col gap-3">
-            <h3 className="font-label-lg text-label-lg font-bold text-text-primary flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary-container text-[20px]">video_file</span>
-              <span>1. Tệp Video Gốc</span>
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-label-lg text-label-lg font-bold text-text-primary flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary-container text-[20px]">video_file</span>
+                <span>1. Tệp Video Gốc</span>
+              </h3>
+              {videoPreviewUrl && (
+                <label className="px-3 py-1 rounded-lg bg-surface-container-high hover:bg-primary-container hover:text-canvas-base text-primary-container text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm">
+                  <span className="material-symbols-outlined text-[16px]">change_circle</span>
+                  <span>Đổi video khác</span>
+                  <input type="file" accept="video/*" onChange={handleVideoUpload} className="hidden" />
+                </label>
+              )}
+            </div>
 
             {videoPreviewUrl ? (
-              <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center group">
-                <video
-                  ref={videoRef}
-                  src={videoPreviewUrl}
-                  controls
-                  onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-                  onLoadedMetadata={(e) => setVideoDuration(e.currentTarget.duration)}
-                  className="w-full h-full object-contain"
-                />
+              <div className="flex flex-col gap-2">
+                <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center group">
+                  <video
+                    ref={videoRef}
+                    src={videoPreviewUrl}
+                    controls
+                    onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+                    onLoadedMetadata={(e) => setVideoDuration(e.currentTarget.duration)}
+                    className="w-full h-full object-contain"
+                  />
 
-                {/* Live Subtitle Overlay Preview trên Video */}
-                {activeCue && (
-                  <div
-                    className={`absolute left-0 right-0 px-4 text-center pointer-events-none transition-all ${
-                      subPosition === 'top'
-                        ? 'top-4'
-                        : subPosition === 'middle'
-                        ? 'top-1/2 -translate-y-1/2'
-                        : 'bottom-8'
-                    }`}
-                  >
-                    {coverOldSub && coverType === 'banner' ? (
-                      <div className="w-full bg-black/90 py-1.5 px-3">
+                  {/* Live Subtitle Overlay Preview trên Video */}
+                  {activeCue && (
+                    <div
+                      className={`absolute left-0 right-0 px-4 text-center pointer-events-none transition-all ${
+                        subPosition === 'top'
+                          ? 'top-4'
+                          : subPosition === 'middle'
+                          ? 'top-1/2 -translate-y-1/2'
+                          : 'bottom-8'
+                      }`}
+                    >
+                      {coverOldSub && coverType === 'banner' ? (
+                        <div className="w-full bg-black/90 py-1.5 px-3">
+                          <span
+                            style={{ color: textColor, fontSize: `${Math.round(fontSize * 0.7)}px` }}
+                            className="font-bold tracking-wide drop-shadow-md inline-block leading-tight"
+                          >
+                            {activeCue.text}
+                          </span>
+                        </div>
+                      ) : coverOldSub && coverType === 'box' ? (
                         <span
-                          style={{ color: textColor, fontSize: `${Math.round(fontSize * 0.7)}px` }}
-                          className="font-bold tracking-wide drop-shadow-md inline-block leading-tight"
+                          style={{
+                            color: textColor,
+                            fontSize: `${Math.round(fontSize * 0.7)}px`,
+                            backgroundColor: `rgba(0, 0, 0, ${boxOpacity})`,
+                          }}
+                          className="px-3 py-1 rounded-md font-bold tracking-wide inline-block leading-snug shadow-lg"
                         >
                           {activeCue.text}
                         </span>
-                      </div>
-                    ) : coverOldSub && coverType === 'box' ? (
-                      <span
-                        style={{
-                          color: textColor,
-                          fontSize: `${Math.round(fontSize * 0.7)}px`,
-                          backgroundColor: `rgba(0, 0, 0, ${boxOpacity})`,
-                        }}
-                        className="px-3 py-1 rounded-md font-bold tracking-wide inline-block leading-snug shadow-lg"
-                      >
-                        {activeCue.text}
+                      ) : (
+                        <span
+                          style={{
+                            color: textColor,
+                            fontSize: `${Math.round(fontSize * 0.7)}px`,
+                            textShadow: '2px 2px 3px #000, -2px -2px 3px #000, 2px -2px 3px #000, -2px 2px 3px #000',
+                          }}
+                          className="font-bold tracking-wide inline-block leading-snug"
+                        >
+                          {activeCue.text}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {videoFile && (
+                  <div className="flex items-center justify-between text-[11px] text-text-muted bg-surface-container px-3 py-2 rounded-lg">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <span className="material-symbols-outlined text-primary-container text-[16px]">check_circle</span>
+                      <span className="truncate max-w-[180px] sm:max-w-[240px] font-medium text-text-primary">
+                        {videoFile.name}
                       </span>
-                    ) : (
-                      <span
-                        style={{
-                          color: textColor,
-                          fontSize: `${Math.round(fontSize * 0.7)}px`,
-                          textShadow: '2px 2px 3px #000, -2px -2px 3px #000, 2px -2px 3px #000, -2px 2px 3px #000',
-                        }}
-                        className="font-bold tracking-wide inline-block leading-snug"
-                      >
-                        {activeCue.text}
+                      <span className="text-[10px] text-text-muted">
+                        ({(videoFile.size / (1024 * 1024)).toFixed(1)} MB)
                       </span>
-                    )}
+                    </div>
+                    <label className="text-primary-container hover:underline font-bold cursor-pointer flex items-center gap-1 shrink-0 ml-2">
+                      <span className="material-symbols-outlined text-[15px]">sync</span>
+                      <span>Đổi video</span>
+                      <input type="file" accept="video/*" onChange={handleVideoUpload} className="hidden" />
+                    </label>
                   </div>
                 )}
               </div>
@@ -454,13 +484,6 @@ export default function VietSubWorkspacePage() {
                 </span>
                 <input type="file" accept="video/*" onChange={handleVideoUpload} className="hidden" />
               </label>
-            )}
-
-            {videoFile && (
-              <div className="flex items-center justify-between text-[11px] text-text-muted bg-surface-container px-3 py-1.5 rounded-lg">
-                <span className="truncate max-w-[220px] font-medium text-text-primary">{videoFile.name}</span>
-                <span>{(videoFile.size / (1024 * 1024)).toFixed(1)} MB</span>
-              </div>
             )}
           </div>
 
