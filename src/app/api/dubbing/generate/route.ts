@@ -114,12 +114,20 @@ async function createTimedAudio(
     const targetSpeed = Math.max(0.9, Math.min(1.65, estimatedSpeechDuration / cueDuration));
     ttsUrl.searchParams.set('speed', targetSpeed.toFixed(2));
 
-    const response = await fetch(ttsUrl, { cache: 'no-store' });
+    const cookieHeader = req.headers.get('cookie');
+    const response = await fetch(ttsUrl, {
+      cache: 'no-store',
+      headers: {
+        ...(cookieHeader ? { cookie: cookieHeader } : {}),
+      },
+    });
     if (!response.ok) {
       const details = (await response.text()).slice(0, 300);
       throw new Error(`TTS thất bại ở cue #${cue.id} (${response.status}) tại ${ttsUrl.pathname}. ${details}`);
     }
-    const audioPath = path.join(workDir, `cue-${cue.id}.mp3`);
+    const contentType = response.headers.get('content-type') || '';
+    const ext = contentType.includes('wav') ? 'wav' : 'mp3';
+    const audioPath = path.join(workDir, `cue-${cue.id}.${ext}`);
     await fs.writeFile(audioPath, Buffer.from(await response.arrayBuffer()));
     audioFiles.push(audioPath);
   }

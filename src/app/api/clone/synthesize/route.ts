@@ -10,6 +10,14 @@ import { synthesizeWithXTTS } from '@/lib/tts/xtts';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+function getVoiceStorageDir(): string {
+  return process.env.USER_VOICES_DIR || path.join(process.cwd(), 'public', 'user-voices');
+}
+
+function getGeneratedDir(): string {
+  return process.env.GENERATED_DIR || path.join(process.cwd(), 'public', 'generated');
+}
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: 'Chưa đăng nhập' }, { status: 401 });
@@ -25,8 +33,8 @@ export async function POST(req: Request) {
     });
     if (!voice?.modelKey) return NextResponse.json({ error: 'Không tìm thấy voice clone.' }, { status: 404 });
 
-    const referencePath = path.join(process.cwd(), 'public', 'user-voices', path.basename(voice.modelKey));
-    const outputPath = path.join(process.cwd(), 'public', 'user-voices', `generated-${crypto.randomUUID()}.wav`);
+    const referencePath = path.join(getVoiceStorageDir(), path.basename(voice.modelKey));
+    const outputPath = path.join(getGeneratedDir(), `xtts-temp-${crypto.randomUUID()}.wav`);
     const audio = await synthesizeWithXTTS({
       text,
       speakerWav: referencePath,
@@ -38,7 +46,7 @@ export async function POST(req: Request) {
     }
 
     const fileName = `clone-${Date.now()}.wav`;
-    const generatedPath = path.join(process.cwd(), 'public', 'generated', fileName);
+    const generatedPath = path.join(getGeneratedDir(), fileName);
     await fs.mkdir(path.dirname(generatedPath), { recursive: true });
     await fs.writeFile(generatedPath, audio);
     return NextResponse.json({ audioUrl: `/api/generated/audio/${fileName}`, voiceId: voice.id });

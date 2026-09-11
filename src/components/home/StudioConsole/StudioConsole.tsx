@@ -62,7 +62,7 @@ export const StudioConsole: React.FC = () => {
     setIsPlaying(false);
     setAudioUrl('');
     setCurrentTime(0);
-    const ext = voice.provider === 'piper' ? 'wav' : 'mp3';
+    const ext = voice.provider === 'piper' || voice.provider === 'xtts' || voice.id.startsWith('custom-') ? 'wav' : 'mp3';
     setFileName(`${voice.name}_Dubbing.${ext}`);
   };
 
@@ -84,22 +84,60 @@ export const StudioConsole: React.FC = () => {
   // Sync voice from URL query param if present (e.g. ?voice=mai-anh or custom-123)
   useEffect(() => {
     const voiceParam = searchParams.get('voice');
-    if (voiceParam) {
-      const found = voices.find((v) => v.id === voiceParam);
-      if (found) {
-        handleSelectVoice(found);
-      } else {
-        try {
-          const saved = localStorage.getItem('dubbing_custom_voices');
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            const customFound = parsed.find((v: any) => v.id === voiceParam);
-            if (customFound) {
-              handleSelectVoice(customFound);
+    if (!voiceParam) return;
+
+    const found = voices.find((v) => v.id === voiceParam);
+    if (found) {
+      handleSelectVoice(found);
+      return;
+    }
+
+    if (voiceParam.startsWith('custom-')) {
+      fetch('/api/clone')
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (Array.isArray(data?.voices)) {
+            const rawId = voiceParam.replace(/^custom-/, '');
+            const match = data.voices.find(
+              (v: any) => v.id === voiceParam || v.id === rawId || `custom-${v.id}` === voiceParam
+            );
+            if (match) {
+              const customVoiceObj: Voice = {
+                id: match.id.startsWith('custom-') ? match.id : `custom-${match.id}`,
+                name: match.name,
+                country: match.language || 'VIỆT NAM',
+                countryCode: match.language || 'vi-VN',
+                avatarInitials: match.name.slice(0, 2).toUpperCase(),
+                gender: match.gender === 'male' ? 'male' : 'female',
+                style: 'Giọng clone từ audio của bạn (Coqui XTTS)',
+                tags: ['Custom Voice', 'XTTS Clone'],
+                provider: 'xtts',
+                previewUrl: match.sampleUrl,
+              };
+              handleSelectVoice(customVoiceObj);
+              return;
             }
           }
-        } catch {}
-      }
+          tryLocalCustomVoice(voiceParam);
+        })
+        .catch(() => {
+          tryLocalCustomVoice(voiceParam);
+        });
+    } else {
+      tryLocalCustomVoice(voiceParam);
+    }
+
+    function tryLocalCustomVoice(id: string) {
+      try {
+        const saved = localStorage.getItem('dubbing_custom_voices');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const customFound = parsed.find((v: any) => v.id === id);
+          if (customFound) {
+            handleSelectVoice(customFound);
+          }
+        }
+      } catch {}
     }
   }, [searchParams]);
 
@@ -251,7 +289,7 @@ export const StudioConsole: React.FC = () => {
 
       const streamEndpoint = buildStreamUrl();
       setAudioUrl(streamEndpoint);
-      const ext = provider === 'piper' ? 'wav' : 'mp3';
+      const ext = provider === 'piper' || provider === 'xtts' || selectedVoice.id.startsWith('custom-') ? 'wav' : 'mp3';
       setFileName(`${selectedVoice.name}_${provider}_${Date.now()}.${ext}`);
 
       // Phát sự kiện cập nhật Credits realtime cho Header và Sidebar
@@ -270,7 +308,9 @@ export const StudioConsole: React.FC = () => {
         });
       } else {
         const providerLabel =
-          provider === 'capcut'
+          provider === 'xtts' || selectedVoice.id.startsWith('custom-')
+            ? 'Coqui XTTS-v2 (Voice Clone)'
+            : provider === 'capcut'
             ? 'CapCut (TikTok Viral)'
             : provider === 'huggingface'
             ? 'Hugging Face (Người thật)'

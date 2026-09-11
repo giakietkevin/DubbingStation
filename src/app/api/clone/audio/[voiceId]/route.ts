@@ -8,6 +8,10 @@ import { prisma } from '@/lib/prisma';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+function getVoiceStorageDir(): string {
+  return process.env.USER_VOICES_DIR || path.join(process.cwd(), 'public', 'user-voices');
+}
+
 const contentTypes: Record<string, string> = {
   '.mp3': 'audio/mpeg',
   '.wav': 'audio/wav',
@@ -39,7 +43,7 @@ export async function GET(
 
   try {
     const fileName = path.basename(voice.modelKey);
-    const filePath = path.join(process.cwd(), 'public', 'user-voices', fileName);
+    const filePath = path.join(getVoiceStorageDir(), fileName);
     const audio = await fs.readFile(filePath);
     const extension = path.extname(fileName).toLowerCase();
     return new NextResponse(audio, {

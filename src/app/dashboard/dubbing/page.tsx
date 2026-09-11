@@ -24,6 +24,26 @@ export default function DubbingWorkspacePage() {
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
   const [isDetectingSpeakers, setIsDetectingSpeakers] = useState(false);
+  const [customVoices, setCustomVoices] = useState<Array<{ id: string; name: string; gender?: string; language?: string }>>([]);
+
+  // Load custom cloned voices from API
+  useEffect(() => {
+    fetch('/api/clone')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data?.voices)) {
+          setCustomVoices(
+            data.voices.map((v: any) => ({
+              id: v.id.startsWith('custom-') ? v.id : `custom-${v.id}`,
+              name: v.name,
+              gender: v.gender,
+              language: v.language,
+            }))
+          );
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   // Tùy chọn bảo tồn âm thanh nền & hiệu ứng phim (SFX / Foley)
   const [keepOriginalAudio, setKeepOriginalAudio] = useState<boolean>(true);
@@ -460,6 +480,15 @@ export default function DubbingWorkspacePage() {
                           onChange={(e) => handleVoiceChange(speaker, e.target.value)}
                           className="px-3 py-1.5 rounded-lg bg-surface-container-high border border-border-glass text-text-primary font-body-sm text-[12px] focus:outline-none focus:border-primary-container"
                         >
+                          {customVoices.length > 0 && (
+                            <optgroup label="🧬 Giọng Nhân Bản Của Bạn (Coqui XTTS)">
+                              {customVoices.map((v) => (
+                                <option key={v.id} value={v.id} className="bg-surface-card text-accent-violet-bright font-bold">
+                                  🌟 {v.name} ({v.gender === 'male' ? 'Nam' : 'Nữ'}) [Clone]
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
                           <optgroup label="🎬 Giọng CapCut & TikTok Viral">
                             {voices
                               .filter((v) => v.provider === 'capcut' || v.tags.includes('CapCut'))

@@ -63,6 +63,15 @@ Xây dựng **DubbingStation** thành nền tảng **All-in-One AI Voice Studio*
 - Tải lên file phụ đề `.srt`, `.vtt` hoặc video `.mp4`.
 - Tự động nhận diện khung thời gian và tạo lồng tiếng khớp từng đoạn, từng giây với video.
 
+#### VietSub Video (Phụ Đề Video Tiếng Việt & Giữ 100% Âm Thanh Gốc)
+
+- **Giữ nguyên âm thanh gốc:** Khác với Video Dubbing thay thế hoặc trộn tiếng nói AI, tính năng **VietSub Video** (`/dashboard/vietsub`) giữ trọn vẹn 100% âm thanh gốc, nhạc nền và giọng nói gốc của video bằng stream copy (`-c:a copy`).
+- **Nguồn phụ đề linh hoạt:** Hỗ trợ tải lên file phụ đề có sẵn (`.srt`, `.vtt`, `.txt`) bằng ngôn ngữ nước ngoài HOẶC tự động phân tích âm thanh video bằng **Whisper AI** để trích xuất câu thoại và timestamp chính xác.
+- **VietSub AI Translator:** Tự động dịch toàn bộ câu thoại sang Tiếng Việt chuẩn văn phong điện ảnh, tự nhiên và mượt mà.
+- **Che sạch phụ đề cũ (Hardsub Cover):** Hỗ trợ tính năng hộp nền đen mờ (Opaque Box) hoặc dải băng đáy (Full-Width Banner) với độ mờ tùy chỉnh để che sạch hoàn toàn phụ đề cũ đã in cứng trên video gốc.
+- **Tùy biến phong cách chuyên nghiệp:** Tùy chọn vị trí hiển thị (Dưới cùng, Trên cùng, Ở giữa), màu chữ (Vàng Cinema, Trắng, Xanh ngọc, Xanh lá) và cỡ chữ.
+- **Xuất video MP4 chuẩn:** Render nhanh chóng bằng FFmpeg native với bộ giải mã H.264 tương thích mọi thiết bị di động và mạng xã hội.
+
 #### Speech-to-Text (STT)
 
 - Trích xuất văn bản hoặc phụ đề từ file âm thanh và bản ghi âm.
@@ -204,6 +213,7 @@ docker run -d \
 | `XTTS_USE_GPU` | `false` | Bật (`true`) / tắt (`false`) chế độ tăng tốc GPU CUDA |
 | `DATABASE_URL` | `file:/data/dev.db` | Đường dẫn SQLite database lưu trong volume data |
 | `GENERATED_DIR` | `/data/generated` | Thư mục lưu audio/video đầu ra |
+| `USER_VOICES_DIR` | `/data/user-voices` | Thư mục lưu audio mẫu clone giọng của người dùng để duy trì dữ liệu khi khởi động lại container |
 
 ### 4. Quy trình sử dụng tính năng Clone giọng nói
 

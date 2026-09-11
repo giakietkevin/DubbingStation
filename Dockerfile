@@ -5,6 +5,7 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     DATABASE_URL=file:/data/dev.db \
     GENERATED_DIR=/data/generated \
+    USER_VOICES_DIR=/data/user-voices \
     PYTHONUNBUFFERED=1 \
     PIPER_MODELS_DIR=/app/models/piper \
     COQUI_TOS_AGREED=1 \
@@ -39,9 +40,9 @@ COPY models ./models
 
 RUN npx prisma generate \
     && npm run build \
-    && mkdir -p /data/generated /data/tts-cache public/generated public/user-voices \
-    && chmod -R a+rwX /data/generated /data/tts-cache public/generated public/user-voices
+    && mkdir -p /data/generated /data/tts-cache /data/user-voices public/generated public/user-voices \
+    && chmod -R a+rwX /data/generated /data/tts-cache /data/user-voices public/generated public/user-voices
 
 EXPOSE 7860
 
-CMD ["sh", "-c", "npx prisma db push --skip-generate && npm start"]
+CMD ["sh", "-c", "mkdir -p /data/generated /data/tts-cache /data/user-voices && npx prisma db push --skip-generate && npm start"]

@@ -6,6 +6,10 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
+function getVoiceStorageDir(): string {
+  return process.env.USER_VOICES_DIR || path.join(process.cwd(), 'public', 'user-voices');
+}
+
 // GET: Lấy danh sách giọng đã nhân bản của người dùng
 export async function GET() {
   try {
@@ -109,7 +113,7 @@ export async function POST(req: Request) {
     const newBalance = user.wallet.balance - cloneCreditsRequired;
     const fileExtension = path.extname(fileName).toLowerCase() || '.audio';
     const storedFileName = `${crypto.randomUUID()}${fileExtension}`;
-    const voiceStorageDir = path.join(process.cwd(), 'public', 'user-voices');
+    const voiceStorageDir = getVoiceStorageDir();
     await fs.mkdir(voiceStorageDir, { recursive: true });
     const storedFilePath = path.join(voiceStorageDir, storedFileName);
     await fs.writeFile(storedFilePath, Buffer.from(await sampleAudio.arrayBuffer()));
@@ -195,7 +199,7 @@ export async function DELETE(req: Request) {
     }
 
     if (voice.modelKey) {
-      const filePath = path.join(process.cwd(), 'public', 'user-voices', path.basename(voice.modelKey));
+      const filePath = path.join(getVoiceStorageDir(), path.basename(voice.modelKey));
       await fs.rm(filePath, { force: true }).catch(() => undefined);
     }
 

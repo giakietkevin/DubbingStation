@@ -1,4 +1,5 @@
-TTS>=0.22.0
+coqui-tts>=0.24.0
+numpy<2.0.0
 scipy
 soundfile
-
+pydub

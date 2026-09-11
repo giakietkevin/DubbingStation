@@ -554,8 +554,17 @@ export default function VoiceClonePage() {
                           <Link
                             href={`/dashboard?voice=${voice.id}`}
                             className="px-2.5 py-1 rounded-lg bg-surface-container-high border border-border-glass text-[11px] font-bold text-on-surface hover:text-primary-container hover:border-primary-container transition-all"
+                            title="Mở giọng này trong Studio TTS"
                           >
-                            Dùng
+                            Dùng TTS
+                          </Link>
+
+                          <Link
+                            href="/dashboard/dubbing"
+                            className="px-2.5 py-1 rounded-lg bg-surface-container-high border border-border-glass text-[11px] font-bold text-on-surface hover:text-secondary hover:border-secondary transition-all"
+                            title="Lồng tiếng video với giọng này"
+                          >
+                            Lồng tiếng
                           </Link>
 
                           {voice.sampleUrl && (

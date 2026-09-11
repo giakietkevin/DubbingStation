@@ -427,13 +427,16 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'Không tìm thấy audio reference của voice clone.' }, { status: 404 });
       }
 
-      const referencePath = join(process.cwd(), 'public', 'user-voices', isAbsolute(customVoice.modelKey) ? basename(customVoice.modelKey) : basename(customVoice.modelKey));
-      const outputPath = join(process.cwd(), 'public', 'generated', `xtts-${crypto.randomUUID()}.wav`);
+      const userVoicesDir = process.env.USER_VOICES_DIR || join(process.cwd(), 'public', 'user-voices');
+      const generatedDir = process.env.GENERATED_DIR || join(process.cwd(), 'public', 'generated');
+      const referencePath = join(userVoicesDir, basename(customVoice.modelKey));
+      const outputPath = join(generatedDir, `xtts-${crypto.randomUUID()}.wav`);
       const buffer = await synthesizeWithXTTS({
         text: cleanAndChunkText(text, 4000).join(' '),
         speakerWav: referencePath,
         language: customVoice.language,
         outputPath,
+        speed,
       });
       if (!buffer) {
         return NextResponse.json({ error: 'XTTS chưa sẵn sàng. Hãy cài Coqui XTTS và thử lại.' }, { status: 503 });

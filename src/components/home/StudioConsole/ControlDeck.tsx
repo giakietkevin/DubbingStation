@@ -80,6 +80,12 @@ export const ControlDeck: React.FC<ControlDeckProps> = ({
 
         {/* Provider Selector */}
         <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-container">
+          {(selectedVoice.id.startsWith('custom-') || provider === 'xtts') && (
+            <span className="px-2.5 py-1 rounded-md font-label-sm text-label-sm bg-accent-violet-bright/20 text-accent-violet-bright font-bold flex items-center gap-1 border border-accent-violet-bright/30">
+              <span className="material-symbols-outlined text-[14px]">fingerprint</span>
+              Coqui XTTS
+            </span>
+          )}
           {(['capcut', 'huggingface', 'microsoft', 'openai', 'piper'] as const).map((p) => {
             const isActive = provider === p;
             return (
