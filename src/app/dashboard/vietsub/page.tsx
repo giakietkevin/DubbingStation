@@ -5,16 +5,19 @@ import Link from 'next/link';
 import {
   parseSubtitle,
   deduplicateSubtitleCues,
+  applyTimingOffset,
   cuesToSRT,
   secondsToFormattedTime,
   type SubtitleCue,
   type SubtitleParseResult,
 } from '@/lib/subtitleParser';
-import { transcribeVideoFile } from '@/lib/browserTranscriber';
+import { transcribeVideoFile, type WhisperModelLevel } from '@/lib/browserTranscriber';
 import { cleanAndDeduplicateWhisperSegments } from '@/lib/whisper';
+import type { SubtitleTone } from '@/lib/vietnameseSubtitlePolisher';
 
 const languageOptions: [string, string][] = [
   ['auto', '🌐 Tự động nhận diện'],
+  ['vi', '🇻🇳 Tiếng Việt (Vietnamese)'],
   ['en', '🇺🇸 Tiếng Anh (English)'],
   ['zh', '🇨🇳 Tiếng Trung (Chinese)'],
   ['ja', '🇯🇵 Tiếng Nhật (Japanese)'],
@@ -23,7 +26,15 @@ const languageOptions: [string, string][] = [
   ['es', '🇪🇸 Tiếng Tây Ban Nha (Spanish)'],
   ['ru', '🇷🇺 Tiếng Nga (Russian)'],
   ['th', '🇹🇭 Tiếng Thái (Thai)'],
-  ['vi', '🇻🇳 Tiếng Việt'],
+];
+
+const toneOptions: [SubtitleTone, string, string][] = [
+  ['natural', '🌐 Tự động theo bối cảnh (mày-tao, cậu-tớ, anh-em...)', 'Tự động bắt mạch cảm xúc, xưng hô linh hoạt theo ngữ cảnh'],
+  ['conversational', '💬 Đời thường / Thân mật (cậu - tớ, mày - tao)', 'Xưng hô thân mật tự nhiên như hội thoại quán cà phê'],
+  ['dramatic', '🔥 Kịch tính / Hành động (mày - tao, đối đầu)', 'Ngữ điệu mạnh mẽ, gay gắt khi cãi nhau hoặc chiến đấu'],
+  ['romantic', '❤️ Tình cảm / Lãng mạn (anh - em)', 'Xưng hô anh - em ngọt ngào và tự nhiên'],
+  ['period', '⚔️ Cổ trang / Kiếm hiệp (ngươi - ta, huynh - đệ)', 'Xưng hô kiếm hiệp, dã sử chuẩn mực'],
+  ['polite', '👔 Lịch sự / Công sở (tôi - anh / chị)', 'Xưng hô trang trọng, giữ khoảng cách lịch thiệp'],
 ];
 
 export default function VietSubWorkspacePage() {
@@ -35,11 +46,14 @@ export default function VietSubWorkspacePage() {
   // Nguồn phụ đề
   const [sourceType, setSourceType] = useState<'upload_srt' | 'ai_transcribe'>('upload_srt');
   const [rawSubtitleText, setRawSubtitleText] = useState<string>('');
-  const [sourceLanguage, setSourceLanguage] = useState<string>('auto');
+  const [sourceLanguage, setSourceLanguage] = useState<string>('en');
+  const [whisperModel, setWhisperModel] = useState<WhisperModelLevel>('base');
+  const [subtitleTone, setSubtitleTone] = useState<SubtitleTone>('natural');
 
-  // Danh sách cues
+  // Danh sách cues & Điều chỉnh bù trừ độ trễ
   const [cues, setCues] = useState<SubtitleCue[]>([]);
   const [originalCues, setOriginalCues] = useState<SubtitleCue[]>([]);
+  const [timingOffsetSec, setTimingOffsetSec] = useState<number>(0);
 
   // Trạng thái AI
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
@@ -60,7 +74,50 @@ export default function VietSubWorkspacePage() {
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Tìm cue hiện tại đang hiển thị theo currentTime của video
+  // Vòng lặp đồng bộ thời gian 60 FPS bằng requestAnimationFrame
+  // Khắc phục triệt để độ trễ 200-250ms của sự kiện timeupdate HTML5 thông thường
+  useEffect(() => {
+    let animId: number;
+    const video = videoRef.current;
+    if (!video) return;
+
+    const syncTime = () => {
+      if (videoRef.current) {
+        setCurrentTime(videoRef.current.currentTime);
+      }
+      if (!video.paused && !video.ended) {
+        animId = requestAnimationFrame(syncTime);
+      }
+    };
+
+    const handlePlay = () => {
+      animId = requestAnimationFrame(syncTime);
+    };
+
+    const handlePause = () => {
+      cancelAnimationFrame(animId);
+      if (videoRef.current) {
+        setCurrentTime(videoRef.current.currentTime);
+      }
+    };
+
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+    video.addEventListener('seeking', syncTime);
+    video.addEventListener('seeked', syncTime);
+    video.addEventListener('timeupdate', syncTime);
+
+    return () => {
+      cancelAnimationFrame(animId);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+      video.removeEventListener('seeking', syncTime);
+      video.removeEventListener('seeked', syncTime);
+      video.removeEventListener('timeupdate', syncTime);
+    };
+  }, [videoPreviewUrl]);
+
+  // Tìm cue hiện tại đang hiển thị theo currentTime của video (với độ nhạy 60 FPS)
   const activeCue = useMemo(() => {
     return cues.find((c) => currentTime >= c.startTime && currentTime <= c.endTime);
   }, [cues, currentTime]);
@@ -89,6 +146,7 @@ export default function VietSubWorkspacePage() {
       const parsed = parseSubtitle(content);
       setCues(parsed.cues);
       setOriginalCues(parsed.cues);
+      setTimingOffsetSec(0);
       setStatusMessage({
         text: `Đã nhập ${parsed.cues.length} đoạn phụ đề từ tệp "${file.name}".`,
         type: 'success',
@@ -108,9 +166,14 @@ export default function VietSubWorkspacePage() {
     setStatusMessage({ text: 'Đang trích xuất audio và chạy Whisper AI nhận diện lời thoại...', type: 'info' });
 
     try {
-      const result = await transcribeVideoFile(videoFile, sourceLanguage, (progress) => {
-        setStatusMessage({ text: progress, type: 'info' });
-      });
+      const result = await transcribeVideoFile(
+        videoFile,
+        sourceLanguage,
+        (progress) => {
+          setStatusMessage({ text: progress, type: 'info' });
+        },
+        whisperModel
+      );
 
       if (!result || !result.segments || result.segments.length === 0) {
         setStatusMessage({ text: 'Không phát hiện thấy lời thoại trong video này.', type: 'error' });
@@ -120,22 +183,30 @@ export default function VietSubWorkspacePage() {
 
       // Khử trùng lặp segment do chunk overlap
       const cleanSegments = cleanAndDeduplicateWhisperSegments(result.segments);
-      const newCues: SubtitleCue[] = cleanSegments.map((seg, idx) => ({
-        id: idx + 1,
-        startTime: seg.start,
-        endTime: seg.end,
-        durationSec: Math.max(0.4, seg.end - seg.start),
-        startTimeFormatted: secondsToFormattedTime(seg.start),
-        endTimeFormatted: secondsToFormattedTime(seg.end),
-        speaker: 'Speaker',
-        text: seg.text.trim(),
-      }));
+
+      // Tối ưu lead-in offset (-0.15s): Đón đầu khẩu hình miệng của diễn viên để triệt tiêu độ trễ
+      const LEAD_IN_OFFSET = -0.15;
+      const newCues: SubtitleCue[] = cleanSegments.map((seg, idx) => {
+        const start = Math.max(0, Math.round((seg.start + LEAD_IN_OFFSET) * 1000) / 1000);
+        const end = Math.max(start + 0.3, Math.round(seg.end * 1000) / 1000);
+        return {
+          id: idx + 1,
+          startTime: start,
+          endTime: end,
+          durationSec: Math.max(0.4, Math.round((end - start) * 1000) / 1000),
+          startTimeFormatted: secondsToFormattedTime(start),
+          endTimeFormatted: secondsToFormattedTime(end),
+          speaker: 'Speaker',
+          text: seg.text.trim(),
+        };
+      });
 
       setCues(newCues);
       setOriginalCues(newCues);
+      setTimingOffsetSec(0);
       setRawSubtitleText(cuesToSRT(newCues));
       setStatusMessage({
-        text: `AI đã nhận diện thành công ${newCues.length} câu thoại từ video! Bạn có thể bấm "Dịch sang Tiếng Việt" ngay bên dưới.`,
+        text: `AI đã nhận diện thành công ${newCues.length} câu thoại từ video (đã áp dụng tối ưu đón đầu khẩu hình miệng)! Bạn có thể chọn phong cách và bấm "Dịch sang Tiếng Việt".`,
         type: 'success',
       });
     } catch (err: any) {
@@ -166,6 +237,7 @@ export default function VietSubWorkspacePage() {
         body: JSON.stringify({
           sourceLanguage: sourceLanguage === 'auto' ? 'auto' : sourceLanguage,
           targetLanguage: 'vi',
+          tone: subtitleTone,
           cues: cues.map(({ id, text, speaker, startTime, endTime }) => ({
             id,
             text,
@@ -189,7 +261,7 @@ export default function VietSubWorkspacePage() {
       setCues(translatedCues);
       setRawSubtitleText(cuesToSRT(translatedCues));
       setStatusMessage({
-        text: `Đã dịch hoàn tất ${translatedCues.length} câu sang Tiếng Việt chuẩn điện ảnh!`,
+        text: `Đã dịch hoàn tất ${translatedCues.length} câu sang Tiếng Việt chuẩn điện ảnh (${toneOptions.find(([val]) => val === subtitleTone)?.[1]})!`,
         type: 'success',
       });
     } catch (err: any) {
@@ -201,6 +273,33 @@ export default function VietSubWorkspacePage() {
     } finally {
       setIsTranslating(false);
     }
+  };
+
+  // Điều chỉnh bù trừ độ trễ phụ đề (Timing Offset / Sync Fix)
+  const handleAdjustTimingOffset = (offsetStep: number) => {
+    if (cues.length === 0) return;
+    const newCues = applyTimingOffset(cues, offsetStep);
+    setCues(newCues);
+    setRawSubtitleText(cuesToSRT(newCues));
+    const newTotal = Math.round((timingOffsetSec + offsetStep) * 1000) / 1000;
+    setTimingOffsetSec(newTotal);
+    setStatusMessage({
+      text: `Đã dịch chuyển thời gian phụ đề ${offsetStep < 0 ? `${offsetStep}s (sớm hơn)` : `+${offsetStep}s (trễ hơn)`}. Tổng bù trừ: ${newTotal >= 0 ? `+${newTotal}s` : `${newTotal}s`}.`,
+      type: 'info',
+    });
+  };
+
+  // Đặt lại bù trừ độ trễ về 0s
+  const handleResetTimingOffset = () => {
+    if (timingOffsetSec === 0 || cues.length === 0) return;
+    const reverted = applyTimingOffset(cues, -timingOffsetSec);
+    setCues(reverted);
+    setRawSubtitleText(cuesToSRT(reverted));
+    setTimingOffsetSec(0);
+    setStatusMessage({
+      text: 'Đã hoàn tác bù trừ thời gian về mặc định (0.0s).',
+      type: 'info',
+    });
   };
 
   // Căn chỉnh và khử lặp phụ đề
@@ -525,9 +624,40 @@ export default function VietSubWorkspacePage() {
 
             {/* Ngôn ngữ gốc của video/sub */}
             <div>
-              <label className="block text-[11px] font-semibold text-text-muted mb-1">
-                Ngôn ngữ thoại gốc trong video:
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[11px] font-semibold text-text-muted">
+                  Ngôn ngữ thoại gốc trong video:
+                </label>
+                <span className="text-[10px] text-primary-container font-normal">
+                  *Chọn đúng ngôn ngữ để AI nghe chuẩn 100%
+                </span>
+              </div>
+
+              {/* Quick Language Pills */}
+              <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                {[
+                  ['vi', '🇻🇳 Tiếng Việt'],
+                  ['en', '🇺🇸 Tiếng Anh'],
+                  ['zh', '🇨🇳 Tiếng Trung'],
+                  ['ja', '🇯🇵 Tiếng Nhật'],
+                  ['ko', '🇰🇷 Tiếng Hàn'],
+                  ['auto', '🌐 Tự động'],
+                ].map(([code, label]) => (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setSourceLanguage(code)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all border ${
+                      sourceLanguage === code
+                        ? 'bg-primary-container/20 text-primary-container border-primary-container font-bold shadow-sm'
+                        : 'bg-surface-container/60 text-text-muted border-border-glass hover:text-text-primary hover:bg-surface-container'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               <select
                 value={sourceLanguage}
                 onChange={(e) => setSourceLanguage(e.target.value)}
@@ -539,6 +669,28 @@ export default function VietSubWorkspacePage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Phong cách dịch thuật & xưng hô theo bối cảnh */}
+            <div>
+              <label className="block text-[11px] font-semibold text-text-muted mb-1 flex items-center gap-1">
+                <span className="material-symbols-outlined text-primary-container text-[15px]">psychology</span>
+                <span>Phong cách dịch & Xưng hô:</span>
+              </label>
+              <select
+                value={subtitleTone}
+                onChange={(e) => setSubtitleTone(e.target.value as SubtitleTone)}
+                className="w-full px-3 py-2 rounded-xl bg-surface-container border border-border-glass text-text-primary text-body-sm focus:outline-none focus:border-primary-container"
+              >
+                {toneOptions.map(([val, label]) => (
+                  <option key={val} value={val} className="bg-surface-card">
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-text-muted mt-1 leading-normal italic">
+                {toneOptions.find(([val]) => val === subtitleTone)?.[2]}
+              </p>
             </div>
 
             {sourceType === 'upload_srt' ? (
@@ -557,9 +709,24 @@ export default function VietSubWorkspacePage() {
                 </label>
               </div>
             ) : (
-              <div className="p-3 bg-secondary/10 border border-secondary/20 rounded-xl space-y-2">
-                <p className="text-[11px] text-text-secondary leading-relaxed">
-                  Video chưa có phụ đề? Whisper AI sẽ tự động phân tích âm thanh giọng nói trong video và tạo timestamp chuẩn xác từng mili-giây.
+              <div className="p-3 bg-secondary/10 border border-secondary/20 rounded-xl space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-text-primary flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[15px] text-secondary">model_training</span>
+                    <span>Mô hình Whisper AI:</span>
+                  </span>
+                  <select
+                    value={whisperModel}
+                    onChange={(e) => setWhisperModel(e.target.value as WhisperModelLevel)}
+                    className="px-2 py-1 rounded-lg bg-surface-container border border-border-glass text-text-primary text-[11px] font-semibold"
+                  >
+                    <option value="base">⚡ Whisper Base (Chuẩn xác, khuyên dùng)</option>
+                    <option value="small">🎯 Whisper Small (Độ chi tiết tối đa)</option>
+                    <option value="tiny">🚀 Whisper Tiny (Siêu nhẹ, tải nhanh)</option>
+                  </select>
+                </div>
+                <p className="text-[10.5px] text-text-secondary leading-relaxed">
+                  Mô hình Whisper Base sẽ chạy trực tiếp trên GPU/CPU trình duyệt bằng âm thanh 16kHz khử nhiễu, tạo timestamp chuẩn xác từng mili-giây.
                 </p>
                 <button
                   type="button"
@@ -762,6 +929,87 @@ export default function VietSubWorkspacePage() {
                 </button>
               </div>
             </div>
+
+            {/* Thanh công cụ bù trừ độ trễ & đồng bộ thời gian (Timing Offset / Sync Fix) */}
+            {cues.length > 0 && (
+              <div className="p-2.5 rounded-xl bg-surface-container/60 border border-border-glass flex items-center justify-between flex-wrap gap-2 animate-fadeIn">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-text-primary">
+                  <span className="material-symbols-outlined text-primary-container text-[16px]">timer</span>
+                  <span>Bù trừ độ trễ:</span>
+                  <span
+                    className={`px-2 py-0.5 rounded font-code-xs font-bold text-[10px] ${
+                      timingOffsetSec === 0
+                        ? 'bg-surface-container text-text-muted'
+                        : timingOffsetSec < 0
+                        ? 'bg-signal-success/20 text-signal-success border border-signal-success/30'
+                        : 'bg-primary-container/20 text-primary-container border border-primary-container/30'
+                    }`}
+                  >
+                    {timingOffsetSec === 0
+                      ? 'Chuẩn (0.0s)'
+                      : timingOffsetSec < 0
+                      ? `${timingOffsetSec}s (sớm hơn)`
+                      : `+${timingOffsetSec}s (trễ hơn)`}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1 flex-wrap">
+                  <span className="text-[10px] text-text-muted mr-1">Chỉnh nhanh:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleAdjustTimingOffset(-0.2)}
+                    className="px-2 py-0.5 rounded-md bg-surface-container hover:bg-surface-container-highest text-[10px] font-bold text-text-primary transition-all border border-border-glass"
+                    title="Đẩy toàn bộ phụ đề sớm hơn 0.2 giây"
+                  >
+                    -0.2s
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAdjustTimingOffset(-0.15)}
+                    className="px-2 py-0.5 rounded-md bg-primary-container/20 hover:bg-primary-container hover:text-canvas-base text-[10px] font-bold text-primary-container transition-all border border-primary-container/40 flex items-center gap-0.5"
+                    title="Đón đầu khẩu hình miệng 150ms để loại bỏ độ trễ khi nhân vật mở miệng"
+                  >
+                    <span className="material-symbols-outlined text-[12px]">bolt</span>
+                    <span>-0.15s (Đón đầu)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAdjustTimingOffset(-0.1)}
+                    className="px-2 py-0.5 rounded-md bg-surface-container hover:bg-surface-container-highest text-[10px] font-bold text-text-primary transition-all border border-border-glass"
+                    title="Đẩy toàn bộ phụ đề sớm hơn 0.1 giây"
+                  >
+                    -0.1s
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAdjustTimingOffset(0.1)}
+                    className="px-2 py-0.5 rounded-md bg-surface-container hover:bg-surface-container-highest text-[10px] font-bold text-text-primary transition-all border border-border-glass"
+                    title="Đẩy toàn bộ phụ đề trễ hơn 0.1 giây"
+                  >
+                    +0.1s
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAdjustTimingOffset(0.2)}
+                    className="px-2 py-0.5 rounded-md bg-surface-container hover:bg-surface-container-highest text-[10px] font-bold text-text-primary transition-all border border-border-glass"
+                    title="Đẩy toàn bộ phụ đề trễ hơn 0.2 giây"
+                  >
+                    +0.2s
+                  </button>
+
+                  {timingOffsetSec !== 0 && (
+                    <button
+                      type="button"
+                      onClick={handleResetTimingOffset}
+                      className="px-2 py-0.5 rounded-md bg-signal-danger/20 hover:bg-signal-danger hover:text-white text-[10px] font-bold text-signal-danger transition-all border border-signal-danger/40 ml-1"
+                      title="Đặt lại độ lệch về 0.0s ban đầu"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Danh sách các Cue thoại cho phép chỉnh sửa trực tiếp */}
             {cues.length === 0 ? (

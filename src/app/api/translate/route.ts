@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { polishVietnameseSubtitle, polishVietnameseSubtitleBatch, type SubtitleTone } from '@/lib/vietnameseSubtitlePolisher';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -35,8 +36,56 @@ function isNonTranslatable(text: string): boolean {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function buildSystemPrompt(sourceLanguage: string, targetLanguage: string, tone: SubtitleTone = 'natural'): string {
+  if (targetLanguage.startsWith('vi')) {
+    let toneGuide = '';
+    switch (tone) {
+      case 'dramatic':
+        toneGuide = 'Ngữ điệu KỊCH TÍNH, ĐỐI ĐẦU, MẠNH MẼ. Dùng xưng hô "mày - tao", "hắn", "bọn tao", "đồ khốn", "đừng hòng" khi nhân vật giận dữ, cãi nhau hoặc chiến đấu.';
+        break;
+      case 'conversational':
+        toneGuide = 'Ngữ điệu ĐỜI THƯỜNG, BẠN BÈ THÂN MẬT. Dùng xưng hô "cậu - tớ", "mình - cậu", hoặc "mày - tao" nếu là bạn bè chí cốt. Tự nhiên như hội thoại quán cà phê.';
+        break;
+      case 'period':
+        toneGuide = 'Ngữ điệu CỔ TRANG, KIẾM HIỆP, DÃ SỬ. Dùng xưng hô "ngươi - ta", "huynh - đệ", "sư phụ - đồ nhi", "tại hạ", "các hạ", "bản tọa".';
+        break;
+      case 'romantic':
+        toneGuide = 'Ngữ điệu TÌNH CẢM, LÃNG MẠN. Dùng xưng hô "anh - em", "em - anh", ngọt ngào và tự nhiên.';
+        break;
+      case 'polite':
+        toneGuide = 'Ngữ điệu LỊCH SỰ, CÔNG SỞ, XÃ GIAO. Dùng xưng hô "tôi - anh/chị/cậu".';
+        break;
+      default:
+        toneGuide = 'TỰ ĐỘNG THEO BỐI CẢNH: Phân tích cảm xúc và quan hệ của nhân vật để chọn đại từ xưng hô thật nhất (mày-tao khi cãi nhau/thân thiết; cậu-tớ khi trò chuyện; anh-em khi tình cảm; chú/bác-cháu khi lớn nhỏ; ngươi-ta khi phim kiếm hiệp/đối kháng).';
+    }
+
+    return `Bạn là biên dịch viên phụ đề phim điện ảnh (Cinematic Subtitle Translator) hàng đầu cho Netflix và rạp chiếu phim Việt Nam. Dịch phụ đề từ ${sourceLanguage} sang Tiếng Việt.
+
+YÊU CẦU CỐT LÕI:
+1. THOÁT Ý & TỰ NHIÊN (Thoát ly hoàn toàn cách dịch máy word-by-word):
+   - Dịch theo nghĩa trọn vẹn và cảm xúc chân thật, câu thoại nghe như người Việt nói chuyện đời thường.
+2. ĐẠI TỪ XƯNG HÔ THEO BỐI CẢNH (Contextual Pronouns):
+   - ${toneGuide}
+   - HẠN CHẾ TỐI ĐA từ "bạn - tôi" khô cứng và xa cách (chỉ dùng khi thực sự là phỏng vấn trang trọng hoặc người lạ nói chuyện lịch thiệp).
+3. NGẮN GỌN & SÚC TÍCH (Subtitle Brevity):
+   - Phụ đề chỉ xuất hiện 1-3 giây trên màn hình. Lược bỏ từ ngữ rườm rà thừa thãi để khán giả kịp đọc theo nhịp phim.
+4. TỪ ĐỆM CẢM THÁN ĐIỆN ẢNH:
+   - Dùng các trợ từ tự nhiên của Tiếng Việt: "à", "nhé", "đấy", "chứ", "hả", "sao", "đi", "thôi", "nào", "coi chừng", "chết tiệt"...
+5. GIỮ NGUYÊN SỐ LƯỢNG VÀ THỨ TỰ CUE.`;
+  }
+
+  return `You are a professional audiovisual subtitle translator. Translate from ${sourceLanguage} to ${targetLanguage}.
+Preserve the speaker's intent, emotion, register, humor, implied meaning, and natural conversational flow. Translate meaning, not individual words. Use the nearby subtitle context to resolve pronouns, tone, and relationships. Keep lines concise for reading speed. Return only the translated dialogue.`;
+}
+
 // Tier 1: OpenAI Translation (nếu có OPENAI_API_KEY)
-async function translateWithOpenAI(text: string, sourceLanguage: string, targetLanguage: string, context = ''): Promise<string | null> {
+async function translateWithOpenAI(
+  text: string,
+  sourceLanguage: string,
+  targetLanguage: string,
+  context = '',
+  tone: SubtitleTone = 'natural'
+): Promise<string | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
 
@@ -53,9 +102,7 @@ async function translateWithOpenAI(text: string, sourceLanguage: string, targetL
         messages: [
           {
             role: 'system',
-            content: `You are a professional audiovisual subtitle translator. Translate from ${sourceLanguage} to ${targetLanguage}.
-          Preserve the speaker's intent, emotion, register, humor, implied meaning, and natural conversational flow. Translate meaning, not individual words. Use the nearby subtitle context only to resolve pronouns, omitted subjects, references, and tone. Do not merge or split lines. Keep names, numbers, proper nouns, and technical terms accurate. Return only the translated dialogue, with no explanations.
-          ${context}`,
+            content: `${buildSystemPrompt(sourceLanguage, targetLanguage, tone)}\n${context}`,
           },
           { role: 'user', content: text },
         ],
@@ -75,6 +122,7 @@ async function translateCueBatchWithOpenAI(
   cues: TranslationCue[],
   sourceLanguage: string,
   targetLanguage: string,
+  tone: SubtitleTone = 'natural'
 ): Promise<string[] | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || cues.length === 0) return null;
@@ -101,7 +149,8 @@ async function translateCueBatchWithOpenAI(
         messages: [
           {
             role: 'system',
-            content: `Translate this subtitle sequence from ${sourceLanguage} to ${targetLanguage} as a professional subtitle translator. Preserve the exact cue order and return JSON only in the form {"translations":[{"index":0,"text":"..."}]}. Translate naturally by meaning, preserving emotion, speaker intent, references, humor, and register. Keep each cue concise enough for its original duration; never merge cues, add explanations, or alter timestamps. Use surrounding cues to resolve context.`,
+            content: `${buildSystemPrompt(sourceLanguage, targetLanguage, tone)}
+Preserve the exact cue order and return JSON only in the form {"translations":[{"index":0,"text":"..."}]}.`,
           },
           { role: 'user', content: JSON.stringify(context) },
         ],
@@ -126,11 +175,44 @@ async function translateCueBatchWithOpenAI(
   }
 }
 
-// Tier 2: Google Translate GTX (JSON API)
+// Tier 2: Google Translate GTX (JSON API - Hỗ trợ cả POST và GET)
 async function translateWithGoogleGTX(text: string, sourceLanguage: string, targetLanguage: string): Promise<string | null> {
   try {
     const sl = sourceLanguage === 'auto' ? 'auto' : sourceLanguage.split('-')[0];
     const tl = targetLanguage.split('-')[0];
+
+    // Thử gửi bằng POST trước để hỗ trợ văn bản dài không bị giới hạn URL 414
+    try {
+      const postUrl = 'https://translate.googleapis.com/translate_a/single';
+      const bodyParams = new URLSearchParams({
+        client: 'gtx',
+        sl,
+        tl,
+        dt: 't',
+        q: text,
+      });
+
+      const postResponse = await fetch(postUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          Accept: '*/*',
+        },
+        body: bodyParams.toString(),
+        signal: AbortSignal.timeout(9000),
+      });
+
+      if (postResponse.ok) {
+        const data = await postResponse.json();
+        if (Array.isArray(data?.[0])) {
+          const translated = data[0].map((part: unknown[]) => String(part[0] || '')).join('').trim();
+          if (translated) return translated;
+        }
+      }
+    } catch {}
+
+    // Fallback sang GET nếu POST bị hạn chế
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sl)}&tl=${encodeURIComponent(tl)}&dt=t&q=${encodeURIComponent(text)}`;
     const response = await fetch(url, {
       headers: {
@@ -278,40 +360,82 @@ async function translateSingleText(text: string, sourceLanguage: string, targetL
   return text;
 }
 
-const CUE_DELIMITER = ' ⟦CUE⟧ ';
+function parseNumberedTranslations(translatedBlock: string, expectedCount: number): string[] | null {
+  if (!translatedBlock || !translatedBlock.trim()) return null;
+  const result: string[] = new Array(expectedCount).fill('');
+  let parsedWithNumbers = 0;
+
+  // 1. Phân tích qua regex toàn cục: Hỗ trợ mọi biến thể [1], 1., 1), 【1】, (1) có hoặc không có dấu chấm
+  // Kể cả khi Google Translate gộp nhiều câu trên một dòng hoặc giữ dòng mới
+  const numberedItemRegex = /(?:^|\r?\n|[\s\t]+)(?:\[|\(|【)?\s*(\d+)\s*(?:\]|\)|】)?[\.\:\-\)]?\s*([^\n\r]*)/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = numberedItemRegex.exec(translatedBlock)) !== null) {
+    const rawNum = match[1];
+    const text = match[2]?.trim() || '';
+    const index = parseInt(rawNum, 10) - 1;
+
+    if (index >= 0 && index < expectedCount && !result[index] && text) {
+      // Làm sạch bất kỳ tag đánh số còn sót lại ở đầu câu
+      result[index] = text.replace(/^(?:\[|\(|【)?\s*\d+\s*(?:\]|\)|】)?[\.\:\-\)]?\s*/, '').trim();
+      parsedWithNumbers++;
+    }
+  }
+
+  if (parsedWithNumbers === expectedCount) {
+    return result;
+  }
+
+  // 2. Fallback duyệt qua từng dòng nếu regex chưa bắt đủ
+  const lines = translatedBlock.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === expectedCount) {
+    return lines.map((l) =>
+      l.replace(/^(?:\[|\(|【)?\s*\d+\s*(?:\]|\)|】)?[\.\:\-\)]?\s*/, '').trim()
+    );
+  }
+
+  // 3. Fallback nếu đã bắt được >= 80% số câu
+  if (parsedWithNumbers >= Math.floor(expectedCount * 0.8)) {
+    return result;
+  }
+
+  return null;
+}
 
 async function translateBatchCues(
   cuesBatch: TranslationCue[],
   sourceLanguage: string,
-  targetLanguage: string
+  targetLanguage: string,
+  tone: SubtitleTone = 'natural'
 ): Promise<string[] | null> {
   if (cuesBatch.length === 1) {
     const adjacentContext = `Nearby subtitle context: cue ${cuesBatch[0].startTime.toFixed(2)}s-${cuesBatch[0].endTime.toFixed(2)}s, speaker ${cuesBatch[0].speaker || 'unknown'}.`;
-    const single = await translateWithOpenAI(cuesBatch[0].text, sourceLanguage, targetLanguage, adjacentContext)
+    const single = await translateWithOpenAI(cuesBatch[0].text, sourceLanguage, targetLanguage, adjacentContext, tone)
       || await translateSingleText(cuesBatch[0].text, sourceLanguage, targetLanguage);
     return [single];
   }
 
-  const contextualOpenAI = await translateCueBatchWithOpenAI(cuesBatch, sourceLanguage, targetLanguage);
+  const contextualOpenAI = await translateCueBatchWithOpenAI(cuesBatch, sourceLanguage, targetLanguage, tone);
   if (contextualOpenAI) return contextualOpenAI;
 
-  const combinedText = cuesBatch.map((c) => (c.text.trim() ? c.text.trim() : '...')).join(CUE_DELIMITER);
+  // Định dạng danh sách đánh số [1], [2] để Google Translate hiểu đây là đoạn hội thoại có ngữ cảnh
+  const numberedText = cuesBatch
+    .map((c, idx) => `[${idx + 1}] ${c.text.trim() || '...'}`)
+    .join('\n');
 
   // Thử dịch cả batch 1 lần bằng Google GTX hoặc Dict hoặc Mobile
-  let translatedCombined = await translateWithGoogleGTX(combinedText, sourceLanguage, targetLanguage);
+  let translatedCombined = await translateWithGoogleGTX(numberedText, sourceLanguage, targetLanguage);
   if (!translatedCombined) {
-    translatedCombined = await translateWithGoogleDict(combinedText, sourceLanguage, targetLanguage);
+    translatedCombined = await translateWithGoogleDict(numberedText, sourceLanguage, targetLanguage);
   }
   if (!translatedCombined) {
-    translatedCombined = await translateWithGoogleMobile(combinedText, sourceLanguage, targetLanguage);
+    translatedCombined = await translateWithGoogleMobile(numberedText, sourceLanguage, targetLanguage);
   }
 
   if (translatedCombined) {
-    // Tách lại theo delimiter (có thể có biến thể khoảng trắng do Google dịch)
-    const regex = /\s*⟦\s*CUE\s*⟧\s*/i;
-    const parts = translatedCombined.split(regex);
-    if (parts.length === cuesBatch.length) {
-      return parts.map((p, i) => (cuesBatch[i].text.trim() ? p.trim() : cuesBatch[i].text));
+    const parsed = parseNumberedTranslations(translatedCombined, cuesBatch.length);
+    if (parsed && parsed.length === cuesBatch.length) {
+      return parsed.map((p, i) => (cuesBatch[i].text.trim() ? p.trim() : cuesBatch[i].text));
     }
   }
 
@@ -324,10 +448,12 @@ export async function POST(req: Request) {
       cues?: TranslationCue[];
       sourceLanguage?: string;
       targetLanguage?: string;
+      tone?: SubtitleTone;
     };
     const cues = body.cues || [];
     const sourceLanguage = body.sourceLanguage || 'auto';
     const targetLanguage = body.targetLanguage || 'vi';
+    const tone: SubtitleTone = body.tone || 'natural';
 
     if (!Array.isArray(cues) || cues.length === 0) {
       return NextResponse.json({ error: 'Vui lòng cung cấp phụ đề cần dịch.' }, { status: 400 });
@@ -337,6 +463,14 @@ export async function POST(req: Request) {
     }
 
     if (sourceLanguage === targetLanguage) {
+      if (targetLanguage.startsWith('vi')) {
+        const polishedTexts = polishVietnameseSubtitleBatch(cues, tone);
+        const polishedCues = cues.map((c, idx) => ({
+          ...c,
+          text: polishedTexts[idx] || c.text,
+        }));
+        return NextResponse.json({ success: true, sourceLanguage, targetLanguage, tone, cues: polishedCues });
+      }
       return NextResponse.json({ success: true, sourceLanguage, targetLanguage, cues });
     }
 
@@ -345,7 +479,7 @@ export async function POST(req: Request) {
 
     for (let i = 0; i < cues.length; i += BATCH_SIZE) {
       const batch = cues.slice(i, i + BATCH_SIZE);
-      const batchTranslations = await translateBatchCues(batch, sourceLanguage, targetLanguage);
+      const batchTranslations = await translateBatchCues(batch, sourceLanguage, targetLanguage, tone);
 
       if (batchTranslations && batchTranslations.length === batch.length) {
         for (let j = 0; j < batch.length; j++) {
@@ -373,10 +507,22 @@ export async function POST(req: Request) {
       }
     }
 
+    // NẾU DỊCH SANG TIẾNG VIỆT: Áp dụng bộ lọc tinh chỉnh ngữ cảnh (Vietnamese Subtitle Polisher)
+    // Giúp câu văn thoát ý, tự nhiên như phim điện ảnh, thoát khỏi các khuôn mẫu dịch máy cứng nhắc
+    if (targetLanguage.startsWith('vi')) {
+      const polishedTexts = polishVietnameseSubtitleBatch(translatedCues, tone);
+      translatedCues.forEach((cue, idx) => {
+        if (polishedTexts[idx]) {
+          cue.text = polishedTexts[idx];
+        }
+      });
+    }
+
     return NextResponse.json({
       success: true,
       sourceLanguage,
       targetLanguage,
+      tone,
       cues: translatedCues,
     });
   } catch (error) {

@@ -7,6 +7,7 @@ import {
   demoSrtContent,
   deduplicateSubtitleCues,
   cuesToSRT,
+  applyTimingOffset,
   type SubtitleCue,
   type SubtitleParseResult,
 } from '@/lib/subtitleParser';
@@ -18,6 +19,9 @@ export default function DubbingWorkspacePage() {
   const [srtInput, setSrtInput] = useState<string>(demoSrtContent);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string>('');
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [timingOffsetSec, setTimingOffsetSec] = useState<number>(0);
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const [parsedData, setParsedData] = useState<SubtitleParseResult | null>(null);
   const [speakerVoiceMap, setSpeakerVoiceMap] = useState<Record<string, string>>({});
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -44,6 +48,48 @@ export default function DubbingWorkspacePage() {
       })
       .catch(() => undefined);
   }, []);
+
+  // Vòng lặp 60 FPS requestAnimationFrame để đồng bộ thời gian phát video chính xác từng mili-giây
+  useEffect(() => {
+    let animId: number;
+    const video = videoRef.current;
+    if (!video) return;
+
+    const syncTime = () => {
+      if (videoRef.current) {
+        setCurrentTime(videoRef.current.currentTime);
+      }
+      if (!video.paused && !video.ended) {
+        animId = requestAnimationFrame(syncTime);
+      }
+    };
+
+    const handlePlay = () => {
+      animId = requestAnimationFrame(syncTime);
+    };
+
+    const handlePause = () => {
+      cancelAnimationFrame(animId);
+      if (videoRef.current) {
+        setCurrentTime(videoRef.current.currentTime);
+      }
+    };
+
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+    video.addEventListener('seeking', syncTime);
+    video.addEventListener('seeked', syncTime);
+    video.addEventListener('timeupdate', syncTime);
+
+    return () => {
+      cancelAnimationFrame(animId);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+      video.removeEventListener('seeking', syncTime);
+      video.removeEventListener('seeked', syncTime);
+      video.removeEventListener('timeupdate', syncTime);
+    };
+  }, [videoPreviewUrl]);
 
   // Tùy chọn bảo tồn âm thanh nền & hiệu ứng phim (SFX / Foley)
   const [keepOriginalAudio, setKeepOriginalAudio] = useState<boolean>(true);
@@ -157,6 +203,42 @@ export default function DubbingWorkspacePage() {
       text: removedCount > 0
         ? `Đã làm sạch và khử ${removedCount} câu lặp lại, căn chỉnh timeline sát video và bảo toàn toàn bộ lời thoại!`
         : `Timeline phụ đề đã được chuẩn hóa và căn chỉnh sát với video 100%!`,
+      type: 'success',
+    });
+  };
+
+  // Điều chỉnh bù trừ độ trễ phụ đề (Timing Offset / Sync Fix)
+  const handleAdjustTimingOffset = (offsetStep: number) => {
+    if (!parsedData || parsedData.cues.length === 0) return;
+    const newCues = applyTimingOffset(parsedData.cues, offsetStep);
+    const newSrt = cuesToSRT(newCues);
+    setSrtInput(newSrt);
+    setParsedData({
+      ...parsedData,
+      cues: newCues,
+      totalDurationSec: newCues.length > 0 ? newCues[newCues.length - 1].endTime : 0,
+    });
+    const newTotal = Math.round((timingOffsetSec + offsetStep) * 1000) / 1000;
+    setTimingOffsetSec(newTotal);
+    setStatusMessage({
+      text: `Đã dịch chuyển thời gian phụ đề ${offsetStep < 0 ? `${offsetStep}s (sớm hơn)` : `+${offsetStep}s (trễ hơn)`}. Tổng bù trừ: ${newTotal > 0 ? `+${newTotal}s` : `${newTotal}s`}.`,
+      type: 'success',
+    });
+  };
+
+  const handleResetTimingOffset = () => {
+    if (!parsedData || parsedData.cues.length === 0 || timingOffsetSec === 0) return;
+    const newCues = applyTimingOffset(parsedData.cues, -timingOffsetSec);
+    const newSrt = cuesToSRT(newCues);
+    setSrtInput(newSrt);
+    setParsedData({
+      ...parsedData,
+      cues: newCues,
+      totalDurationSec: newCues.length > 0 ? newCues[newCues.length - 1].endTime : 0,
+    });
+    setTimingOffsetSec(0);
+    setStatusMessage({
+      text: 'Đã hoàn tác toàn bộ bù trừ thời gian phụ đề về mặc định (0.0s).',
       type: 'success',
     });
   };
@@ -283,7 +365,7 @@ export default function DubbingWorkspacePage() {
             {videoPreviewUrl ? (
               <div className="flex flex-col gap-2">
                 <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center">
-                  <video src={videoPreviewUrl} controls className="w-full h-full object-contain" />
+                  <video ref={videoRef} src={videoPreviewUrl} controls className="w-full h-full object-contain" />
                 </div>
                 {videoFile && (
                   <div className="flex items-center justify-between text-[11px] text-text-muted bg-surface-container px-3 py-2 rounded-lg">
@@ -560,7 +642,7 @@ export default function DubbingWorkspacePage() {
 
           {/* Timeline Cues Preview List */}
           <div className="p-space-md rounded-2xl bg-surface-card border border-border-glass flex flex-col gap-3 flex-1">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <h3 className="font-label-lg text-label-lg font-bold text-text-primary flex items-center gap-2">
                 <span className="material-symbols-outlined text-signal-success text-[20px]">view_timeline</span>
                 <span>5. Chi Tiết Timeline ({parsedData?.cues.length || 0} Cues)</span>
@@ -570,30 +652,139 @@ export default function DubbingWorkspacePage() {
               </span>
             </div>
 
+            {/* Thanh công cụ bù trừ độ trễ & đồng bộ thời gian (Timing Offset / Sync Fix) */}
+            {parsedData && parsedData.cues.length > 0 && (
+              <div className="p-2.5 rounded-xl bg-surface-container/60 border border-border-glass flex items-center justify-between flex-wrap gap-2 animate-fadeIn">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-text-primary">
+                  <span className="material-symbols-outlined text-primary-container text-[16px]">timer</span>
+                  <span>Bù trừ độ trễ:</span>
+                  <span
+                    className={`px-2 py-0.5 rounded font-code-xs font-bold text-[10px] ${
+                      timingOffsetSec === 0
+                        ? 'bg-surface-container text-text-muted'
+                        : timingOffsetSec < 0
+                        ? 'bg-signal-success/20 text-signal-success border border-signal-success/30'
+                        : 'bg-primary-container/20 text-primary-container border border-primary-container/30'
+                    }`}
+                  >
+                    {timingOffsetSec === 0
+                      ? 'Chuẩn (0.0s)'
+                      : timingOffsetSec < 0
+                      ? `${timingOffsetSec}s (sớm hơn)`
+                      : `+${timingOffsetSec}s (trễ hơn)`}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1 flex-wrap">
+                  <span className="text-[10px] text-text-muted mr-1">Chỉnh nhanh:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleAdjustTimingOffset(-0.2)}
+                    className="px-2 py-0.5 rounded-md bg-surface-container hover:bg-surface-container-highest text-[10px] font-bold text-text-primary transition-all border border-border-glass"
+                    title="Đẩy toàn bộ phụ đề sớm hơn 0.2 giây"
+                  >
+                    -0.2s
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAdjustTimingOffset(-0.15)}
+                    className="px-2 py-0.5 rounded-md bg-primary-container/20 hover:bg-primary-container hover:text-canvas-base text-[10px] font-bold text-primary-container transition-all border border-primary-container/40 flex items-center gap-0.5"
+                    title="Đón đầu khẩu hình miệng 150ms để loại bỏ độ trễ khi nhân vật mở miệng"
+                  >
+                    <span className="material-symbols-outlined text-[12px]">bolt</span>
+                    <span>-0.15s (Đón đầu)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAdjustTimingOffset(-0.1)}
+                    className="px-2 py-0.5 rounded-md bg-surface-container hover:bg-surface-container-highest text-[10px] font-bold text-text-primary transition-all border border-border-glass"
+                    title="Đẩy toàn bộ phụ đề sớm hơn 0.1 giây"
+                  >
+                    -0.1s
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAdjustTimingOffset(0.1)}
+                    className="px-2 py-0.5 rounded-md bg-surface-container hover:bg-surface-container-highest text-[10px] font-bold text-text-primary transition-all border border-border-glass"
+                    title="Đẩy toàn bộ phụ đề trễ hơn 0.1 giây"
+                  >
+                    +0.1s
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAdjustTimingOffset(0.2)}
+                    className="px-2 py-0.5 rounded-md bg-surface-container hover:bg-surface-container-highest text-[10px] font-bold text-text-primary transition-all border border-border-glass"
+                    title="Đẩy toàn bộ phụ đề trễ hơn 0.2 giây"
+                  >
+                    +0.2s
+                  </button>
+                  {timingOffsetSec !== 0 && (
+                    <button
+                      type="button"
+                      onClick={handleResetTimingOffset}
+                      className="px-2 py-0.5 rounded-md bg-signal-danger/15 hover:bg-signal-danger/25 text-[10px] font-bold text-signal-danger transition-all border border-signal-danger/30 ml-1"
+                      title="Hoàn tác tất cả bù trừ thời gian về mốc ban đầu"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="max-h-[260px] overflow-y-auto flex flex-col gap-2 pr-1">
-              {parsedData?.cues.map((cue) => (
-                <div
-                  key={cue.id}
-                  className="p-2.5 rounded-xl bg-surface-container-lowest border border-border-glass/60 flex items-start justify-between gap-3 text-left"
-                >
-                  <div className="flex items-start gap-2.5">
-                    <span className="px-1.5 py-0.5 rounded bg-surface-container-high font-code-xs text-[10px] text-text-muted shrink-0 mt-0.5">
-                      #{cue.id}
-                    </span>
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="font-label-sm text-[11px] font-bold text-secondary">
-                          {cue.speaker}
-                        </span>
-                        <span className="font-code-xs text-[10px] text-text-muted">
-                          {cue.startTimeFormatted} → {cue.endTimeFormatted} ({cue.durationSec.toFixed(1)}s)
-                        </span>
+              {parsedData?.cues.map((cue) => {
+                const isActive = currentTime >= cue.startTime && currentTime <= cue.endTime;
+                return (
+                  <div
+                    key={cue.id}
+                    onClick={() => {
+                      if (videoRef.current) {
+                        videoRef.current.currentTime = cue.startTime;
+                        videoRef.current.play().catch(() => {});
+                      }
+                    }}
+                    className={`p-2.5 rounded-xl border transition-all flex items-start justify-between gap-3 text-left cursor-pointer ${
+                      isActive
+                        ? 'bg-primary-container/15 border-primary-container shadow-sm ring-1 ring-primary-container/30'
+                        : 'bg-surface-container-lowest border-border-glass/60 hover:border-border-glass'
+                    }`}
+                    title="Nhấp để nhảy video đến câu thoại này"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <span
+                        className={`px-1.5 py-0.5 rounded font-code-xs text-[10px] shrink-0 mt-0.5 ${
+                          isActive
+                            ? 'bg-primary-container text-canvas-base font-bold'
+                            : 'bg-surface-container-high text-text-muted'
+                        }`}
+                      >
+                        #{cue.id}
+                      </span>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`font-label-sm text-[11px] font-bold ${
+                              isActive ? 'text-primary-container' : 'text-secondary'
+                            }`}
+                          >
+                            {cue.speaker}
+                          </span>
+                          <span className="font-code-xs text-[10px] text-text-muted">
+                            {cue.startTimeFormatted} → {cue.endTimeFormatted} ({cue.durationSec.toFixed(1)}s)
+                          </span>
+                          {isActive && (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-primary-container/20 text-primary-container uppercase tracking-wider animate-pulse">
+                              Đang phát
+                            </span>
+                          )}
+                        </div>
+                        <p className="font-body-sm text-[12px] text-text-primary mt-0.5">{cue.text}</p>
                       </div>
-                      <p className="font-body-sm text-[12px] text-text-primary mt-0.5">{cue.text}</p>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Action CTA Button */}

@@ -377,6 +377,28 @@ export function parseSubtitle(content: string): SubtitleParseResult {
 }
 
 /**
+ * Tịnh tiến toàn bộ timestamp của mảng SubtitleCue theo độ lệch offset (tính bằng giây).
+ * Giá trị âm (vd: -0.15s) giúp phụ đề xuất hiện sớm hơn để đón đầu khẩu hình miệng, khắc phục độ trễ.
+ * Giá trị dương (vd: +0.2s) đẩy phụ đề xuất hiện muộn hơn.
+ */
+export function applyTimingOffset(cues: SubtitleCue[], offsetSec: number): SubtitleCue[] {
+  if (!Array.isArray(cues) || cues.length === 0 || offsetSec === 0) return cues;
+
+  return cues.map((cue) => {
+    const newStart = Math.max(0, Math.round((cue.startTime + offsetSec) * 1000) / 1000);
+    const newEnd = Math.max(newStart + 0.3, Math.round((cue.endTime + offsetSec) * 1000) / 1000);
+    return {
+      ...cue,
+      startTime: newStart,
+      endTime: newEnd,
+      startTimeFormatted: secondsToFormattedTime(newStart),
+      endTimeFormatted: secondsToFormattedTime(newEnd),
+      durationSec: Math.max(0.3, Math.round((newEnd - newStart) * 1000) / 1000),
+    };
+  });
+}
+
+/**
  * Tạo phụ đề mẫu mặc định (Demo Subtitle)
  */
 export const demoSrtContent = `1

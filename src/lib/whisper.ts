@@ -52,17 +52,40 @@ export function formatTimestampVTT(seconds: number): string {
  * những câu lặp có chủ đích ở các timestamp khác nhau.
  */
 export function removeRepeatedText(text: string): string {
-  const cleaned = text.replace(/\s+/g, ' ').trim();
+  let cleaned = text.replace(/\s+/g, ' ').trim();
+  if (!cleaned) return '';
+
+  // 1. L\u1ecdc c\u00e1c c\u00e2u r\u00e1c / hallucination th\u01b0\u1eddng g\u1eb7p c\u1ee7a Whisper
+  const hallucinationPatterns = [
+    /^\s*(\*|\^|~|#|_|-|\.|\/|\\)+\s*$/i,
+    /^\s*(\[|\()?(music|applause|laughter|silence|blank_audio|ambient noise|chatter|whispering|gasp|sigh|cough)(\]|\))?\s*$/i,
+    /^\s*(\[|\()?ph\u1ee5 \u0111\u1ec1 (b\u1edfi|\u0111\u01b0\u1ee3c th\u1ef1c hi\u1ec7n|vi\u1ec7t h\u00f3a)(\]|\))?.*$/i,
+    /^\s*(\[|\()?(subtitles? by|transcribed by|captioned by|translated by|amara\.org)(\]|\))?.*$/i,
+    /^\s*(please subscribe|like and subscribe|\u0111\u0103ng k\u00fd k\u00eanh|h\u00e3y like v\u00e0 share)\.?\s*$/i,
+    /^[\u266a\u266b\u266c\s]+$/i,
+  ];
+
+  for (const pattern of hallucinationPatterns) {
+    if (pattern.test(cleaned)) {
+      return '';
+    }
+  }
+
+  // 2. Kh\u1eed l\u1eb7p 1 t\u1eeb ho\u1eb7c 2 t\u1eeb li\u00ean ti\u1ebfp (e.g. "Yeah yeah yeah yeah", "No no no no")
+  cleaned = cleaned.replace(/\b(\w+)(?:\s+\1\b){2,}/gi, '$1 $1');
+
   const words = cleaned.split(' ');
-  if (words.length < 8) return cleaned;
+  if (words.length < 4) return cleaned;
 
   const normalizedWords = words.map((word) =>
     word.toLowerCase().replace(/[^a-z0-9\u00c0-\u024f]+/g, ''),
   );
 
-  for (let size = Math.min(14, Math.floor(words.length / 2)); size >= 2; size -= 1) {
+  for (let size = Math.min(14, Math.floor(words.length / 2)); size >= 1; size -= 1) {
     for (let start = 0; start + size * 2 <= words.length; start += 1) {
       const pattern = normalizedWords.slice(start, start + size).join(' ');
+      if (!pattern || pattern.length < 2) continue;
+
       let repetitions = 1;
       let cursor = start + size;
 
@@ -76,7 +99,7 @@ export function removeRepeatedText(text: string): string {
 
       const repeatedWordCount = repetitions * size;
       const coverage = repeatedWordCount / words.length;
-      if (repetitions >= 2 && (repetitions >= 3 || coverage >= 0.55)) {
+      if (repetitions >= 2 && (repetitions >= 3 || coverage >= 0.45 || size >= 3)) {
         const deduplicated = [
           ...words.slice(0, start),
           ...words.slice(start, start + size),
@@ -123,17 +146,21 @@ export function cleanAndDeduplicateWhisperSegments(segments: WhisperSegment[]): 
 
     const timeOverlap = seg.start < prev.end;
     const timeGap = seg.start - prev.end;
-    const isVeryClose = timeOverlap || timeGap <= 0.6;
+    const isVeryClose = timeOverlap || timeGap <= 0.8;
 
-    // Whisper stride can repeat a cue without placing it directly next to the
-    // original. Check a short recent window while avoiding long-range repeats
-    // that may be intentional dialogue or song lyrics.
+    // 1. Trùng lặp hoàn toàn
+    if (prevNorm === currNorm && (timeOverlap || timeGap <= 3.0)) {
+      prev.end = Math.max(prev.end, seg.end);
+      continue;
+    }
+
+    // 2. Whisper stride can repeat a cue without placing it directly next to the original
     const recentDuplicate = cleanList
       .slice(-4)
       .find((candidate) => {
         const candidateNorm = normalize(candidate.text);
         const gap = seg.start - candidate.end;
-        return candidateNorm.length >= 8 && candidateNorm === currNorm && gap <= 3.5;
+        return candidateNorm.length >= 6 && candidateNorm === currNorm && gap <= 3.5;
       });
 
     if (recentDuplicate && recentDuplicate !== prev) {
@@ -141,26 +168,49 @@ export function cleanAndDeduplicateWhisperSegments(segments: WhisperSegment[]): 
       continue;
     }
 
-    // 1. Trùng lặp hoàn toàn
-    if (prevNorm === currNorm && isVeryClose) {
-      prev.end = Math.max(prev.end, seg.end);
-      continue;
-    }
-
-    // 2. Câu sau chứa câu trước do cắt dở ở stride boundary
+    // 3. Câu sau chứa trọn vẹn câu trước do cắt dở ở stride boundary
     if (isVeryClose && currNorm.startsWith(prevNorm) && currNorm.length > prevNorm.length) {
       prev.text = seg.text;
       prev.end = Math.max(prev.end, seg.end);
       continue;
     }
 
-    // 3. Câu trước chứa câu sau
+    // 4. Câu trước chứa trọn vẹn câu sau
     if (isVeryClose && prevNorm.endsWith(currNorm) && prevNorm.length > currNorm.length) {
       prev.end = Math.max(prev.end, seg.end);
       continue;
     }
 
-    // 4. Nếu hai câu độc lập bị đè timestamp nhẹ: điều chỉnh timestamp sát video
+    // 5. Khử trùng lặp từ nối ở biên stride (Cross-Chunk Boundary Word Overlap)
+    // Ví dụ: prev = "We have to find" và seg = "to find a way out" -> cắt bớt từ lặp "to find"
+    if (isVeryClose) {
+      const prevWords = prev.text.split(/\s+/);
+      const currWords = seg.text.split(/\s+/);
+
+      let overlapCount = 0;
+      const maxOverlapCheck = Math.min(6, prevWords.length, currWords.length);
+
+      for (let k = maxOverlapCheck; k >= 2; k--) {
+        const prevTail = prevWords.slice(-k).map((w) => normalize(w)).join(' ');
+        const currHead = currWords.slice(0, k).map((w) => normalize(w)).join(' ');
+        if (prevTail && prevTail === currHead) {
+          overlapCount = k;
+          break;
+        }
+      }
+
+      if (overlapCount > 0) {
+        const trimmedWords = currWords.slice(overlapCount);
+        if (trimmedWords.length === 0) {
+          prev.end = Math.max(prev.end, seg.end);
+          continue;
+        }
+        seg.text = trimmedWords.join(' ');
+        seg.start = Math.max(seg.start, prev.end - 0.1);
+      }
+    }
+
+    // 6. Nếu hai câu độc lập bị đè timestamp nhẹ: điều chỉnh timestamp sát video
     const adjusted: WhisperSegment = { ...seg };
     if (adjusted.start < prev.end) {
       if (prev.end - prev.start > 0.8) {

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { parseSubtitle, type SubtitleCue } from '@/lib/subtitleParser';
 import { formatTimestampSRT, formatTimestampVTT } from '@/lib/whisper';
+import type { SubtitleTone } from '@/lib/vietnameseSubtitlePolisher';
 
 type TranslationCue = SubtitleCue & { translatedText: string };
 
@@ -26,6 +27,7 @@ export default function TranslatePage() {
   const router = useRouter();
   const [sourceLanguage, setSourceLanguage] = useState('auto');
   const [targetLanguage, setTargetLanguage] = useState('vi');
+  const [subtitleTone, setSubtitleTone] = useState<SubtitleTone>('natural');
   const [sourceText, setSourceText] = useState('');
   const [cues, setCues] = useState<TranslationCue[]>([]);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState('');
@@ -73,12 +75,17 @@ export default function TranslatePage() {
       const response = await fetch('/api/translate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceLanguage, targetLanguage, cues: workingCues.map(({ id, text, speaker, startTime, endTime }) => ({ id, text, speaker, startTime, endTime })) }),
+        body: JSON.stringify({
+          sourceLanguage,
+          targetLanguage,
+          tone: subtitleTone,
+          cues: workingCues.map(({ id, text, speaker, startTime, endTime }) => ({ id, text, speaker, startTime, endTime })),
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Dịch phụ đề thất bại.');
       setCues(data.cues.map((cue: TranslationCue) => ({ ...cue, translatedText: cue.text })));
-      setStatus({ text: `Đã dịch ${data.cues.length} đoạn phụ đề.` });
+      setStatus({ text: `Đã dịch ${data.cues.length} đoạn phụ đề chuẩn điện ảnh.` });
     } catch (error) {
       setStatus({ text: error instanceof Error ? error.message : 'Dịch phụ đề thất bại.', error: true });
     } finally {
@@ -129,6 +136,25 @@ export default function TranslatePage() {
             <select value={sourceLanguage} onChange={(e) => setSourceLanguage(e.target.value)} className="px-3 py-2 rounded-xl bg-surface-container-lowest border border-border-glass text-text-primary"><option value="auto">Tự động nhận diện</option>{languageOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
             <select value={targetLanguage} onChange={(e) => setTargetLanguage(e.target.value)} className="px-3 py-2 rounded-xl bg-surface-container-lowest border border-border-glass text-text-primary">{languageOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
           </div>
+          {targetLanguage === 'vi' && (
+            <div>
+              <label className="block text-[11px] font-semibold text-text-muted mb-1">
+                Phong cách xưng hô & ngữ cảnh:
+              </label>
+              <select
+                value={subtitleTone}
+                onChange={(e) => setSubtitleTone(e.target.value as SubtitleTone)}
+                className="w-full px-3 py-2 rounded-xl bg-surface-container-lowest border border-border-glass text-text-primary text-[12px]"
+              >
+                <option value="natural">🌐 Tự động theo bối cảnh (mày-tao, cậu-tớ, anh-em...)</option>
+                <option value="conversational">💬 Bạn bè / Đời thường (cậu - tớ, mày - tao)</option>
+                <option value="dramatic">🔥 Kịch tính / Hành động (mày - tao, đối đầu)</option>
+                <option value="romantic">❤️ Tình cảm / Lãng mạn (anh - em)</option>
+                <option value="period">⚔️ Cổ trang / Kiếm hiệp (ngươi - ta, huynh - đệ)</option>
+                <option value="polite">👔 Lịch sự / Công sở (tôi - anh / chị)</option>
+              </select>
+            </div>
+          )}
           <label className="border-2 border-dashed border-border-glass rounded-xl p-4 text-center cursor-pointer text-text-muted">Tải SRT/VTT<input type="file" accept=".srt,.vtt,.txt" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => loadSubtitle(String(reader.result || '')); reader.readAsText(file); }} /></label>
           <textarea value={sourceText} onChange={(e) => setSourceText(e.target.value)} onBlur={() => loadSubtitle(sourceText)} rows={14} placeholder="Dán nội dung SRT hoặc VTT..." className="w-full p-3 rounded-xl bg-surface-container-lowest border border-border-glass text-text-primary font-code-xs resize-none" />
           <button type="button" onClick={translate} disabled={busy || !sourceText.trim()} className="py-3 rounded-xl bg-gradient-to-r from-primary-container to-secondary-container text-canvas-base font-bold disabled:opacity-50">{busy ? 'Đang dịch...' : `Dịch sang ${languageOptions.find(([value]) => value === targetLanguage)?.[1] || targetLanguage}`}</button>
