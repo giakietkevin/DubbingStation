@@ -46,7 +46,7 @@ export default function VietSubWorkspacePage() {
   // Nguồn phụ đề
   const [sourceType, setSourceType] = useState<'upload_srt' | 'ai_transcribe'>('upload_srt');
   const [rawSubtitleText, setRawSubtitleText] = useState<string>('');
-  const [sourceLanguage, setSourceLanguage] = useState<string>('en');
+  const [sourceLanguage, setSourceLanguage] = useState<string>('auto');
   const [whisperModel, setWhisperModel] = useState<WhisperModelLevel>('base');
   const [subtitleTone, setSubtitleTone] = useState<SubtitleTone>('natural');
 
@@ -201,12 +201,30 @@ export default function VietSubWorkspacePage() {
         };
       });
 
+      const langNames: Record<string, string> = {
+        vi: 'Tiếng Việt 🇻🇳',
+        en: 'Tiếng Anh 🇺🇸',
+        zh: 'Tiếng Trung 🇨🇳',
+        ja: 'Tiếng Nhật 🇯🇵',
+        ko: 'Tiếng Hàn 🇰🇷',
+        fr: 'Tiếng Pháp 🇫🇷',
+        es: 'Tiếng Tây Ban Nha 🇪🇸',
+        ru: 'Tiếng Nga 🇷🇺',
+        th: 'Tiếng Thái 🇹🇭',
+        de: 'Tiếng Đức 🇩🇪',
+      };
+      const detectedName = langNames[result.language] || result.language?.toUpperCase() || 'Tự động';
+
+      if (result.language && result.language !== 'auto') {
+        setSourceLanguage(result.language);
+      }
+
       setCues(newCues);
       setOriginalCues(newCues);
       setTimingOffsetSec(0);
       setRawSubtitleText(cuesToSRT(newCues));
       setStatusMessage({
-        text: `AI đã nhận diện thành công ${newCues.length} câu thoại từ video (đã áp dụng tối ưu đón đầu khẩu hình miệng)! Bạn có thể chọn phong cách và bấm "Dịch sang Tiếng Việt".`,
+        text: `AI đã nhận diện thành công ${newCues.length} câu thoại [${detectedName}] từ video (đã tối ưu khẩu hình)! Bạn có thể chọn phong cách và bấm "Dịch sang Tiếng Việt".`,
         type: 'success',
       });
     } catch (err: any) {
@@ -636,12 +654,12 @@ export default function VietSubWorkspacePage() {
               {/* Quick Language Pills */}
               <div className="flex items-center gap-1.5 flex-wrap mb-2">
                 {[
+                  ['auto', '🌐 Tự động nhận diện'],
                   ['vi', '🇻🇳 Tiếng Việt'],
                   ['en', '🇺🇸 Tiếng Anh'],
                   ['zh', '🇨🇳 Tiếng Trung'],
                   ['ja', '🇯🇵 Tiếng Nhật'],
                   ['ko', '🇰🇷 Tiếng Hàn'],
-                  ['auto', '🌐 Tự động'],
                 ].map(([code, label]) => (
                   <button
                     key={code}

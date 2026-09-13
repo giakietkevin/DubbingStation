@@ -43,10 +43,12 @@ async function getTranscriber(modelKey: WhisperModelLevel = 'base', onProgress: 
     const transformersModuleUrl = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/dist/transformers.min.js';
     const loadPromise = import(/* webpackIgnore: true */ transformersModuleUrl).then(async ({ pipeline }) => {
       const supportsWebGPU = 'gpu' in navigator;
-      onProgress(supportsWebGPU ? `Đang tải ${modelInfo.name} (WebGPU)...` : `Đang tải ${modelInfo.name}...`);
+      onProgress(supportsWebGPU ? `Đang tải ${modelInfo.name} (WebGPU Siêu tốc)...` : `Đang tải ${modelInfo.name}...`);
 
+      // WebGPU cần fp32 để giữ nguyên độ chính xác ma trận chú ý (int8 q8 trên WebGPU gây sai lệch toán học)
+      // WASM (CPU) dùng q8 để tiết kiệm bộ nhớ RAM
       const pipelineOptions = {
-        dtype: 'q8',
+        dtype: supportsWebGPU ? 'fp32' : 'q8',
         device: supportsWebGPU ? 'webgpu' : 'wasm',
         progress_callback: (progress: { status?: string; progress?: number; file?: string }) => {
           if (progress.status === 'progress' && typeof progress.progress === 'number') {
@@ -61,7 +63,7 @@ async function getTranscriber(modelKey: WhisperModelLevel = 'base', onProgress: 
         return await pipeline('automatic-speech-recognition', modelInfo.id, pipelineOptions);
       } catch (error) {
         if (!supportsWebGPU) throw error;
-        onProgress('Chuyển sang chế độ tương thích CPU WASM...');
+        onProgress('WebGPU không khả dụng hoặc thiếu VRAM, chuyển sang CPU WASM...');
         return pipeline('automatic-speech-recognition', modelInfo.id, {
           dtype: 'q8',
           device: 'wasm',
@@ -161,12 +163,48 @@ async function extractAudio(file: File, onProgress: ProgressHandler): Promise<{ 
       samples = manualResampleToMono16k(decoded);
     }
 
-    // 2. Chuẩn hóa âm lượng (Peak Normalization): Giúp Whisper nghe rõ cả tiếng thì thầm và đàm thoại nhỏ
+    // 2. Khử lệch dòng một chiều (DC offset) và lọc tần số siêu trầm (< 75Hz)
+    removeDCOffsetAndSubsonics(samples);
+
+    // 3. Chuẩn hóa âm lượng thoại (RMS Normalization): Giúp Whisper nghe rõ cả tiếng thì thầm và đàm thoại nhỏ
     normalizeAudioSamples(samples);
 
     return { samples, durationSec };
   } finally {
     await audioContext.close();
+  }
+}
+
+/**
+ * Loại bỏ độ lệch DC (DC Offset) và lọc cắt tần số siêu trầm (< 75Hz)
+ * Ngăn chặn năng lượng tần số thấp làm hỏng log-mel filterbank của Whisper AI
+ */
+function removeDCOffsetAndSubsonics(samples: Float32Array): void {
+  const len = samples.length;
+  if (len === 0) return;
+
+  // 1. Tính giá trị trung bình DC bias
+  let sum = 0;
+  const stride = 16;
+  let count = 0;
+  for (let i = 0; i < len; i += stride) {
+    sum += samples[i];
+    count++;
+  }
+  const mean = count > 0 ? sum / count : 0;
+
+  // 2. Bộ lọc thông cao High-pass 1-pole (~75Hz ở Fs=16000)
+  // Khử tiếng ù gió, rung micro và tạp âm nền tần số thấp
+  const alpha = 0.97;
+  let prevIn = 0;
+  let prevOut = 0;
+
+  for (let i = 0; i < len; i++) {
+    const input = samples[i] - mean;
+    const output = alpha * (prevOut + input - prevIn);
+    prevIn = input;
+    prevOut = output;
+    samples[i] = output;
   }
 }
 
@@ -195,21 +233,114 @@ function manualResampleToMono16k(decoded: AudioBuffer): Float32Array {
 }
 
 /**
- * Chuẩn hóa biên độ âm thanh lên mức tối ưu 0.95 để tăng tối đa độ nhạy nhận diện của Whisper
+ * Chuẩn hóa biên độ âm thanh lên mức tối ưu cho Whisper AI
+ * Cân bằng mức âm lượng đàm thoại RMS ~ 0.08 (-22 dBFS) mà không làm vỡ âm (clipping)
  */
 function normalizeAudioSamples(samples: Float32Array): void {
   let peak = 0;
-  for (let i = 0; i < samples.length; i++) {
+  let sumSq = 0;
+  const len = samples.length;
+
+  for (let i = 0; i < len; i++) {
     const abs = Math.abs(samples[i]);
     if (abs > peak) peak = abs;
+    sumSq += abs * abs;
   }
 
-  if (peak > 0.01 && peak < 0.85) {
-    const gain = Math.min(0.95 / peak, 4.0);
-    for (let i = 0; i < samples.length; i++) {
-      samples[i] *= gain;
+  const rms = Math.sqrt(sumSq / Math.max(1, len));
+
+  if (peak > 0.005) {
+    let targetGain = 1.0;
+    // Nâng âm lượng thoại nhỏ mà không vượt ngưỡng trần 0.95
+    if (rms < 0.05) {
+      targetGain = Math.min(0.07 / Math.max(0.005, rms), 0.95 / peak, 5.0);
+    } else if (peak > 0.98) {
+      targetGain = 0.95 / peak;
+    }
+
+    if (Math.abs(targetGain - 1.0) > 0.03) {
+      for (let i = 0; i < len; i++) {
+        samples[i] = Math.max(-1.0, Math.min(1.0, samples[i] * targetGain));
+      }
     }
   }
+}
+
+/**
+ * Tự động nhận diện ngôn ngữ nói thực tế từ âm thanh bằng logit scoring của Whisper
+ * Giải quyết triệt để vấn đề Transformers.js tự ép về tiếng Anh khi language='auto'
+ */
+async function detectSpokenLanguage(
+  transcriber: any,
+  samples: Float32Array,
+  onProgress: ProgressHandler
+): Promise<string> {
+  try {
+    onProgress('Đang phân tích âm sắc để tự động nhận diện ngôn ngữ nói...');
+    const model = transcriber?.model;
+    const processor = transcriber?.processor;
+    const genConfig = model?.generation_config;
+
+    if (!model || !processor || !genConfig?.lang_to_id) {
+      return 'vi';
+    }
+
+    // Chọn đoạn 15 giây âm thanh có năng lượng cao nhất trong 45s đầu
+    const sampleRate = 16000;
+    const windowSamples = Math.min(samples.length, sampleRate * 15);
+    const maxSearch = Math.min(samples.length - windowSamples, sampleRate * 45);
+    let bestOffset = 0;
+    let maxEnergy = 0;
+
+    const step = sampleRate * 3;
+    for (let offset = 0; offset <= maxSearch; offset += step) {
+      let energy = 0;
+      const end = offset + windowSamples;
+      for (let i = offset; i < end; i += 32) {
+        energy += samples[i] * samples[i];
+      }
+      if (energy > maxEnergy) {
+        maxEnergy = energy;
+        bestOffset = offset;
+      }
+    }
+
+    const probeAudio = samples.subarray(bestOffset, bestOffset + windowSamples);
+    const features = await processor(probeAudio);
+    const input_features = features.input_features;
+
+    const startTokenId = genConfig.decoder_start_token_id ?? 50258;
+    const TensorClass = input_features.constructor;
+    const decoder_input_ids = new TensorClass('int64', new BigInt64Array([BigInt(startTokenId)]), [1, 1]);
+
+    const output = await model({
+      input_features,
+      decoder_input_ids,
+    });
+
+    const logits = output.logits ?? output;
+    if (logits && logits.data) {
+      const data = logits.data;
+      let highestScore = -Infinity;
+      let detectedLang = 'vi';
+
+      for (const [tokenStr, tokenId] of Object.entries(genConfig.lang_to_id)) {
+        const id = Number(tokenId);
+        const score = data[id];
+        if (typeof score === 'number' && score > highestScore) {
+          highestScore = score;
+          const cleanCode = tokenStr.replace(/^[<|]+|[|>]+$/g, '').trim();
+          if (cleanCode) detectedLang = cleanCode;
+        }
+      }
+
+      onProgress(`AI đã nhận diện ngôn ngữ audio: ${detectedLang.toUpperCase()}`);
+      return detectedLang;
+    }
+  } catch (err) {
+    console.warn('[Whisper] Nhận diện ngôn ngữ qua logits không thành công, fallback an toàn vi:', err);
+  }
+  return 'vi';
 }
 
 export async function transcribeVideoFile(
@@ -226,17 +357,19 @@ export async function transcribeVideoFile(
   const transcriber = await getTranscriber(modelLevel, onProgress);
   onProgress('Whisper AI đang phân tích khẩu âm và tạo mốc thời gian chuẩn xác...');
 
-  // Xác định ngôn ngữ giải mã cho Whisper
-  // Truyền mã ngôn ngữ chuẩn ISO 639-1 (vi, en, zh, ja, ko...) cho cả language và generate_kwargs
-  const langKey = language.toLowerCase().trim();
-  const whisperLang = langKey !== 'auto' ? langKey : undefined;
+  // 1. Tự động nhận diện ngôn ngữ nói chính xác nếu chọn 'auto'
+  let resolvedLang = language.toLowerCase().trim();
+  if (resolvedLang === 'auto' || !resolvedLang) {
+    resolvedLang = await detectSpokenLanguage(transcriber, samples, onProgress);
+  }
 
+  const whisperLang = resolvedLang;
   const generateKwargs: Record<string, any> = {
     task: 'transcribe',
+    language: whisperLang,
   };
-  if (whisperLang) {
-    generateKwargs.language = whisperLang;
-  }
+
+  onProgress(`Whisper AI đang bóc tách phụ đề (${whisperLang.toUpperCase()})...`);
 
   // Whisper kiến trúc chuẩn hoạt động tối ưu nhất ở cửa sổ 30 giây (chunk_length_s: 30)
   const output = await transcriber(samples, {
@@ -244,7 +377,7 @@ export async function transcribeVideoFile(
     chunk_length_s: 30,
     stride_length_s: 5,
     task: 'transcribe',
-    ...(whisperLang ? { language: whisperLang } : {}),
+    language: whisperLang,
     generate_kwargs: generateKwargs,
   });
 

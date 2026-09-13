@@ -55,13 +55,14 @@ export function removeRepeatedText(text: string): string {
   let cleaned = text.replace(/\s+/g, ' ').trim();
   if (!cleaned) return '';
 
-  // 1. L\u1ecdc c\u00e1c c\u00e2u r\u00e1c / hallucination th\u01b0\u1eddng g\u1eb7p c\u1ee7a Whisper
+  // 1. L\u1ecdc c\u00e1c c\u00e2u r\u00e1c / hallucination th\u01b0\u1eddng g\u1eb7p c\u1ee7a Whisper trong c\u00e1c \u0111o\u1ea1n im l\u1eb7ng/nh\u1ea1c n\u1ec1n
   const hallucinationPatterns = [
-    /^\s*(\*|\^|~|#|_|-|\.|\/|\\)+\s*$/i,
-    /^\s*(\[|\()?(music|applause|laughter|silence|blank_audio|ambient noise|chatter|whispering|gasp|sigh|cough)(\]|\))?\s*$/i,
-    /^\s*(\[|\()?ph\u1ee5 \u0111\u1ec1 (b\u1edfi|\u0111\u01b0\u1ee3c th\u1ef1c hi\u1ec7n|vi\u1ec7t h\u00f3a)(\]|\))?.*$/i,
-    /^\s*(\[|\()?(subtitles? by|transcribed by|captioned by|translated by|amara\.org)(\]|\))?.*$/i,
-    /^\s*(please subscribe|like and subscribe|\u0111\u0103ng k\u00fd k\u00eanh|h\u00e3y like v\u00e0 share)\.?\s*$/i,
+    /^\s*([*^~#_\-.\\/|+=:;?!,])+\s*$/i,
+    /^\s*(\[|\()?(music|applause|laughter|silence|blank_audio|ambient noise|chatter|whispering|gasp|sigh|sighs|cough|groan|groans|screams|panting|crying)(\]|\))?\s*$/i,
+    /^\s*(\[|\()?(ti\u1ebfng nh\u1ea1c|\u00e2m nh\u1ea1c|ti\u1ebfng v\u1ed7 tay|ti\u1ebfng c\u01b0\u1eddi|im l\u1eb7ng|ti\u1ebfng th\u1edf d\u00e0i|ti\u1ebfng \u0111\u1ed9ng|ti\u1ebfng \u1ed3n)(\]|\))?\s*$/i,
+    /^\s*(\[|\()?(ph\u1ee5 \u0111\u1ec1|vi\u1ec7t h\u00f3a|th\u1ef1c hi\u1ec7n)(\s+(b\u1edfi|\u0111\u01b0\u1ee3c th\u1ef1c hi\u1ec7n|vi\u1ec7t h\u00f3a|d\u1ecbch b\u1edfi))?(\]|\))?.*$/i,
+    /^\s*(\[|\()?(subtitles? by|transcribed by|captioned by|translated by|amara\.org|opensubtitles)(\]|\))?.*$/i,
+    /^\s*(please subscribe|like and subscribe|thanks for watching|thank you for watching|\u0111\u0103ng k\u00fd k\u00eanh|h\u00e3y like v\u00e0 share|c\u1ea3m \u01a1n \u0111\u00e3 theo d\u00f5i|c\u1ea3m \u01a1n c\u00e1c b\u1ea1n \u0111\u00e3 xem)\.?\s*$/i,
     /^[\u266a\u266b\u266c\s]+$/i,
   ];
 
@@ -71,14 +72,27 @@ export function removeRepeatedText(text: string): string {
     }
   }
 
-  // 2. Kh\u1eed l\u1eb7p 1 t\u1eeb ho\u1eb7c 2 t\u1eeb li\u00ean ti\u1ebfp (e.g. "Yeah yeah yeah yeah", "No no no no")
-  cleaned = cleaned.replace(/\b(\w+)(?:\s+\1\b){2,}/gi, '$1 $1');
+  // 2. Kh\u1eed l\u1eb7p 1 t\u1eeb ho\u1eb7c c\u1ee5m t\u1eeb ng\u1eafn li\u00ean ti\u1ebfp d\u00f9ng Unicode boundaries (\p{L}\p{N})
+  // Tr\u00e1nh tri\u1ec7t \u0111\u1ec3 vi\u1ec7c \b l\u00e0m \u0111\u1ee9t g\u00e3y t\u1eeb c\u00f3 d\u1ea5u ti\u1ebfng Vi\u1ec7t (r\u1ea5t, ng\u01b0\u1eddi, vi\u1ec7t, b\u1ea1n...)
+  try {
+    const repeatRegex = new RegExp('(?:^|\\s)([\\p{L}\\p{N}_\\-]+)(?:\\s+\\1){2,}(?=\\s|$)', 'giu');
+    cleaned = cleaned.replace(repeatRegex, ' $1 $1').trim();
+  } catch {
+    cleaned = cleaned.replace(/\b(\w+)(?:\s+\1\b){2,}/gi, '$1 $1').trim();
+  }
 
-  const words = cleaned.split(' ');
+  const words = cleaned.split(/\s+/).filter(Boolean);
   if (words.length < 4) return cleaned;
 
+  // Chu\u1ea9n h\u00f3a t\u1eeb b\u1ea3o t\u1ed3n 100% nguy\u00ean \u00e2m c\u00f3 d\u1ea5u ti\u1ebfng Vi\u1ec7t (d\u1ea3i \u1ea0-\u1ef9 v\u00e0 Unicode Letters)
+  let cleanWordRegex: RegExp;
+  try {
+    cleanWordRegex = new RegExp('[^\\p{L}\\p{N}]+', 'gu');
+  } catch {
+    cleanWordRegex = /[^a-z0-9\u00e0-\u1ef9\u00c0-\u1ef8]+/gi;
+  }
   const normalizedWords = words.map((word) =>
-    word.toLowerCase().replace(/[^a-z0-9\u00c0-\u024f]+/g, ''),
+    word.toLowerCase().replace(cleanWordRegex, ''),
   );
 
   for (let size = Math.min(14, Math.floor(words.length / 2)); size >= 1; size -= 1) {
@@ -128,9 +142,16 @@ export function cleanAndDeduplicateWhisperSegments(segments: WhisperSegment[]): 
 
   const cleanList: WhisperSegment[] = [];
 
+  let normRegex: RegExp;
+  try {
+    normRegex = new RegExp('[^\\p{L}\\p{N}\\s]+', 'gu');
+  } catch {
+    normRegex = /[^a-z0-9à-ỹÀ-Ỹ\s]+/gi;
+  }
+
   const normalize = (t: string) =>
     t.toLowerCase()
-      .replace(/[.,/#!$%^&*;:{}=\-_`~()?"'«»“”]/g, ' ')
+      .replace(normRegex, ' ')
       .replace(/\s+/g, ' ')
       .trim();
 
@@ -226,12 +247,69 @@ export function cleanAndDeduplicateWhisperSegments(segments: WhisperSegment[]): 
     cleanList.push(adjusted);
   }
 
-  return cleanList.map((s, idx) => ({
+  // 7. Tách các phân đoạn quá dài chứa nhiều câu thoại để phụ đề hiển thị tự nhiên
+  const finalSegments = splitLongWhisperSegments(cleanList);
+
+  return finalSegments.map((s, idx) => ({
     ...s,
     id: idx + 1,
     start: Number(s.start.toFixed(2)),
     end: Number(s.end.toFixed(2)),
   }));
+}
+
+/**
+ * Tách các phân đoạn dài (> 5.5s) có nhiều câu thành các câu thoại ngắn
+ * Giúp phụ đề ăn khớp nhịp nói và khẩu hình miệng của diễn viên
+ */
+export function splitLongWhisperSegments(segments: WhisperSegment[]): WhisperSegment[] {
+  const result: WhisperSegment[] = [];
+
+  for (const seg of segments) {
+    const duration = seg.end - seg.start;
+    const text = seg.text.trim();
+    const words = text.split(/\s+/).filter(Boolean);
+
+    // Chỉ tách khi phân đoạn dài hơn 5.5s và có ít nhất 8 từ
+    if (duration > 5.5 && words.length >= 8) {
+      // Tách câu theo các dấu câu kết thúc (. ! ? hoặc xuống dòng)
+      const rawSentences = text
+        .split(/(?<=[.!?])\s+|\n+/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      if (rawSentences.length >= 2) {
+        const totalWordCount = rawSentences.reduce(
+          (sum, s) => sum + s.split(/\s+/).filter(Boolean).length,
+          0
+        );
+
+        let currentStart = seg.start;
+        for (let i = 0; i < rawSentences.length; i++) {
+          const sText = rawSentences[i];
+          const sWords = sText.split(/\s+/).filter(Boolean).length;
+          const proportion = totalWordCount > 0 ? sWords / totalWordCount : 1 / rawSentences.length;
+          const sDuration = Math.max(0.8, duration * proportion);
+          const sEnd = i === rawSentences.length - 1 ? seg.end : Math.min(seg.end, currentStart + sDuration);
+
+          result.push({
+            id: result.length + 1,
+            start: currentStart,
+            end: sEnd,
+            text: sText,
+            speaker: seg.speaker,
+          });
+
+          currentStart = sEnd;
+        }
+        continue;
+      }
+    }
+
+    result.push({ ...seg, id: result.length + 1 });
+  }
+
+  return result;
 }
 
 /**
