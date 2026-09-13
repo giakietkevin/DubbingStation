@@ -28,6 +28,19 @@ const languageOptions: [string, string][] = [
   ['th', '🇹🇭 Tiếng Thái (Thai)'],
 ];
 
+const targetLanguageOptions: [string, string][] = [
+  ['vi', '🇻🇳 Tiếng Việt (Vietnamese) - Mặc định'],
+  ['en', '🇺🇸 Tiếng Anh (English)'],
+  ['zh', '🇨🇳 Tiếng Trung (Chinese)'],
+  ['ja', '🇯🇵 Tiếng Nhật (Japanese)'],
+  ['ko', '🇰🇷 Tiếng Hàn (Korean)'],
+  ['fr', '🇫🇷 Tiếng Pháp (French)'],
+  ['es', '🇪🇸 Tiếng Tây Ban Nha (Spanish)'],
+  ['ru', '🇷🇺 Tiếng Nga (Russian)'],
+  ['th', '🇹🇭 Tiếng Thái (Thai)'],
+  ['de', '🇩🇪 Tiếng Đức (German)'],
+];
+
 const toneOptions: [SubtitleTone, string, string][] = [
   ['natural', '🌐 Tự động theo bối cảnh (mày-tao, cậu-tớ, anh-em...)', 'Tự động bắt mạch cảm xúc, xưng hô linh hoạt theo ngữ cảnh'],
   ['conversational', '💬 Đời thường / Thân mật (cậu - tớ, mày - tao)', 'Xưng hô thân mật tự nhiên như hội thoại quán cà phê'],
@@ -47,6 +60,7 @@ export default function VietSubWorkspacePage() {
   const [sourceType, setSourceType] = useState<'upload_srt' | 'ai_transcribe'>('upload_srt');
   const [rawSubtitleText, setRawSubtitleText] = useState<string>('');
   const [sourceLanguage, setSourceLanguage] = useState<string>('auto');
+  const [targetLanguage, setTargetLanguage] = useState<string>('vi'); // Mặc định dịch sang Tiếng Việt
   const [whisperModel, setWhisperModel] = useState<WhisperModelLevel>('base');
   const [subtitleTone, setSubtitleTone] = useState<SubtitleTone>('natural');
 
@@ -121,6 +135,13 @@ export default function VietSubWorkspacePage() {
   const activeCue = useMemo(() => {
     return cues.find((c) => currentTime >= c.startTime && currentTime <= c.endTime);
   }, [cues, currentTime]);
+
+  // Nhãn ngắn gọn của ngôn ngữ đích (Ví dụ: "🇻🇳 Tiếng Việt", "🇺🇸 Tiếng Anh")
+  const targetLangShortName = useMemo(() => {
+    const found = targetLanguageOptions.find(([val]) => val === targetLanguage);
+    if (!found) return targetLanguage;
+    return found[1].split('(')[0].trim();
+  }, [targetLanguage]);
 
   // Xử lý upload file video
   const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -224,7 +245,7 @@ export default function VietSubWorkspacePage() {
       setTimingOffsetSec(0);
       setRawSubtitleText(cuesToSRT(newCues));
       setStatusMessage({
-        text: `AI đã nhận diện thành công ${newCues.length} câu thoại [${detectedName}] từ video (đã tối ưu khẩu hình)! Bạn có thể chọn phong cách và bấm "Dịch sang Tiếng Việt".`,
+        text: `AI đã nhận diện thành công ${newCues.length} câu thoại [${detectedName}] từ video (đã tối ưu khẩu hình)! Bạn có thể chọn ngôn ngữ đích và bấm dịch.`,
         type: 'success',
       });
     } catch (err: any) {
@@ -238,15 +259,21 @@ export default function VietSubWorkspacePage() {
     }
   };
 
-  // Dịch phụ đề sang Tiếng Việt (VietSub AI)
-  const handleTranslateToVietnamese = async () => {
+  // Dịch phụ đề (Mặc định Tiếng Việt hoặc ngôn ngữ đích được chọn)
+  const handleTranslateSubtitles = async () => {
     if (cues.length === 0) {
       setStatusMessage({ text: 'Chưa có phụ đề để dịch. Hãy tải file SRT hoặc nhận diện từ video.', type: 'error' });
       return;
     }
 
     setIsTranslating(true);
-    setStatusMessage({ text: 'Đang kết nối AI để dịch toàn bộ phụ đề sang Tiếng Việt tự nhiên...', type: 'info' });
+    setStatusMessage({
+      text:
+        targetLanguage === 'vi'
+          ? 'Đang kết nối AI để dịch toàn bộ phụ đề sang Tiếng Việt tự nhiên...'
+          : `Đang kết nối AI để dịch toàn bộ phụ đề sang ${targetLangShortName}...`,
+      type: 'info',
+    });
 
     try {
       const response = await fetch('/api/translate', {
@@ -254,7 +281,7 @@ export default function VietSubWorkspacePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sourceLanguage: sourceLanguage === 'auto' ? 'auto' : sourceLanguage,
-          targetLanguage: 'vi',
+          targetLanguage,
           tone: subtitleTone,
           cues: cues.map(({ id, text, speaker, startTime, endTime }) => ({
             id,
@@ -279,7 +306,10 @@ export default function VietSubWorkspacePage() {
       setCues(translatedCues);
       setRawSubtitleText(cuesToSRT(translatedCues));
       setStatusMessage({
-        text: `Đã dịch hoàn tất ${translatedCues.length} câu sang Tiếng Việt chuẩn điện ảnh (${toneOptions.find(([val]) => val === subtitleTone)?.[1]})!`,
+        text:
+          targetLanguage === 'vi'
+            ? `Đã dịch hoàn tất ${translatedCues.length} câu sang Tiếng Việt chuẩn điện ảnh (${toneOptions.find(([val]) => val === subtitleTone)?.[1]})!`
+            : `Đã dịch hoàn tất ${translatedCues.length} câu sang ${targetLangShortName}!`,
         type: 'success',
       });
     } catch (err: any) {
@@ -424,7 +454,7 @@ export default function VietSubWorkspacePage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${videoFile ? videoFile.name.replace(/\.[^/.]+$/, '') : 'subtitles'}_vietsub.srt`;
+    a.download = `${videoFile ? videoFile.name.replace(/\.[^/.]+$/, '') : 'subtitles'}_${targetLanguage === 'vi' ? 'vietsub' : `${targetLanguage}_sub`}.srt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -689,6 +719,56 @@ export default function VietSubWorkspacePage() {
               </select>
             </div>
 
+            {/* Ngôn ngữ muốn dịch sang (Đích) - Mặc định Tiếng Việt */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[11px] font-semibold text-text-muted flex items-center gap-1">
+                  <span className="material-symbols-outlined text-primary-container text-[15px]">translate</span>
+                  <span>Dịch sang ngôn ngữ (Đích):</span>
+                </label>
+                <span className="text-[10px] text-primary-container font-semibold px-1.5 py-0.5 bg-primary-container/15 rounded border border-primary-container/30">
+                  Mặc định: Tiếng Việt
+                </span>
+              </div>
+
+              {/* Quick Target Language Pills */}
+              <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                {[
+                  ['vi', '🇻🇳 Tiếng Việt'],
+                  ['en', '🇺🇸 Tiếng Anh'],
+                  ['zh', '🇨🇳 Tiếng Trung'],
+                  ['ja', '🇯🇵 Tiếng Nhật'],
+                  ['ko', '🇰🇷 Tiếng Hàn'],
+                  ['fr', '🇫🇷 Tiếng Pháp'],
+                ].map(([code, label]) => (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setTargetLanguage(code)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all border ${
+                      targetLanguage === code
+                        ? 'bg-primary-container/20 text-primary-container border-primary-container font-bold shadow-sm'
+                        : 'bg-surface-container/60 text-text-muted border-border-glass hover:text-text-primary hover:bg-surface-container'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <select
+                value={targetLanguage}
+                onChange={(e) => setTargetLanguage(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-surface-container border border-border-glass text-text-primary text-body-sm focus:outline-none focus:border-primary-container"
+              >
+                {targetLanguageOptions.map(([val, label]) => (
+                  <option key={val} value={val} className="bg-surface-card">
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Phong cách dịch thuật & xưng hô theo bối cảnh */}
             <div>
               <label className="block text-[11px] font-semibold text-text-muted mb-1 flex items-center gap-1">
@@ -767,23 +847,31 @@ export default function VietSubWorkspacePage() {
               </div>
             )}
 
-            {/* Nút bấm dịch sang Tiếng Việt */}
+            {/* Nút bấm dịch phụ đề */}
             <div className="pt-2 border-t border-border-glass/50 flex flex-col gap-2">
               <button
                 type="button"
-                onClick={handleTranslateToVietnamese}
+                onClick={handleTranslateSubtitles}
                 disabled={isTranslating || cues.length === 0}
                 className="w-full py-3 rounded-xl bg-gradient-to-r from-primary-container to-secondary-container text-canvas-base font-bold text-label-md hover:opacity-95 transition-opacity flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
               >
                 {isTranslating ? (
                   <>
                     <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
-                    <span>Đang dịch sang Tiếng Việt...</span>
+                    <span>
+                      {targetLanguage === 'vi'
+                        ? 'Đang dịch sang Tiếng Việt...'
+                        : `Đang dịch sang ${targetLangShortName}...`}
+                    </span>
                   </>
                 ) : (
                   <>
                     <span className="material-symbols-outlined text-[20px]">g_translate</span>
-                    <span>Dịch sang Tiếng Việt (VietSub AI)</span>
+                    <span>
+                      {targetLanguage === 'vi'
+                        ? 'Dịch sang Tiếng Việt (VietSub AI)'
+                        : `Dịch sang ${targetLangShortName} (AI)`}
+                    </span>
                   </>
                 )}
               </button>
