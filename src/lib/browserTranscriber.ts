@@ -343,6 +343,63 @@ async function detectSpokenLanguage(
   return 'vi';
 }
 
+/**
+ * Chuyển đổi kết quả phân tích từng chunk của Whisper thành danh sách WhisperSegment chuẩn xác
+ */
+function parseWhisperOutputToSegments(
+  output: any,
+  blockStartTimeSec: number,
+  blockDurationSec: number,
+  startIndex: number
+): WhisperSegment[] {
+  const chunks = Array.isArray(output.chunks) ? output.chunks : [];
+  const segments: WhisperSegment[] = [];
+
+  for (let index = 0; index < chunks.length; index++) {
+    const chunk = chunks[index];
+    const [start, end] = chunk.timestamp || [null, null];
+    const text = (chunk.text || '').trim();
+    if (!text) continue;
+
+    const wordCount = text.split(/\s+/).filter(Boolean).length;
+    const safeStartRel = Number(start ?? (index * 4));
+
+    let estimatedDuration = Math.max(0.6, Math.min(6.0, wordCount * 0.38 + 0.3));
+    const nextChunk = chunks[index + 1];
+    const nextStart = nextChunk?.timestamp?.[0];
+    if (typeof nextStart === 'number' && nextStart > safeStartRel) {
+      estimatedDuration = Math.min(estimatedDuration, Math.max(0.4, nextStart - safeStartRel));
+    }
+
+    const safeEndRel = typeof end === 'number' && end > safeStartRel
+      ? Number(end)
+      : Math.min(blockDurationSec, safeStartRel + estimatedDuration);
+
+    const absStart = Math.max(0, Math.round((blockStartTimeSec + safeStartRel) * 1000) / 1000);
+    const absEnd = Math.max(absStart + 0.3, Math.round((blockStartTimeSec + safeEndRel) * 1000) / 1000);
+
+    if (absEnd > absStart) {
+      segments.push({
+        id: startIndex + segments.length + 1,
+        start: absStart,
+        end: absEnd,
+        text,
+      });
+    }
+  }
+
+  if (segments.length === 0 && output.text?.trim()) {
+    segments.push({
+      id: startIndex + 1,
+      start: Math.round(blockStartTimeSec * 1000) / 1000,
+      end: Math.round((blockStartTimeSec + blockDurationSec) * 1000) / 1000,
+      text: output.text.trim(),
+    });
+  }
+
+  return segments;
+}
+
 export async function transcribeVideoFile(
   file: File,
   language: string,
@@ -355,7 +412,7 @@ export async function transcribeVideoFile(
 
   const { samples, durationSec } = await extractAudio(file, onProgress);
   const transcriber = await getTranscriber(modelLevel, onProgress);
-  onProgress('Whisper AI đang phân tích khẩu âm và tạo mốc thời gian chuẩn xác...');
+  onProgress('Whisper AI đang phân tích khẩu âm và kiểm tra ngôn ngữ...');
 
   // 1. Tự động nhận diện ngôn ngữ nói chính xác nếu chọn 'auto'
   let resolvedLang = language.toLowerCase().trim();
@@ -369,62 +426,79 @@ export async function transcribeVideoFile(
     language: whisperLang,
   };
 
-  onProgress(`Whisper AI đang bóc tách phụ đề (${whisperLang.toUpperCase()})...`);
+  const allRawSegments: WhisperSegment[] = [];
+  const sampleRate = 16000;
+  const totalMins = Math.max(1, Math.ceil(durationSec / 60));
 
-  // Whisper kiến trúc chuẩn hoạt động tối ưu nhất ở cửa sổ 30 giây (chunk_length_s: 30)
-  const output = await transcriber(samples, {
-    return_timestamps: true,
-    chunk_length_s: 30,
-    stride_length_s: 5,
-    task: 'transcribe',
-    language: whisperLang,
-    generate_kwargs: generateKwargs,
-  });
+  // Đối với video dài (> 60s, ví dụ video 45 phút):
+  // Chia thành các khối 60 giây để:
+  // - Cập nhật tiến độ % và phút thực tế liên tục trên giao diện (tránh cảm giác đơ/treo)
+  // - Nhường luồng cho trình duyệt cập nhật UI, không bị OOM tràn bộ nhớ WebGPU/WASM
+  const BLOCK_DURATION_SEC = 60;
+  const samplesPerBlock = BLOCK_DURATION_SEC * sampleRate;
+  const totalBlocks = Math.ceil(durationSec / BLOCK_DURATION_SEC);
 
-  const chunks = Array.isArray(output.chunks) ? output.chunks : [];
-  const rawSegments: WhisperSegment[] = chunks
-    .map((chunk: { timestamp?: [number | null, number | null]; text?: string }, index: number) => {
-      const [start, end] = chunk.timestamp || [null, null];
-      const text = (chunk.text || '').trim();
-      const wordCount = text.split(/\s+/).filter(Boolean).length;
+  if (totalBlocks <= 1) {
+    onProgress(`Whisper AI đang bóc tách phụ đề (${whisperLang.toUpperCase()})...`);
+    const output = await transcriber(samples, {
+      return_timestamps: true,
+      chunk_length_s: 30,
+      stride_length_s: 5,
+      task: 'transcribe',
+      language: whisperLang,
+      generate_kwargs: generateKwargs,
+    });
+    const segs = parseWhisperOutputToSegments(output, 0, durationSec, 0);
+    allRawSegments.push(...segs);
+  } else {
+    for (let b = 0; b < totalBlocks; b++) {
+      const startSample = b * samplesPerBlock;
+      const endSample = Math.min(samples.length, (b + 1) * samplesPerBlock);
+      const blockSamples = samples.subarray(startSample, endSample);
+      const blockStartTimeSec = startSample / sampleRate;
+      const currentBlockDurSec = (endSample - startSample) / sampleRate;
 
-      const safeStart = Number(start ?? (index * 4));
+      const percent = Math.round((b / totalBlocks) * 100);
+      const currentMins = Math.floor(blockStartTimeSec / 60);
 
-      // Tính thời lượng tự nhiên dựa trên số từ thoại thay vì gán cứng 3.0s khi thiếu end timestamp
-      let estimatedDuration = Math.max(0.6, Math.min(6.0, wordCount * 0.38 + 0.3));
-      const nextChunk = chunks[index + 1];
-      const nextStart = nextChunk?.timestamp?.[0];
-      if (typeof nextStart === 'number' && nextStart > safeStart) {
-        estimatedDuration = Math.min(estimatedDuration, Math.max(0.4, nextStart - safeStart));
-      }
+      onProgress(
+        `Đang bóc tách AI: ${percent}% (Đã xong ${currentMins}/${totalMins} phút) - Khối ${b + 1}/${totalBlocks}...`
+      );
 
-      const safeEnd = typeof end === 'number' && end > safeStart
-        ? Number(end)
-        : Math.min(durationSec, safeStart + estimatedDuration);
+      const blockOutput = await transcriber(blockSamples, {
+        return_timestamps: true,
+        chunk_length_s: 30,
+        stride_length_s: 5,
+        task: 'transcribe',
+        language: whisperLang,
+        generate_kwargs: generateKwargs,
+      });
 
-      return {
-        id: index + 1,
-        start: Math.max(0, safeStart),
-        end: Math.max(safeStart + 0.3, safeEnd),
-        text,
-      };
-    })
-    .filter((segment: WhisperSegment) => segment.text && segment.text.length > 0 && segment.end > segment.start);
+      const blockSegs = parseWhisperOutputToSegments(
+        blockOutput,
+        blockStartTimeSec,
+        currentBlockDurSec,
+        allRawSegments.length
+      );
+      allRawSegments.push(...blockSegs);
 
-  if (rawSegments.length === 0 && output.text?.trim()) {
-    rawSegments.push({ id: 1, start: 0, end: durationSec, text: output.text.trim() });
+      // Nhường luồng 40ms để trình duyệt cập nhật giao diện và giải phóng RAM tạm thời
+      await new Promise((resolve) => setTimeout(resolve, 40));
+    }
   }
 
-  if (rawSegments.length === 0) {
+  if (allRawSegments.length === 0) {
     throw new Error('Whisper không tìm thấy lời thoại rõ ràng trong video này.');
   }
 
+  onProgress(`Đã nhận diện xong! Đang tinh chỉnh và khử lặp ${allRawSegments.length} câu thoại...`);
+
   // Khử trùng lặp và căn chỉnh sát timeline video, không làm mất thoại
-  const segments = cleanAndDeduplicateWhisperSegments(rawSegments);
+  const segments = cleanAndDeduplicateWhisperSegments(allRawSegments);
 
   return {
-    text: output.text?.trim() || segments.map((s) => s.text).join(' '),
-    language: whisperLang || String(output.language || 'auto'),
+    text: segments.map((s) => s.text).join(' '),
+    language: whisperLang || String(language || 'auto'),
     durationSec,
     segments,
   };

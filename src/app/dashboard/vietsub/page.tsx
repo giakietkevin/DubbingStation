@@ -826,6 +826,30 @@ export default function VietSubWorkspacePage() {
                 <p className="text-[10.5px] text-text-secondary leading-relaxed">
                   Mô hình Whisper Base sẽ chạy trực tiếp trên GPU/CPU trình duyệt bằng âm thanh 16kHz khử nhiễu, tạo timestamp chuẩn xác từng mili-giây.
                 </p>
+
+                {/* Cảnh báo / Hướng dẫn tối ưu khi video dài (> 5 phút hoặc 45 phút) */}
+                {videoDuration > 300 && (
+                  <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 text-[11px] space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-amber-400">
+                      <span className="material-symbols-outlined text-[16px]">info</span>
+                      <span>Video dài ~{Math.round(videoDuration / 60)} phút</span>
+                    </div>
+                    <p className="text-[10.5px] leading-relaxed text-amber-100/90">
+                      AI xử lý trực tiếp trên trình duyệt của máy. Để nhanh hơn gấp 4 lần, bạn nên chọn <strong>🚀 Whisper Tiny</strong> hoặc giữ tab trình duyệt luôn mở (tránh chuyển tab kẻo bị trình duyệt giảm tốc độ).
+                    </p>
+                    {whisperModel !== 'tiny' && (
+                      <button
+                        type="button"
+                        onClick={() => setWhisperModel('tiny')}
+                        className="mt-1 px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold text-[10px] flex items-center gap-1 border border-amber-500/40"
+                      >
+                        <span className="material-symbols-outlined text-[12px]">bolt</span>
+                        <span>Chuyển sang Whisper Tiny để bóc nhanh</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={handleAutoTranscribeFromVideo}
