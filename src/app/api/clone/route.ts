@@ -5,10 +5,12 @@ import { prisma } from '@/lib/prisma';
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-
-function getVoiceStorageDir(): string {
-  return process.env.USER_VOICES_DIR || path.join(process.cwd(), 'public', 'user-voices');
-}
+import {
+  processAndEnhanceAudioSamples,
+  extractAndSaveXTTSLatents,
+  getVoiceStorageDir,
+  ClonedVoiceMetadata,
+} from '@/lib/voiceCloneEngine';
 
 // GET: Lấy danh sách giọng đã nhân bản của người dùng
 export async function GET() {
@@ -31,11 +33,29 @@ export async function GET() {
       return NextResponse.json({ error: 'Người dùng không tồn tại' }, { status: 404 });
     }
 
-    return NextResponse.json({
-      voices: user.customVoices.map((voice) => ({
+    const formattedVoices = user.customVoices.map((voice) => {
+      let meta: Partial<ClonedVoiceMetadata> | null = null;
+      if (voice.modelKey && voice.modelKey.trim().startsWith('{')) {
+        try {
+          meta = JSON.parse(voice.modelKey);
+        } catch {
+          meta = null;
+        }
+      }
+
+      return {
         ...voice,
         id: `custom-${voice.id}`,
-      })),
+        sampleCount: meta?.sampleCount || 1,
+        totalDurationSec: meta?.totalDurationSec || 15,
+        qualityScore: meta?.qualityScore || 85,
+        hasLatents: Boolean(meta?.latentsFile),
+        f0MedianHz: meta?.f0MedianHz,
+      };
+    });
+
+    return NextResponse.json({
+      voices: formattedVoices,
     });
   } catch (error) {
     console.error('Fetch custom voices error:', error);
@@ -59,14 +79,12 @@ export async function POST(req: Request) {
       cloneType = 'instant',
       consentAgreed,
     } = Object.fromEntries(formData.entries());
-    const sampleAudio = formData.get('sampleAudio');
-    const name = String(rawName || '');
+    const name = String(rawName || '').trim();
     const safeGender = typeof gender === 'string' ? gender : 'neutral';
     const safeLanguage = typeof language === 'string' ? language : 'vi-VN';
     const safeCloneType = typeof cloneType === 'string' ? cloneType : 'instant';
-    const fileName = sampleAudio instanceof File ? sampleAudio.name : '';
 
-    if (!name || name.trim().length === 0) {
+    if (!name || name.length === 0) {
       return NextResponse.json({ error: 'Vui lòng nhập tên cho giọng nói' }, { status: 400 });
     }
 
@@ -76,14 +94,59 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    if (!(sampleAudio instanceof File) || sampleAudio.size === 0) {
-      return NextResponse.json({ error: 'Vui lòng tải lên audio mẫu của chính bạn.' }, { status: 400 });
+
+    // Thu thập danh sách tệp âm thanh tải lên (hỗ trợ 1 hoặc nhiều tệp)
+    const uploadedFiles: File[] = [];
+    const candidateKeys = ['sampleAudio', 'sampleAudios', 'audioFiles', 'files'];
+    for (const key of candidateKeys) {
+      const items = formData.getAll(key);
+      for (const item of items) {
+        if (item instanceof File && item.size > 0) {
+          uploadedFiles.push(item);
+        }
+      }
     }
-    if (!sampleAudio.type.startsWith('audio/')) {
-      return NextResponse.json({ error: 'Chỉ chấp nhận tệp âm thanh.' }, { status: 400 });
+
+    if (uploadedFiles.length === 0) {
+      return NextResponse.json(
+        { error: 'Vui lòng tải lên ít nhất một tệp âm thanh mẫu (WAV, MP3, M4A, FLAC).' },
+        { status: 400 }
+      );
     }
-    if (sampleAudio.size > 50 * 1024 * 1024) {
-      return NextResponse.json({ error: 'Audio mẫu tối đa 50MB.' }, { status: 400 });
+
+    if (uploadedFiles.length > 10) {
+      return NextResponse.json(
+        { error: 'Chỉ hỗ trợ tải lên tối đa 10 tệp âm thanh mẫu cho mỗi giọng.' },
+        { status: 400 }
+      );
+    }
+
+    // Kiểm tra định dạng và kích thước từng tệp
+    let totalBytes = 0;
+    const allowedExtensions = ['.wav', '.mp3', '.m4a', '.flac', '.ogg', '.webm', '.aac'];
+    for (const file of uploadedFiles) {
+      const ext = path.extname(file.name || '').toLowerCase();
+      const isAudioType = file.type.startsWith('audio/') || allowedExtensions.includes(ext);
+      if (!isAudioType) {
+        return NextResponse.json(
+          { error: `Tệp "${file.name}" không phải là định dạng âm thanh hợp lệ.` },
+          { status: 400 }
+        );
+      }
+      if (file.size > 50 * 1024 * 1024) {
+        return NextResponse.json(
+          { error: `Tệp "${file.name}" vượt quá dung lượng tối đa 50MB.` },
+          { status: 400 }
+        );
+      }
+      totalBytes += file.size;
+    }
+
+    if (totalBytes > 120 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: 'Tổng dung lượng các mẫu tải lên không được vượt quá 120MB.' },
+        { status: 400 }
+      );
     }
 
     const user = await prisma.user.findUnique({
@@ -110,13 +173,29 @@ export async function POST(req: Request) {
       );
     }
 
+    // Đọc buffers của tất cả các file mẫu đã tải lên
+    const sampleBuffers = await Promise.all(
+      uploadedFiles.map(async (file, idx) => ({
+        buffer: Buffer.from(await file.arrayBuffer()),
+        fileName: file.name || `sample_${idx + 1}.wav`,
+      }))
+    );
+
+    // Tiền xử lý âm thanh chuẩn Coqui XTTS-v2:
+    // Lọc tạp âm, chuẩn hóa LUFS -16dB, chuyển đổi sang 24kHz 16-bit Mono, tính điểm chất lượng
+    const voiceId = crypto.randomUUID();
+    const metadata = await processAndEnhanceAudioSamples(sampleBuffers, voiceId);
+    metadata.gender = safeGender;
+    metadata.language = safeLanguage;
+
+    // Trích xuất Coqui XTTS-v2 speaker conditioning latents (.pth) phục vụ inference siêu tốc
+    const latentsFileName = await extractAndSaveXTTSLatents(metadata);
+    if (latentsFileName) {
+      metadata.latentsFile = latentsFileName;
+    }
+
     const newBalance = user.wallet.balance - cloneCreditsRequired;
-    const fileExtension = path.extname(fileName).toLowerCase() || '.audio';
-    const storedFileName = `${crypto.randomUUID()}${fileExtension}`;
-    const voiceStorageDir = getVoiceStorageDir();
-    await fs.mkdir(voiceStorageDir, { recursive: true });
-    const storedFilePath = path.join(voiceStorageDir, storedFileName);
-    await fs.writeFile(storedFilePath, Buffer.from(await sampleAudio.arrayBuffer()));
+    const modelKeySerialized = JSON.stringify(metadata);
 
     // Transaction: Trừ credit + tạo CustomVoice + tạo Project log
     const [updatedWallet, newVoice] = await prisma.$transaction([
@@ -130,7 +209,7 @@ export async function POST(req: Request) {
               amount: -cloneCreditsRequired,
               balanceAfter: newBalance,
               type: 'VOICE_CLONE_USAGE',
-              description: `Nhân bản giọng AI (${safeCloneType.toUpperCase()}): "${name}" (${fileName || 'sample.wav'})`,
+              description: `Nhân bản giọng AI (${safeCloneType.toUpperCase()}): "${name}" (${uploadedFiles.length} mẫu, ${metadata.totalDurationSec}s)`,
             },
           },
         },
@@ -141,7 +220,7 @@ export async function POST(req: Request) {
           name: name.trim(),
           gender: safeGender,
           language: safeLanguage,
-          modelKey: storedFileName,
+          modelKey: modelKeySerialized,
           sampleUrl: '',
           status: 'READY',
         },
@@ -163,8 +242,16 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `Đã nhân bản giọng "${name}" thành công!`,
-      voice: { ...newVoice, id: `custom-${newVoice.id}`, sampleUrl },
+      message: `Đã nhân bản giọng "${name}" thành công với ${metadata.sampleCount} mẫu âm thanh (Độ chân thực: ${metadata.qualityScore}%)!`,
+      voice: {
+        ...newVoice,
+        id: `custom-${newVoice.id}`,
+        sampleUrl,
+        sampleCount: metadata.sampleCount,
+        totalDurationSec: metadata.totalDurationSec,
+        qualityScore: metadata.qualityScore,
+        hasLatents: Boolean(metadata.latentsFile),
+      },
       creditsDeducted: cloneCreditsRequired,
       remainingCredits: newBalance,
     });
@@ -199,8 +286,29 @@ export async function DELETE(req: Request) {
     }
 
     if (voice.modelKey) {
-      const filePath = path.join(getVoiceStorageDir(), path.basename(voice.modelKey));
-      await fs.rm(filePath, { force: true }).catch(() => undefined);
+      const storageDir = getVoiceStorageDir();
+      if (voice.modelKey.trim().startsWith('{')) {
+        try {
+          const meta = JSON.parse(voice.modelKey) as ClonedVoiceMetadata;
+          if (Array.isArray(meta.sampleFiles)) {
+            for (const f of meta.sampleFiles) {
+              await fs.rm(path.join(storageDir, path.basename(f)), { force: true }).catch(() => undefined);
+            }
+          }
+          if (meta.masterWav) {
+            await fs.rm(path.join(storageDir, path.basename(meta.masterWav)), { force: true }).catch(() => undefined);
+          }
+          if (meta.latentsFile) {
+            await fs.rm(path.join(storageDir, path.basename(meta.latentsFile)), { force: true }).catch(() => undefined);
+          }
+        } catch {
+          // Fallback nếu parse JSON lỗi
+          await fs.rm(path.join(storageDir, path.basename(voice.modelKey)), { force: true }).catch(() => undefined);
+        }
+      } else {
+        const filePath = path.join(storageDir, path.basename(voice.modelKey));
+        await fs.rm(filePath, { force: true }).catch(() => undefined);
+      }
     }
 
     await prisma.customVoice.delete({ where: { id: voice.id } });

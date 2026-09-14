@@ -1,5 +1,10 @@
-coqui-tts>=0.24.0
-numpy<2.0.0
-scipy
-soundfile
-pydub
+# Coqui XTTS-v2 & Voice Cloning Dependencies
+coqui-tts>=0.22.0
+torch>=2.1.0
+torchaudio>=2.1.0
+soundfile>=0.12.1
+scipy>=1.11.0
+numpy>=1.24.0
+fastapi>=0.109.0
+uvicorn>=0.27.0
+pydantic>=2.5.0

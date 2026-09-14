@@ -42,13 +42,23 @@ export async function GET(
   }
 
   try {
-    const fileName = path.basename(voice.modelKey);
+    let targetFileName = voice.modelKey;
+    if (voice.modelKey.trim().startsWith('{')) {
+      try {
+        const meta = JSON.parse(voice.modelKey);
+        targetFileName = meta.masterWav || (Array.isArray(meta.sampleFiles) ? meta.sampleFiles[0] : '');
+      } catch {
+        targetFileName = voice.modelKey;
+      }
+    }
+
+    const fileName = path.basename(targetFileName);
     const filePath = path.join(getVoiceStorageDir(), fileName);
     const audio = await fs.readFile(filePath);
     const extension = path.extname(fileName).toLowerCase();
     return new NextResponse(audio, {
       headers: {
-        'Content-Type': contentTypes[extension] || 'application/octet-stream',
+        'Content-Type': contentTypes[extension] || 'audio/wav',
         'Content-Length': audio.byteLength.toString(),
         'Content-Disposition': `inline; filename="${fileName.replace(/"/g, '')}"`,
         'Cache-Control': 'private, no-store',

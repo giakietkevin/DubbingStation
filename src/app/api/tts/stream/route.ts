@@ -9,6 +9,7 @@ import { synthesizeWithGoogle } from '@/lib/tts/google';
 import { synthesizeWithDirectEdgeTTS } from '@/lib/tts/edgeDirect';
 import { applyVocalTimbreDSP } from '@/lib/tts/dsp';
 import { synthesizeWithXTTS } from '@/lib/tts/xtts';
+import { synthesizeClonedAudio } from '@/lib/voiceCloneEngine';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -427,20 +428,19 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'Không tìm thấy audio reference của voice clone.' }, { status: 404 });
       }
 
-      const userVoicesDir = process.env.USER_VOICES_DIR || join(process.cwd(), 'public', 'user-voices');
-      const generatedDir = process.env.GENERATED_DIR || join(process.cwd(), 'public', 'generated');
-      const referencePath = join(userVoicesDir, basename(customVoice.modelKey));
-      const outputPath = join(generatedDir, `xtts-${crypto.randomUUID()}.wav`);
-      const buffer = await synthesizeWithXTTS({
-        text: cleanAndChunkText(text, 4000).join(' '),
-        speakerWav: referencePath,
+      const cleanText = cleanAndChunkText(text, 4000).join(' ');
+      const buffer = await synthesizeClonedAudio({
+        voiceModelKey: customVoice.modelKey,
+        text: cleanText,
         language: customVoice.language,
-        outputPath,
         speed,
+        gender: customVoice.gender || undefined,
       });
-      if (!buffer) {
-        return NextResponse.json({ error: 'XTTS chưa sẵn sàng. Hãy cài Coqui XTTS và thử lại.' }, { status: 503 });
+
+      if (!buffer || buffer.length === 0) {
+        return NextResponse.json({ error: 'Không thể tổng hợp giọng từ voice clone này.' }, { status: 503 });
       }
+
       return new NextResponse(new Uint8Array(buffer), {
         status: 200,
         headers: {

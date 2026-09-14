@@ -22,26 +22,78 @@ const languageMap: Record<string, string> = {
   fr: 'fr',
   'de-DE': 'de',
   de: 'de',
+  'it-IT': 'it',
+  it: 'it',
+  'pt-BR': 'pt',
+  pt: 'pt',
+  'ru-RU': 'ru',
+  ru: 'ru',
+  'tr-TR': 'tr',
+  tr: 'tr',
 };
 
 export interface XTTSSynthesizeOptions {
   text: string;
-  speakerWav: string;
+  speakerWav: string | string[];
+  latentsPath?: string;
   language: string;
   outputPath: string;
   speed?: number;
+  temperature?: number;
+  repetitionPenalty?: number;
 }
 
 export async function synthesizeWithXTTS({
   text,
   speakerWav,
+  latentsPath,
   language,
   outputPath,
   speed = 1.0,
+  temperature = 0.75,
+  repetitionPenalty = 5.0,
 }: XTTSSynthesizeOptions): Promise<Buffer | null> {
-  if (!existsSync(speakerWav)) {
-    console.error(`[XTTS] Không tìm thấy audio reference tại: ${speakerWav}`);
-    throw new Error('Không tìm thấy audio reference của voice clone.');
+  const safeLang = languageMap[language] || language.split('-')[0].toLowerCase() || 'vi';
+
+  // 1. Kiểm tra nếu có XTTS API Server độc lập (ví dụ: RunPod, GPU worker, hoặc local FastAPI)
+  const xttsApiUrl = process.env.XTTS_API_URL;
+  if (xttsApiUrl && xttsApiUrl.trim().startsWith('http')) {
+    try {
+      const wavList = Array.isArray(speakerWav) ? speakerWav : [speakerWav];
+      const res = await fetch(`${xttsApiUrl.replace(/\/$/, '')}/synthesize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          speaker_wavs: wavList,
+          language: safeLang,
+          speed,
+          temperature,
+          repetition_penalty: repetitionPenalty,
+        }),
+      });
+
+      if (res.ok) {
+        const arrayBuf = await res.arrayBuffer();
+        if (arrayBuf.byteLength > 1024) {
+          const buf = Buffer.from(arrayBuf);
+          await fs.mkdir(path.dirname(outputPath), { recursive: true });
+          await fs.writeFile(outputPath, buf);
+          return buf;
+        }
+      }
+    } catch (apiErr) {
+      console.warn('[XTTS] API server call failed, trying local Python:', apiErr);
+    }
+  }
+
+  // 2. Chạy Python CLI cục bộ (scripts/xtts_synthesize.py)
+  const wavList = Array.isArray(speakerWav) ? speakerWav : [speakerWav];
+  const validWavs = wavList.filter((p) => existsSync(p));
+
+  if (validWavs.length === 0 && (!latentsPath || !existsSync(latentsPath))) {
+    console.error('[XTTS] Không tìm thấy audio reference hoặc latents file của voice clone.');
+    return null;
   }
 
   const python =
@@ -52,22 +104,34 @@ export async function synthesizeWithXTTS({
 
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
 
-  const safeLang = languageMap[language] || language.split('-')[0].toLowerCase() || 'vi';
-
   const args = [
     script,
     '--text',
     text.slice(0, 4000),
-    '--speaker-wav',
-    speakerWav,
     '--language',
     safeLang,
     '--output',
     outputPath,
   ];
 
+  if (latentsPath && existsSync(latentsPath)) {
+    args.push('--latents-path', latentsPath);
+  }
+
+  if (validWavs.length > 0) {
+    args.push('--speaker-wav', ...validWavs);
+  }
+
   if (speed && speed !== 1.0) {
     args.push('--speed', speed.toFixed(2));
+  }
+
+  if (temperature) {
+    args.push('--temperature', temperature.toFixed(2));
+  }
+
+  if (repetitionPenalty) {
+    args.push('--repetition-penalty', repetitionPenalty.toFixed(2));
   }
 
   const ttsHome =
@@ -78,8 +142,8 @@ export async function synthesizeWithXTTS({
 
   try {
     const { stdout, stderr } = await execFileAsync(python, args, {
-      timeout: 180000,
-      maxBuffer: 1024 * 1024 * 8,
+      timeout: 240000,
+      maxBuffer: 1024 * 1024 * 16,
       env: {
         ...process.env,
         PYTHONUNBUFFERED: '1',
@@ -96,16 +160,14 @@ export async function synthesizeWithXTTS({
     }
 
     if (existsSync(outputPath)) {
-      return await fs.readFile(outputPath);
+      const buffer = await fs.readFile(outputPath);
+      if (buffer.length > 1024) {
+        return buffer;
+      }
     }
     return null;
   } catch (error: any) {
-    console.error('[XTTS] synthesis process failed:', error?.message || error);
-    if (error?.stderr) {
-      console.error('[XTTS error output]:', error.stderr);
-    }
+    console.warn('[XTTS] Local python synthesis execution failed:', error?.message || error);
     return null;
-  } finally {
-    await fs.rm(outputPath, { force: true }).catch(() => undefined);
   }
 }

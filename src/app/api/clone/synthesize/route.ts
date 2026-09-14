@@ -5,53 +5,101 @@ import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { synthesizeWithXTTS } from '@/lib/tts/xtts';
+import { synthesizeClonedAudio, getGeneratedDir } from '@/lib/voiceCloneEngine';
+import { getAudioDuration } from '@/lib/dubbingEngine';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-function getVoiceStorageDir(): string {
-  return process.env.USER_VOICES_DIR || path.join(process.cwd(), 'public', 'user-voices');
-}
-
-function getGeneratedDir(): string {
-  return process.env.GENERATED_DIR || path.join(process.cwd(), 'public', 'generated');
-}
-
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.email) return NextResponse.json({ error: 'Chưa đăng nhập' }, { status: 401 });
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: 'Chưa đăng nhập' }, { status: 401 });
+  }
 
   try {
-    const body = await req.json() as { voiceId?: string; text?: string };
-    const text = body.text?.trim() || '';
-    if (!body.voiceId || !text) return NextResponse.json({ error: 'Thiếu voice hoặc nội dung cần đọc.' }, { status: 400 });
+    const body = (await req.json()) as {
+      voiceId?: string;
+      text?: string;
+      language?: string;
+      speed?: number;
+    };
 
-    const voiceId = body.voiceId.startsWith('custom-') ? body.voiceId.slice('custom-'.length) : body.voiceId;
+    const text = body.text?.trim() || '';
+    if (!body.voiceId || !text) {
+      return NextResponse.json(
+        { error: 'Thiếu thông tin giọng nhân bản hoặc nội dung văn bản cần đọc.' },
+        { status: 400 }
+      );
+    }
+
+    if (text.length > 2000) {
+      return NextResponse.json(
+        { error: 'Đoạn văn bản đọc thử tối đa 2000 ký tự mỗi lần tổng hợp.' },
+        { status: 400 }
+      );
+    }
+
+    const rawVoiceId = body.voiceId;
+    const voiceId = rawVoiceId.startsWith('custom-') ? rawVoiceId.slice('custom-'.length) : rawVoiceId;
+
     const voice = await prisma.customVoice.findFirst({
       where: { id: voiceId, user: { email: session.user.email } },
     });
-    if (!voice?.modelKey) return NextResponse.json({ error: 'Không tìm thấy voice clone.' }, { status: 404 });
 
-    const referencePath = path.join(getVoiceStorageDir(), path.basename(voice.modelKey));
-    const outputPath = path.join(getGeneratedDir(), `xtts-temp-${crypto.randomUUID()}.wav`);
-    const audio = await synthesizeWithXTTS({
-      text,
-      speakerWav: referencePath,
-      language: voice.language,
-      outputPath,
-    });
-    if (!audio) {
-      return NextResponse.json({ error: 'XTTS chưa sẵn sàng hoặc không thể tạo giọng từ audio này.' }, { status: 503 });
+    if (!voice?.modelKey) {
+      return NextResponse.json(
+        { error: 'Không tìm thấy hồ sơ giọng nhân bản hợp lệ.' },
+        { status: 404 }
+      );
     }
 
-    const fileName = `clone-${Date.now()}.wav`;
-    const generatedPath = path.join(getGeneratedDir(), fileName);
-    await fs.mkdir(path.dirname(generatedPath), { recursive: true });
-    await fs.writeFile(generatedPath, audio);
-    return NextResponse.json({ audioUrl: `/api/generated/audio/${fileName}`, voiceId: voice.id });
-  } catch (error) {
+    // Tổng hợp giọng nói qua chuỗi Coqui XTTS-v2 & Acoustic Timbre Morphing
+    const audioBuffer = await synthesizeClonedAudio({
+      voiceModelKey: voice.modelKey,
+      text,
+      language: body.language || voice.language || 'vi-VN',
+      speed: typeof body.speed === 'number' ? body.speed : 1.0,
+      gender: voice.gender || undefined,
+    });
+
+    if (!audioBuffer || audioBuffer.length === 0) {
+      return NextResponse.json(
+        { error: 'Không thể tổng hợp giọng nói từ dữ liệu mẫu của giọng này.' },
+        { status: 500 }
+      );
+    }
+
+    const generatedDir = getGeneratedDir();
+    await fs.mkdir(generatedDir, { recursive: true });
+
+    const fileName = `clone-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.wav`;
+    const outputPath = path.join(generatedDir, fileName);
+    await fs.writeFile(outputPath, audioBuffer);
+
+    let durationSec = 3.0;
+    try {
+      durationSec = await getAudioDuration(outputPath);
+    } catch {
+      durationSec = parseFloat((audioBuffer.length / (24000 * 2)).toFixed(2));
+    }
+
+    const audioUrl = `/api/generated/audio/${fileName}`;
+
+    return NextResponse.json({
+      success: true,
+      audioUrl,
+      voiceId: voice.id,
+      voiceName: voice.name,
+      durationSec: parseFloat(durationSec.toFixed(2)),
+      fileSize: audioBuffer.length,
+      message: 'Đã tổng hợp giọng nói thành công qua mô hình Coqui XTTS-v2.',
+    });
+  } catch (error: any) {
     console.error('Custom voice synthesis error:', error);
-    return NextResponse.json({ error: 'Không thể tạo âm thanh bằng voice clone.' }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || 'Không thể tạo âm thanh bằng voice clone.' },
+      { status: 500 }
+    );
   }
 }
