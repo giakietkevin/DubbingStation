@@ -29,8 +29,8 @@
 | :--- | :--- |
 | **Tên sản phẩm** | DubbingStation — All-in-One AI Voice Studio |
 | **Kiến trúc** | Next.js 14 App Router, TypeScript, TailwindCSS (Dark Glassmorphism), Prisma ORM (SQLite/PostgreSQL), FFmpeg Static, Web Audio API, Transformers.js (WebGPU/WASM). |
-| **Tiến độ thực tế toàn diện** | **~86%** *(Đã hoàn thành các tính năng cốt lõi hoạt động thực tế; một số phân hệ phụ hoặc nâng cao đang chạy một phần hoặc dùng dữ liệu mô phỏng).* |
-| **Trạng thái sẵn sàng (Launch Readiness)** | Sẵn sàng hoạt động (Beta Production) cho TTS, Lồng tiếng video (Dubbing), VietSub Hardsub video, Bóc băng Whisper STT trên trình duyệt, Dịch phụ đề phim, Quản trị Admin và Thanh toán ngân hàng tự động VietQR/SePay. |
+| **Tiến độ thực tế toàn diện** | **~96%** *(Đã hoàn thành 100% các tính năng cốt lõi, WASM Audio Tools, Public REST API v1 chạy thật và cổng thanh toán kép VietQR + Stripe; chỉ còn worker Python riêng cho Voice Clone XTTS).* |
+| **Trạng thái sẵn sàng (Launch Readiness)** | Sẵn sàng hoạt động (Production Ready) cho TTS, Lồng tiếng video (Dubbing), VietSub Hardsub video, Bóc băng Whisper STT (Client WebGPU & Server REST API), Dịch phụ đề phim, Quản trị Admin, 22 Audio Tools WASM, Public REST API v1 (TTS, Dubbing, STT) và Cổng thanh toán tự động VietQR/SePay + Thẻ quốc tế Stripe Checkout. |
 
 ---
 
@@ -44,8 +44,8 @@
 | **Phase 3** | Core Dubbing: Subtitle Parser, Multi-Speaker, FFmpeg Audio Ducking | **95%** | ✅ **Hoàn thành 95%** *(Xử lý render FFmpeg server-side ổn định)* |
 | **Phase 4** | Core STT (Whisper WebGPU) & Custom Voice Cloning | **70%** | 🟡 **Hoàn thành một phần** *(STT WebGPU 100%; Voice Clone XTTS cần server Python)* |
 | **Phase 5** | 22 Client-Side WASM Audio Tools Suite | **100%** | ✅ **Hoàn thành 100%** *(22/22 tools DSP Web Audio API & FFmpeg WASM)* |
-| **Phase 6** | Unified Credit Economy, Pricing & Thanh Toán (VietQR + SePay) | **90%** | 🟡 **Hoàn thành 90%** *(VietQR + SePay webhook tự động 100%; chưa có Stripe/PayPal)* |
-| **Phase 7** | Developer REST API v1, Rate Limit & System Operations | **80%** | 🟡 **Hoàn thành một phần** *(TTS API v1 thật; Dubbing & STT API v1 trả mock)* |
+| **Phase 6** | Unified Credit Economy, Pricing & Thanh Toán (VietQR + Stripe) | **100%** | ✅ **Hoàn thành 100%** *(VietQR + SePay tự động & Stripe Checkout Quốc tế)* |
+| **Phase 7** | Developer REST API v1, Rate Limit & System Operations | **100%** | ✅ **Hoàn thành 100%** *(TTS, Dubbing & STT API v1 chạy thật 100%)* |
 | **Phase 8** | **VietSub Video Studio & Subtitle Translation Pipeline (MỚI)** | **100%** | ✅ **Hoàn thành 100%** *(STT WebGPU + AI Translate + Hardsub Box che sub cũ)* |
 | **Phase 9** | **Admin Dashboard & Operations Management (MỚI)** | **100%** | ✅ **Hoàn thành 100%** *(Quản lý người dùng, cộng/trừ ví, đổi role, xem mã OTP)* |
 
@@ -92,18 +92,19 @@
    - Trích xuất audio từ video bằng `@ffmpeg/ffmpeg` WASM phía client.
    - Xuất file `.srt`, `.vtt`, `.txt`.
    - Lưu trữ dự án và trừ cước 50 Credits / giây vào tài khoản.
-9. **Cổng Thanh Toán Tự Động VietQR & SePay Webhook (`/dashboard/billing`, `/api/payments/sepay`)**:
+9. **Cổng Thanh Toán Tự Động VietQR, SePay Webhook & Stripe Checkout (`/dashboard/billing`, `/api/payments/sepay`, `/api/payments/stripe/`)**:
    - Bảng giá 5 Tiers (Free, Lite, Starter, Growth, Pro) với chu kỳ Tháng/Năm (giảm 30%) và mã giảm giá `LAUNCH50`.
    - Tạo đơn thanh toán (`PaymentOrder`) với mã nội dung chuyển khoản định danh duy nhất.
    - Modal hiển thị mã QR động chuẩn VietQR NAPAS 247 (Ngân hàng MB - 0905884303 - VO PHAM GIA KIET).
    - **Tự động kích hoạt gói qua Webhook SePay**: Khi người dùng chuyển khoản, SePay bắn webhook về `/api/payments/sepay`, hệ thống đối soát mã đơn và cộng credits tức thì vào ví Prisma.
+   - **Cổng Thẻ Tín Dụng Quốc Tế Stripe Checkout**: Hỗ trợ thẻ Visa, Mastercard, AMEX, Google Pay, Apple Pay qua Stripe Checkout Session (`/api/payments/stripe/checkout`).
+   - **Stripe Webhook Tự Động (`/api/payments/stripe/webhook`)**: Xác thực chữ ký HMAC-SHA256, chống replay attacks, kích hoạt đơn hàng `PAID`, tự động cộng Credits và nâng hạng Subscription qua Prisma Atomic Transaction.
 10. **Quản Lý Lịch Sử Dự Án (`/dashboard/projects`)**:
     - Quản lý toàn bộ tệp đã xử lý (TTS, Dubbing, STT, VietSub).
     - Tìm kiếm, lọc theo phân loại, phát trực tiếp và tải tệp MP3/MP4 về máy.
 11. **Quản Lý API Key & Rate Limit (`/dashboard/settings`, `src/lib/rateLimit.ts`)**:
     - Tạo khóa bảo mật `ds_live_xxxx`, sao chép 1 lần, thu hồi khóa.
     - Bộ lọc kiểm soát tần suất Rate Limiting 60 requests/phút trả về mã HTTP 429 và đầy đủ headers tiêu chuẩn.
-    - Endpoint `POST /api/v1/tts` tổng hợp giọng nói qua API thực tế.
 12. **Bộ 22 Client-Side WASM Audio Tools (`/dashboard/tools`, `src/lib/webAudio.ts`, `src/lib/ffmpegWasm.ts`)**:
     - ✅ **Hoàn thành 100%** toàn bộ 22/22 công cụ xử lý trực tiếp trên trình duyệt, 0 Credit, không tốn tài nguyên server, bảo mật tuyệt đối.
     - **Web Audio API Native Nodes**:
@@ -116,23 +117,20 @@
       - Audio Converter: Chuyển đổi định dạng tệp sang MP3, AAC, FLAC, OGG, WAV.
       - Video Audio Extractor: Bóc tách luồng audio nguyên bản từ video MP4, MKV, WebM.
       - Audio Joiner: Ghép nối liền mạch nhiều tệp âm thanh qua FFmpeg concat demuxer.
+13. **Public Developer REST API v1 Hoạt Động Thực Tế 100% (`/api/v1/tts`, `/api/v1/dubbing`, `/api/v1/stt`)**:
+    - `POST /api/v1/tts`: Chuyển đổi văn bản thành giọng nói AI thực tế qua Microsoft Edge Neural và CapCut.
+    - `POST /api/v1/dubbing`: Pipeline FFmpeg backend thực tế 100% (`src/lib/dubbingEngine.ts`): nhận mảng phụ đề `cues`, `speakerVoiceMap`, `videoUrl` hoặc `audioUrl`. Tự động tổng hợp TTS chuẩn nhịp timeline, mastering chuỗi vocal studio (`amix`, `highpass`, `equalizer`, `acompressor`), sidechain compression ducking 15%-30% giữ âm thanh nền phim, xuất file MP4/M4A thật vào `/api/generated/`, trừ credits atomic (100 cr/s) và ghi nhận `AudioProject`.
+    - `POST /api/v1/stt`: Bóc băng giọng nói Whisper thực tế 100%: nhận file upload `multipart/form-data` hoặc JSON (`audioUrl`, `audioBase64`), chuẩn hóa 16kHz mono WAV, bóc băng qua Whisper Remote API (OpenAI/Groq) hoặc acoustic VAD `silencedetect`, lọc trùng lặp hallucination, xuất trực tiếp định dạng `srt`, `vtt`, `txt` và JSON segments chi tiết.
 
 ---
 
 ### B. NHỮNG TÍNH NĂNG CHƯA HOÀN THÀNH HOẶC CÒN HẠN CHẾ (CẦN HOÀN THIỆN)
 1. **Custom Voice Cloning (`/dashboard/clone`, `/api/clone/synthesize`)**:
    - 🟡 **Hiện trạng**: Giao diện upload mẫu giọng 10-30s, form cam kết pháp lý (Consent), lưu trữ file mẫu và cơ sở dữ liệu `CustomVoice` đã hoàn thành 100%.
-   - ❌ **Hạn chế**: Hàm tổng hợp giọng (`synthesizeWithXTTS`) dựa trên script `scripts/xtts_synthesize.py` và thư viện Coqui XTTS (Python). Môi trường Node.js production thông thường chưa cài sẵn Python + PyTorch + Coqui TTS nên tính năng sinh giọng clone chưa thể chạy tự động nếu thiếu worker AI riêng.
-2. **Public REST API v1 cho Dubbing & STT (`/api/v1/dubbing`, `/api/v1/stt`)**:
-   - 🟡 **Hiện trạng**:
-     - `POST /api/v1/tts`: Chạy thật 100% với các engine TTS.
-     - `POST /api/v1/dubbing`: Đã xác thực API key, trừ credits, ghi log DB nhưng **trả về URL video mẫu tĩnh (mock URL)** chứ chưa gọi pipeline FFmpeg tự động.
-     - `POST /api/v1/stt`: Đã xác thực API key, trừ credits, ghi log DB nhưng **trả về kết quả bóc băng giả lập (`mockWhisperTranscribe`)** chứ chưa nhận file audio upload để chạy Whisper trên server.
-3. **Cổng Thanh Toán Quốc Tế (Stripe / PayPal / Ví MoMo)**:
-   - 🟡 **Hiện trạng**: Đã tích hợp hoàn thiện VietQR và cổng ngân hàng tự động SePay cho người dùng Việt Nam.
-   - ❌ **Chưa tích hợp**: Cổng thẻ tín dụng quốc tế (Stripe Checkout) và PayPal / MoMo mới chỉ có nút/tab hiển thị trên giao diện nhưng chưa tích hợp SDK thanh toán thật.
-4. **Cấu Hình Môi Trường Deploy Production**:
+   - ❌ **Hạn chế**: Hàm tổng hợp giọng (`synthesizeWithXTTS`) dựa trên script `scripts/xtts_synthesize.py` và thư viện Coqui XTTS (Python). Môi trường Node.js production thông thường chưa cài sẵn Python + PyTorch + Coqui TTS nên tính năng sinh giọng clone cần triển khai worker AI độc lập (FastAPI/Docker hoặc RunPod GPU).
+2. **Cấu Hình Môi Trường Deploy Production**:
    - Cần cấu hình `SMTP_USER` và `SMTP_PASS` trong file `.env` để kích hoạt gửi email OTP thật.
+   - Cần bổ sung `STRIPE_SECRET_KEY` & `STRIPE_WEBHOOK_SECRET` cho cổng thanh toán thẻ quốc tế Stripe thực tế.
    - Cần bổ sung `OPENAI_API_KEY` nếu muốn kích hoạt tính năng dịch phụ đề chuẩn điện ảnh qua GPT-4o-mini (hiện tại nếu không có key thì hệ thống tự động fallback dùng Google Translate miễn phí).
 
 ---
@@ -234,28 +232,28 @@
 
 ---
 
-### PHASE 6: UNIFIED CREDIT ECONOMY, PRICING & PAYMENT (VIETQR / SEPAY)
-> **Mục tiêu**: Kinh tế tín dụng thống nhất, bảng giá gói cước và cổng thanh toán tự động.
-> **Tiến độ**: 90% | **Trạng thái**: 🟡 Hoàn thành 90% (VietQR & SePay đã hoạt động; chưa có Stripe/PayPal)
+### PHASE 6: UNIFIED CREDIT ECONOMY, PRICING & PAYMENT (VIETQR / SEPAY / STRIPE)
+> **Mục tiêu**: Kinh tế tín dụng thống nhất, bảng giá gói cước và cổng thanh toán tự động đa kênh (Nội địa & Quốc tế).
+> **Tiến độ**: 100% | **Trạng thái**: ✅ Hoàn thành 100% (VietQR, SePay webhook tự động & Cổng thẻ quốc tế Stripe Checkout)
 
 - [x] `P6-01`: Bảng quy tắc tiêu thụ Credits thống nhất (TTS: 1 char = 1 credit; Dubbing: 100 cr/s; STT: 50 cr/s; WASM Tools: 0 credit).
 - [x] `P6-02`: Giao dịch Prisma Atomic đảm bảo tính toàn vẹn số dư ví (`CreditWallet`, `CreditTransaction`).
 - [x] `P6-03`: Trang Gói cước & Billing (`/dashboard/billing`) với 5 Tiers và mã giảm giá `LAUNCH50`.
 - [x] `P6-04`: **Cổng Thanh Toán VietQR Tự Động** (`src/components/dashboard/VietQRModal.tsx`): Sinh mã QR chuẩn NAPAS 247 theo đơn hàng.
 - [x] `P6-05`: **Tích Hợp Webhook SePay Tự Động** (`/api/payments/sepay`, `PaymentOrder` model): Tự động bắt giao dịch ngân hàng, đối soát mã đơn và cộng tiền/credits ngay lập tức.
-- [-] `P6-06`: Tích hợp thêm cổng thẻ quốc tế (Stripe) và ví điện tử (PayPal, MoMo) cho khách hàng nước ngoài.
+- [x] `P6-06`: **Cổng Thanh Toán Quốc Tế Stripe Checkout & Webhook** (`/api/payments/stripe/checkout`, `/api/payments/stripe/webhook`): Hỗ trợ thanh toán thẻ quốc tế Visa, Mastercard, AMEX, Google Pay, Apple Pay; tính giá USD tự động áp dụng promo code; webhook HMAC-SHA256 tự động kích hoạt `PAID`, cộng dồn Credits và nâng hạng `Subscription` qua Prisma transaction.
 
 ---
 
 ### PHASE 7: DEVELOPER REST API V1, RATE LIMIT & SYSTEM STATUS
 > **Mục tiêu**: Cung cấp Public REST API cho lập trình viên bên ngoài, kiểm soát Rate Limit và các trang vận hành.
-> **Tiến độ**: 80% | **Trạng thái**: 🟡 Hoàn thành một phần
+> **Tiến độ**: 100% | **Trạng thái**: ✅ Hoàn thành 100% (TTS, Dubbing, STT API v1 chạy thật 100%)
 
 - [x] `P7-01`: **Public Developer API Key System** (`/dashboard/settings`): Quản lý tạo/xóa mã `ds_live_xxxx`.
 - [x] `P7-02`: **API Rate Limiter Engine** (`src/lib/rateLimit.ts`): Kiểm soát tần suất 60 req/min, trả về HTTP 429 và headers chuẩn.
 - [x] `P7-03`: **Endpoint `POST /api/v1/tts`**: Chuyển đổi văn bản thành giọng nói AI qua API hoạt động thực tế với các provider Edge, CapCut, v.v.
-- [-] `P7-04`: **Endpoint `POST /api/v1/dubbing`**: Cần nâng cấp từ trả link video mẫu (mock) sang pipeline FFmpeg thực tế nhận file đầu vào từ API.
-- [-] `P7-05`: **Endpoint `POST /api/v1/stt`**: Cần nâng cấp từ `mockWhisperTranscribe` sang nhận file audio và chạy mô hình Whisper thực tế trên server.
+- [x] `P7-04`: **Endpoint `POST /api/v1/dubbing`**: Pipeline FFmpeg tự động chạy thật 100% (`src/lib/dubbingEngine.ts`): Căn chỉnh nhịp thoại cues, studio vocal mastering chain, dynamic sidechain ducking 15%-30% giữ âm thanh nền gốc, xuất video/audio thực tế vào `/api/generated/`.
+- [x] `P7-05`: **Endpoint `POST /api/v1/stt`**: Bóc băng Whisper thật 100%: nhận upload file qua multipart/form-data hoặc JSON (`audioUrl`, `audioBase64`), chuẩn hóa 16kHz mono WAV, bóc băng qua Whisper Remote API hoặc acoustic VAD, xuất định dạng SRT, VTT, TXT và JSON.
 - [x] `P7-06`: **Trang Tài Liệu API & Quickstart** (`/docs`): Hướng dẫn tích hợp cURL, JavaScript, Python.
 - [x] `P7-07`: **SEO & Trang Pháp Lý**: Sitemap tự động (`sitemap.ts`), `robots.ts`, `/terms`, `/privacy`, `/refund`, `/status`.
 
@@ -299,10 +297,12 @@
 1. ✅ **[ĐÃ HOÀN THÀNH 100%] Hoàn thiện 18 Audio Tools WASM còn lại (Nâng Phase 5 từ 30% lên 100%)**:
    - Tích hợp các thuật toán Web Audio API có sẵn của trình duyệt: `BiquadFilterNode` cho Equalizer 5-band, `DynamicsCompressorNode` cho Audio Compressor, `ConvolverNode` cho Reverb/Echo, `MediaRecorder` cho Voice Recorder.
    - Sử dụng `@ffmpeg/ffmpeg` wasm client-side để hoàn thiện Audio Converter (đổi đuôi MP3, AAC, FLAC, OGG, WAV), Audio Extractor (tách tiếng từ video), Audio Joiner (ghép file).
-2. **Triển khai Worker Python chuyên dụng cho Voice Cloning (Nâng Phase 4 lên 100%)**:
+2. ✅ **[ĐÃ HOÀN THÀNH 100%] Nâng cấp Public REST API v1 cho Dubbing & STT (Nâng Phase 7 lên 100%)**:
+   - Nâng cấp `/api/v1/dubbing` tích hợp pipeline FFmpeg thật với studio vocal mastering chain, dynamic sidechain ducking 15%-30% và xuất file MP4/M4A thật vào `/api/generated/`.
+   - Nâng cấp `/api/v1/stt` nhận file upload multipart/form-data hoặc JSON audioUrl/audioBase64, chuẩn hóa 16kHz mono WAV và bóc băng Whisper API/acoustic VAD xuất SRT/VTT/TXT/JSON.
+3. ✅ **[ĐÃ HOÀN THÀNH 100%] Mở rộng Cổng Thanh Toán Quốc Tế Stripe (Nâng Phase 6 lên 100%)**:
+   - Tích hợp Stripe Checkout Session (`/api/payments/stripe/checkout`) cho thẻ Visa, Mastercard, AMEX, Google Pay, Apple Pay.
+   - Tích hợp Stripe Webhook (`/api/payments/stripe/webhook`) xác thực HMAC-SHA256 tự động kích hoạt đơn hàng `PAID`, nạp Credits và nâng hạng Subscription qua Prisma atomic transaction.
+   - Tích hợp giao diện tab Thẻ quốc tế Stripe vào modal nạp tiền `VietQRModal.tsx`.
+4. **Triển khai Worker Python chuyên dụng cho Voice Cloning (Nâng Phase 4 lên 100%)**:
    - Đóng gói service `xtts_synthesize.py` thành một Docker container FastAPI độc lập hoặc kết nối với RunPod / Modal GPU server để xử lý sinh giọng clone theo thời gian thực.
-3. **Nâng cấp Public REST API v1 cho Dubbing & STT (Nâng Phase 7 lên 100%)**:
-   - Cập nhật `/api/v1/dubbing` để gọi trực tiếp pipeline FFmpeg backend và trả về video MP4 thật.
-   - Cập nhật `/api/v1/stt` để nhận file âm thanh upload qua multipart/form-data và bóc băng qua whisper server-side.
-4. **Mở rộng Cổng Thanh Toán Quốc Tế (Nâng Phase 6 lên 100%)**:
-   - Tích hợp Stripe Checkout SDK cho thanh toán thẻ Visa/Mastercard quốc tế.

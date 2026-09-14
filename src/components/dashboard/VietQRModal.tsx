@@ -26,6 +26,8 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({
   const [order, setOrder] = useState<{ id: string; amountVnd: number; credits: number; transferContent: string; status: string } | null>(null);
   const [bank, setBank] = useState({ bankId: 'MB', accountNo: '0905884303', accountName: 'VO PHAM GIA KIET' });
   const [orderError, setOrderError] = useState<string | null>(null);
+  const [isStripeLoading, setIsStripeLoading] = useState<boolean>(false);
+  const [stripeError, setStripeError] = useState<string | null>(null);
 
   if (!isOpen || !plan) return null;
 
@@ -75,6 +77,35 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({
     navigator.clipboard.writeText(text);
     setCopiedField(field);
     setTimeout(() => setCopiedField(null), 2500);
+  };
+
+  const handleStripeCheckout = async () => {
+    setIsStripeLoading(true);
+    setStripeError(null);
+    try {
+      const res = await fetch('/api/payments/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planId: plan.id,
+          billingCycle,
+          promoCode: appliedPromo ? 'LAUNCH50' : '',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Không thể khởi tạo phiên thanh toán Stripe.');
+      }
+      if (data.url) {
+        window.location.href = data.url;
+      } else if (data.simulated) {
+        setStripeError(data.message);
+      }
+    } catch (err: any) {
+      setStripeError(err?.message || 'Lỗi kết nối cổng thanh toán Stripe.');
+    } finally {
+      setIsStripeLoading(false);
+    }
   };
 
   const handleConfirm = async () => {
@@ -273,23 +304,95 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({
               </div>
             </div>
           ) : (
-            /* Stripe Card Placeholder */
-            <div className="p-8 text-center bg-surface-container/50 border border-border-glass rounded-2xl space-y-4">
-              <div className="w-16 h-16 rounded-full bg-secondary/20 text-secondary mx-auto flex items-center justify-center">
-                <span className="material-symbols-outlined text-[32px]">credit_card</span>
+            /* Stripe Card Active Checkout View */
+            <div className="p-6 bg-surface-container/60 border border-border-glass rounded-2xl space-y-5">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-border-glass">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-secondary/20 text-secondary flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined text-[28px]">credit_card</span>
+                  </div>
+                  <div>
+                    <h4 className="font-headline-sm font-bold text-on-surface">Thanh Toán Thẻ Quốc Tế Stripe</h4>
+                    <p className="text-body-xs text-text-muted">
+                      Chấp nhận thẻ Visa, Mastercard, AMEX, Apple Pay & Google Pay
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right w-full sm:w-auto p-3 rounded-xl bg-surface-container-high border border-border-glass">
+                  <span className="text-[11px] text-text-muted block">Tổng thanh toán:</span>
+                  <span className="text-headline-sm font-extrabold text-primary-container">
+                    ${usdPrice.toFixed(2)} USD
+                  </span>
+                  <span className="text-[11px] text-text-secondary block">
+                    (~{paymentAmount.toLocaleString('vi-VN')} đ)
+                  </span>
+                </div>
               </div>
-              <div>
-                <h4 className="font-headline-sm font-bold text-on-surface">Cổng Thanh Toán Quốc Tế Stripe</h4>
-                <p className="text-body-sm text-text-muted max-w-md mx-auto mt-1">
-                  Đang trong giai đoạn kết nối chứng chỉ bảo mật PCI-DSS. Quý khách vui lòng sử dụng kênh Chuyển khoản VietQR để được duyệt tự động ngay trong 30 giây!
-                </p>
+
+              {/* Supported Card Brands Visual */}
+              <div className="space-y-2">
+                <span className="text-[12px] font-semibold text-text-secondary block">
+                  Phương thức thanh toán bảo mật bởi Stripe:
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-3 py-1.5 rounded-lg bg-surface-card border border-border-glass text-body-xs font-bold font-mono text-on-surface">
+                    💳 VISA
+                  </span>
+                  <span className="px-3 py-1.5 rounded-lg bg-surface-card border border-border-glass text-body-xs font-bold font-mono text-on-surface">
+                    💳 MASTERCARD
+                  </span>
+                  <span className="px-3 py-1.5 rounded-lg bg-surface-card border border-border-glass text-body-xs font-bold font-mono text-on-surface">
+                    💳 AMEX
+                  </span>
+                  <span className="px-3 py-1.5 rounded-lg bg-surface-card border border-border-glass text-body-xs font-bold font-mono text-on-surface">
+                    🍎 Apple Pay
+                  </span>
+                  <span className="px-3 py-1.5 rounded-lg bg-surface-card border border-border-glass text-body-xs font-bold font-mono text-on-surface">
+                    🌐 Google Pay
+                  </span>
+                </div>
               </div>
+
+              {/* Order Benefits */}
+              <div className="p-3.5 rounded-xl bg-primary-container/10 border border-primary-container/20 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary-container text-[20px]">verified</span>
+                  <span className="text-body-xs text-on-surface font-medium">
+                    Kích hoạt gói <strong>{plan.name}</strong> • Nhận ngay <strong>+{plan.creditsFormatted}</strong> Credits
+                  </span>
+                </div>
+                <span className="text-[11px] font-bold text-signal-success uppercase">Tức thì</span>
+              </div>
+
+              {/* Error Message */}
+              {stripeError && (
+                <div className="p-3 rounded-xl bg-signal-warning/15 border border-signal-warning/30 text-signal-warning text-body-xs">
+                  {stripeError}
+                </div>
+              )}
+
+              {/* Checkout Action Button */}
               <button
                 type="button"
-                onClick={() => setActiveTab('vietqr')}
-                className="px-5 py-2.5 rounded-xl bg-primary-container text-surface-card font-bold text-label-md hover:shadow-glow-cyan transition-all"
+                disabled={isStripeLoading}
+                onClick={handleStripeCheckout}
+                className={`w-full py-3 rounded-xl font-bold font-label-md transition-all flex items-center justify-center gap-2 ${
+                  isStripeLoading
+                    ? 'bg-surface-container-highest text-text-muted cursor-not-allowed opacity-60'
+                    : 'bg-secondary text-white hover:bg-secondary/90 shadow-md'
+                }`}
               >
-                Chuyển sang VietQR
+                {isStripeLoading ? (
+                  <>
+                    <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+                    Đang chuyển hướng đến Stripe...
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-[18px]">lock</span>
+                    Thanh toán an toàn qua Stripe (${usdPrice.toFixed(2)} USD)
+                  </>
+                )}
               </button>
             </div>
           )}
