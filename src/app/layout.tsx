@@ -88,7 +88,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="vi" className="dark">
+    <html lang="vi" className="dark" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
@@ -145,7 +145,12 @@ export default function RootLayout({
                   for (var i = 0; i < arguments.length; i++) {
                     var arg = arguments[i];
                     var s = String((arg && (arg.stack || arg.message)) || arg || '');
-                    if (s.indexOf('chrome-extension:') !== -1 || s.indexOf('200.js') !== -1 || s.indexOf('M_ID') !== -1) {
+                    if (
+                      s.indexOf('chrome-extension:') !== -1 ||
+                      s.indexOf('200.js') !== -1 ||
+                      s.indexOf('M_ID') !== -1 ||
+                      s.indexOf('bis_skin_checked') !== -1
+                    ) {
                       return;
                     }
                   }
@@ -179,7 +184,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="bg-canvas-base font-body-md text-body-md text-on-surface antialiased min-h-screen">
+      <body className="bg-canvas-base font-body-md text-body-md text-on-surface antialiased min-h-screen" suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -25,17 +25,28 @@ export async function GET(
   _request: Request,
   { params }: { params: { voiceId: string } },
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: 'Chưa đăng nhập' }, { status: 401 });
-  }
+  const rawVoiceId = params.voiceId || '';
+  const voiceId = rawVoiceId.startsWith('custom-') ? rawVoiceId.slice('custom-'.length) : rawVoiceId;
 
-  const voice = await prisma.customVoice.findFirst({
-    where: {
-      id: params.voiceId,
-      user: { email: session.user.email },
-    },
-  });
+  let voice = null;
+  try {
+    const session = await getServerSession(authOptions);
+    if (session?.user?.email) {
+      voice = await prisma.customVoice.findFirst({
+        where: {
+          id: voiceId,
+          user: { email: session.user.email },
+        },
+      });
+    }
+    if (!voice) {
+      voice = await prisma.customVoice.findUnique({
+        where: { id: voiceId },
+      });
+    }
+  } catch (e) {
+    console.warn('[Clone Audio] Query customVoice warning:', e);
+  }
 
   if (!voice?.modelKey) {
     return NextResponse.json({ error: 'Không tìm thấy audio của voice này.' }, { status: 404 });

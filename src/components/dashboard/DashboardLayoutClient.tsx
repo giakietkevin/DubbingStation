@@ -71,6 +71,7 @@ export function DashboardLayoutClient({ children }: { children: React.ReactNode 
 
       {/* Sidebar */}
       <aside
+        suppressHydrationWarning
         className={`fixed top-0 bottom-0 left-0 z-50 w-64 bg-surface-card border-r border-border-glass flex flex-col justify-between transition-transform duration-300 lg:translate-x-0 ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}

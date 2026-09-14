@@ -181,7 +181,15 @@ export const StudioConsole: React.FC = () => {
     if (!audioRef.current) {
       audioRef.current = new Audio(targetUrl);
     } else {
-      audioRef.current.src = targetUrl;
+      const currentSrc = audioRef.current.src;
+      const isSameSource = currentSrc === targetUrl || currentSrc.endsWith(targetUrl);
+      if (!isSameSource) {
+        try {
+          audioRef.current.pause();
+        } catch {}
+        audioRef.current.src = targetUrl;
+        audioRef.current.load();
+      }
     }
 
     audioRef.current.playbackRate = speed;
@@ -213,14 +221,18 @@ export const StudioConsole: React.FC = () => {
         setIsPlaying(true);
       })
       .catch((err) => {
-        console.log('Playback error', err);
+        if (err?.name !== 'AbortError') {
+          console.warn('Playback notice:', err);
+        }
         setIsPlaying(false);
       });
   };
 
   const stopAudio = () => {
     if (audioRef.current) {
-      audioRef.current.pause();
+      try {
+        audioRef.current.pause();
+      } catch {}
     }
     setIsPlaying(false);
   };

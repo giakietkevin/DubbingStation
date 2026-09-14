@@ -194,11 +194,13 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
       audioRef.current = new Audio();
     }
 
-    const soundUrl = voice.id.startsWith('custom-')
+    const soundUrl = voice.previewUrl || (voice.id.startsWith('custom-')
       ? `/api/tts/stream?voiceId=${encodeURIComponent(voice.id)}&provider=xtts&text=${encodeURIComponent(customPreviewText)}`
-      : voice.previewUrl || `/api/voices/preview?voiceId=${voice.id}&gender=${voice.gender}`;
+      : `/api/voices/preview?voiceId=${voice.id}&gender=${voice.gender}`);
     audioRef.current.src = soundUrl;
-    audioRef.current.play().catch((err) => console.log('Audio preview error', err));
+    audioRef.current.play().catch((err) => {
+      if (err?.name !== 'AbortError') console.log('Audio preview error', err);
+    });
     setPlayingVoiceId(voice.id);
 
     audioRef.current.onended = () => {
@@ -247,7 +249,9 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
       audioRef.current.src = previewUrl;
     }
 
-    audioRef.current.play().catch((err) => console.log('Preview error', err));
+    audioRef.current.play().catch((err) => {
+      if (err?.name !== 'AbortError') console.log('Preview error', err);
+    });
     setIsPreviewingCustom(true);
 
     audioRef.current.onended = () => setIsPreviewingCustom(false);

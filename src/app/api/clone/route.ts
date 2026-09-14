@@ -17,7 +17,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Chưa đăng nhập' }, { status: 401 });
+      return NextResponse.json({ voices: [] });
     }
 
     const user = await prisma.user.findUnique({

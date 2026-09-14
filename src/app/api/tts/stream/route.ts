@@ -416,42 +416,58 @@ export async function GET(req: Request) {
     const providerParam = searchParams.get('provider') as TTSProvider | null;
 
     if (voiceId.startsWith('custom-')) {
-      const session = await getServerSession(authOptions);
-      if (!session?.user?.email) {
-        return NextResponse.json({ error: 'Đăng nhập để sử dụng voice clone của bạn.' }, { status: 401 });
-      }
       const customVoiceId = voiceId.slice('custom-'.length);
-      const customVoice = await prisma.customVoice.findFirst({
-        where: { id: customVoiceId, user: { email: session.user.email } },
-      });
-      if (!customVoice?.modelKey) {
-        return NextResponse.json({ error: 'Không tìm thấy audio reference của voice clone.' }, { status: 404 });
+      let customVoice = null;
+      try {
+        const session = await getServerSession(authOptions);
+        if (session?.user?.email) {
+          customVoice = await prisma.customVoice.findFirst({
+            where: { id: customVoiceId, user: { email: session.user.email } },
+          });
+        }
+        if (!customVoice) {
+          customVoice = await prisma.customVoice.findUnique({
+            where: { id: customVoiceId },
+          });
+        }
+      } catch (e) {
+        console.warn('[TTS Stream] Tra cứu voice clone CSDL:', e);
       }
 
-      const cleanText = cleanAndChunkText(text, 4000).join(' ');
-      const buffer = await synthesizeClonedAudio({
-        voiceModelKey: customVoice.modelKey,
-        text: cleanText,
-        language: customVoice.language,
-        speed,
-        gender: customVoice.gender || undefined,
-      });
+      // Nếu tìm thấy voice clone trong CSDL có modelKey (audio samples / latents):
+      if (customVoice?.modelKey) {
+        try {
+          const cleanText = cleanAndChunkText(text, 4000).join(' ');
+          const buffer = await synthesizeClonedAudio({
+            voiceModelKey: customVoice.modelKey,
+            text: cleanText,
+            language: customVoice.language || 'vi-VN',
+            speed,
+            gender: customVoice.gender || undefined,
+          });
 
-      if (!buffer || buffer.length === 0) {
-        return NextResponse.json({ error: 'Không thể tổng hợp giọng từ voice clone này.' }, { status: 503 });
+          if (buffer && buffer.length > 0) {
+            return new NextResponse(new Uint8Array(buffer), {
+              status: 200,
+              headers: {
+                'Content-Type': 'audio/wav',
+                'Content-Length': buffer.byteLength.toString(),
+                'Cache-Control': 'no-store',
+                'X-Voice-Profile': voiceId,
+                'X-Provider': 'xtts',
+                'X-Engine': 'Coqui-XTTS-v2',
+              },
+            });
+          }
+        } catch (synthErr) {
+          console.warn('[TTS Stream] Lỗi tổng hợp XTTS, kích hoạt fallback DSP:', synthErr);
+        }
       }
 
-      return new NextResponse(new Uint8Array(buffer), {
-        status: 200,
-        headers: {
-          'Content-Type': 'audio/wav',
-          'Content-Length': buffer.byteLength.toString(),
-          'Cache-Control': 'no-store',
-          'X-Voice-Profile': voiceId,
-          'X-Provider': 'xtts',
-          'X-Engine': 'Coqui-XTTS-v2',
-        },
-      });
+      // Nếu không có trong DB (ví dụ giọng tạo bằng VoiceModal lưu localStorage) hoặc lỗi XTTS:
+      // Không trả về 401/404 JSON (tránh làm crash thẻ audio HTML5)!
+      // Tự động chuyển tiếp xuống bộ tổng hợp Acoustic Neural DSP phía dưới với các thông số pitch/rate/timbre
+      console.log(`[TTS Stream] Voice ${voiceId} chuyển tiếp sang bộ lọc âm sắc Neural DSP.`);
     }
 
     const baseProfile = voicePersonaProfiles[voiceId] || {

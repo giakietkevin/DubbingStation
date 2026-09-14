@@ -151,7 +151,7 @@ export async function processAndEnhanceAudioSamples(
       // Ghép nối danh sách file qua FFmpeg concat
       const concatListPath = path.join(tempWorkDir, 'concat_list.txt');
       const concatContent = processedPartFiles
-        .map((f) => `file '${path.join(storageDir, f).replace(/'/g, "'\\''")}'`)
+        .map((f) => `file '${path.join(storageDir, f).replace(/\\/g, '/').replace(/'/g, "'\\''")}'`)
         .join('\n');
       await fs.writeFile(concatListPath, concatContent, 'utf8');
 
@@ -395,23 +395,28 @@ export async function synthesizeClonedAudio(params: {
       'alimiter=limit=-1.0dB',
     ].join(',');
 
-    await execFileAsync(ffmpegExecutable, [
-      '-y',
-      '-i',
-      tempBaseWav,
-      '-af',
-      filterChain,
-      '-ar',
-      '24000',
-      '-ac',
-      '1',
-      '-c:a',
-      'pcm_s16le',
-      tempMorphedWav,
-    ]);
+    try {
+      await execFileAsync(ffmpegExecutable, [
+        '-y',
+        '-i',
+        tempBaseWav,
+        '-af',
+        filterChain,
+        '-ar',
+        '24000',
+        '-ac',
+        '1',
+        '-c:a',
+        'pcm_s16le',
+        tempMorphedWav,
+      ]);
 
-    const resultBuffer = await fs.readFile(tempMorphedWav);
-    return resultBuffer;
+      const resultBuffer = await fs.readFile(tempMorphedWav);
+      return resultBuffer;
+    } catch (filterErr) {
+      console.warn('[VoiceCloneEngine] FFmpeg morph filter warning, returning base audio:', filterErr);
+      return baseAudio;
+    }
   } finally {
     await fs.rm(tempWorkDir, { recursive: true, force: true }).catch(() => undefined);
   }

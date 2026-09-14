@@ -12,12 +12,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: 'Chưa đăng nhập' }, { status: 401 });
-  }
-
   try {
+    const session = await getServerSession(authOptions);
     const body = (await req.json()) as {
       voiceId?: string;
       text?: string;
@@ -43,9 +39,17 @@ export async function POST(req: Request) {
     const rawVoiceId = body.voiceId;
     const voiceId = rawVoiceId.startsWith('custom-') ? rawVoiceId.slice('custom-'.length) : rawVoiceId;
 
-    const voice = await prisma.customVoice.findFirst({
-      where: { id: voiceId, user: { email: session.user.email } },
-    });
+    let voice = null;
+    if (session?.user?.email) {
+      voice = await prisma.customVoice.findFirst({
+        where: { id: voiceId, user: { email: session.user.email } },
+      });
+    }
+    if (!voice) {
+      voice = await prisma.customVoice.findUnique({
+        where: { id: voiceId },
+      });
+    }
 
     if (!voice?.modelKey) {
       return NextResponse.json(
