@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import {
   parseSubtitle,
@@ -8,12 +8,58 @@ import {
   deduplicateSubtitleCues,
   cuesToSRT,
   applyTimingOffset,
+  secondsToFormattedTime,
   type SubtitleCue,
   type SubtitleParseResult,
 } from '@/lib/subtitleParser';
 import { voices } from '@/data/voices';
 import type { Voice } from '@/types';
 import { detectSpeakersFromVideo } from '@/lib/speakerDiarizer';
+import { transcribeVideoFile, type WhisperModelLevel } from '@/lib/browserTranscriber';
+import { cleanAndDeduplicateWhisperSegments } from '@/lib/whisper';
+import { type SubtitleTone } from '@/lib/vietnameseSubtitlePolisher';
+
+const languageOptions: [string, string][] = [
+  ['auto', '🌐 Tự động nhận diện ngôn ngữ nói'],
+  ['vi', '🇻🇳 Tiếng Việt (Vietnamese)'],
+  ['en', '🇺🇸 Tiếng Anh (English)'],
+  ['zh', '🇨🇳 Tiếng Trung (Chinese)'],
+  ['ja', '🇯🇵 Tiếng Nhật (Japanese)'],
+  ['ko', '🇰🇷 Tiếng Hàn (Korean)'],
+  ['fr', '🇫🇷 Tiếng Pháp (French)'],
+  ['es', '🇪🇸 Tiếng Tây Ban Nha (Spanish)'],
+  ['ru', '🇷🇺 Tiếng Nga (Russian)'],
+  ['th', '🇹🇭 Tiếng Thái (Thai)'],
+  ['de', '🇩🇪 Tiếng Đức (German)'],
+];
+
+const targetLanguageOptions: [string, string][] = [
+  ['vi', '🇻🇳 Tiếng Việt (Vietnamese) - Mặc định'],
+  ['en', '🇺🇸 Tiếng Anh (English)'],
+  ['zh', '🇨🇳 Tiếng Trung (Chinese)'],
+  ['ja', '🇯🇵 Tiếng Nhật (Japanese)'],
+  ['ko', '🇰🇷 Tiếng Hàn (Korean)'],
+  ['fr', '🇫🇷 Tiếng Pháp (French)'],
+  ['es', '🇪🇸 Tiếng Tây Ban Nha (Spanish)'],
+  ['ru', '🇷🇺 Tiếng Nga (Russian)'],
+  ['th', '🇹🇭 Tiếng Thái (Thai)'],
+  ['de', '🇩🇪 Tiếng Đức (German)'],
+];
+
+const toneOptions: [SubtitleTone, string, string][] = [
+  ['natural', '🌐 Tự động theo bối cảnh (mày-tao, cậu-tớ, anh-em...)', 'Tự động bắt mạch cảm xúc, xưng hô linh hoạt theo ngữ cảnh'],
+  ['conversational', '💬 Đời thường / Thân mật (cậu - tớ, mày - tao)', 'Xưng hô thân mật tự nhiên như hội thoại quán cà phê'],
+  ['dramatic', '🔥 Kịch tính / Hành động (mày - tao, đối đầu)', 'Ngữ điệu mạnh mẽ, gay gắt khi cãi nhau hoặc chiến đấu'],
+  ['romantic', '❤️ Tình cảm / Lãng mạn (anh - em)', 'Xưng hô anh - em ngọt ngào và tự nhiên'],
+  ['period', '⚔️ Cổ trang / Kiếm hiệp (ngươi - ta, huynh - đệ)', 'Xưng hô kiếm hiệp, dã sử chuẩn mực'],
+  ['polite', '👔 Lịch sự / Công sở (tôi - anh / chị)', 'Xưng hô trang trọng, giữ khoảng cách lịch thiệp'],
+];
+
+const whisperModelOptions: [WhisperModelLevel, string, string][] = [
+  ['base', 'Whisper Base (Chuẩn xác, khuyên dùng)', 'Cân bằng hoàn hảo tốc độ & độ chính xác'],
+  ['tiny', 'Whisper Tiny (Siêu tốc)', 'Nhẹ máy, tải cực nhanh'],
+  ['small', 'Whisper Small (Chi tiết tối đa)', 'Tối ưu cho video nhiều tạp âm'],
+];
 
 export default function DubbingWorkspacePage() {
   const [srtInput, setSrtInput] = useState<string>(demoSrtContent);
@@ -21,7 +67,8 @@ export default function DubbingWorkspacePage() {
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string>('');
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [timingOffsetSec, setTimingOffsetSec] = useState<number>(0);
-  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoFileInputRef = useRef<HTMLInputElement | null>(null);
   const [parsedData, setParsedData] = useState<SubtitleParseResult | null>(null);
   const [speakerVoiceMap, setSpeakerVoiceMap] = useState<Record<string, string>>({});
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -29,6 +76,23 @@ export default function DubbingWorkspacePage() {
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
   const [isDetectingSpeakers, setIsDetectingSpeakers] = useState(false);
   const [customVoices, setCustomVoices] = useState<Array<{ id: string; name: string; gender?: string; language?: string }>>([]);
+
+  // Trạng thái AI Auto-Transcribe (Tự bóc phụ đề từ Video)
+  const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
+  const [transcribeProgress, setTranscribeProgress] = useState<string>('');
+  const [sourceLanguage, setSourceLanguage] = useState<string>('auto');
+  const [whisperModel, setWhisperModel] = useState<WhisperModelLevel>('base');
+  const [autoDiarizeSpeakers, setAutoDiarizeSpeakers] = useState<boolean>(true);
+  const [isTranscribePanelOpen, setIsTranscribePanelOpen] = useState<boolean>(false);
+
+  // Trạng thái AI Auto-Translate (Tự động dịch phụ đề)
+  const [isTranslating, setIsTranslating] = useState<boolean>(false);
+  const [isTranslatePanelOpen, setIsTranslatePanelOpen] = useState<boolean>(false);
+  const [targetLanguage, setTargetLanguage] = useState<string>('vi');
+  const [subtitleTone, setSubtitleTone] = useState<SubtitleTone>('natural');
+
+  const targetLangShortName =
+    targetLanguageOptions.find(([val]) => val === targetLanguage)?.[1]?.split(' ')?.[1] || targetLanguage;
 
   // Load custom cloned voices from API
   useEffect(() => {
@@ -130,6 +194,180 @@ export default function DubbingWorkspacePage() {
       setVideoFile(file);
       const url = URL.createObjectURL(file);
       setVideoPreviewUrl(url);
+      setIsTranscribePanelOpen(true);
+      setStatusMessage({
+        text: `Đã tải lên video "${file.name}". Bạn có thể nhấn "Tự bóc phụ đề từ Video" để AI tự động trích xuất toàn bộ lời thoại và chia nhân vật!`,
+        type: 'success',
+      });
+    }
+  };
+
+  // Tự động bóc tách âm thanh video thành phụ đề (AI STT Whisper)
+  const handleAutoTranscribeFromVideo = async () => {
+    if (!videoFile) {
+      setStatusMessage({ text: 'Vui lòng chọn hoặc tải lên tệp video trước khi tự bóc phụ đề.', type: 'error' });
+      videoFileInputRef.current?.click();
+      return;
+    }
+
+    setIsTranscribing(true);
+    setTranscribeProgress('Đang đọc và tách âm thanh 16kHz chuẩn phòng thu từ video...');
+    setStatusMessage(null);
+
+    try {
+      const result = await transcribeVideoFile(
+        videoFile,
+        sourceLanguage,
+        (progress) => {
+          setTranscribeProgress(progress);
+        },
+        whisperModel
+      );
+
+      if (!result || !result.segments || result.segments.length === 0) {
+        setStatusMessage({ text: 'Không phát hiện thấy lời thoại hoặc giọng nói rõ ràng trong video này.', type: 'error' });
+        setIsTranscribing(false);
+        setTranscribeProgress('');
+        return;
+      }
+
+      setTranscribeProgress('Đang làm sạch và tối ưu hóa timeline phụ đề sát video...');
+      const cleanSegments = cleanAndDeduplicateWhisperSegments(result.segments);
+
+      // Tối ưu lead-in offset (-0.15s): Đón đầu khẩu hình miệng nhân vật để không bị trễ tiếng khi lồng tiếng
+      const LEAD_IN_OFFSET = -0.15;
+      let newCues: SubtitleCue[] = cleanSegments.map((seg, idx) => {
+        const start = Math.max(0, Math.round((seg.start + LEAD_IN_OFFSET) * 1000) / 1000);
+        const end = Math.max(start + 0.3, Math.round(seg.end * 1000) / 1000);
+        return {
+          id: idx + 1,
+          startTime: start,
+          endTime: end,
+          durationSec: Math.max(0.4, Math.round((end - start) * 1000) / 1000),
+          startTimeFormatted: secondsToFormattedTime(start),
+          endTimeFormatted: secondsToFormattedTime(end),
+          speaker: 'Speaker 1',
+          text: seg.text.trim(),
+        };
+      });
+
+      // Tự động phân tích và chia vai nhân vật (Speaker Diarization) nếu được bật
+      if (autoDiarizeSpeakers && newCues.length > 0) {
+        setTranscribeProgress('Đang phân tích âm sắc giọng nói để tách nhân vật (Speaker Diarization)...');
+        try {
+          newCues = await detectSpeakersFromVideo(videoFile, newCues);
+        } catch (diarizeErr) {
+          console.warn('[Dubbing] Speaker diarization fallback:', diarizeErr);
+        }
+      }
+
+      const generatedSrt = cuesToSRT(newCues);
+      setSrtInput(generatedSrt);
+      setTimingOffsetSec(0);
+
+      // Ghi nhận nhật ký STT vào CSDL trong nền nếu người dùng có tài khoản
+      try {
+        await fetch('/api/stt/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: videoFile.name,
+            language: result.language || sourceLanguage,
+            durationSec: result.durationSec,
+            transcription: result,
+          }),
+        });
+      } catch {}
+
+      const detectedLangLabel = result.language ? ` [Ngôn ngữ: ${result.language.toUpperCase()}]` : '';
+      setStatusMessage({
+        text: `Đã tự động bóc tách thành công ${newCues.length} câu thoại từ video${detectedLangLabel}! Đã cập nhật phụ đề và bảng gán giọng đọc.`,
+        type: 'success',
+      });
+      setIsTranscribePanelOpen(false);
+    } catch (err: any) {
+      console.error('Auto transcribe error:', err);
+      setStatusMessage({
+        text: err?.message || 'Không thể bóc tách phụ đề từ video.',
+        type: 'error',
+      });
+    } finally {
+      setIsTranscribing(false);
+      setTranscribeProgress('');
+    }
+  };
+
+  // Tự động dịch phụ đề bằng AI (chuẩn ngữ cảnh & xưng hô điện ảnh)
+  const handleTranslateSubtitles = async () => {
+    if (!parsedData || parsedData.cues.length === 0) {
+      setStatusMessage({ text: 'Chưa có phụ đề để dịch. Hãy tải tệp SRT hoặc bóc thoại từ video trước.', type: 'error' });
+      return;
+    }
+
+    setIsTranslating(true);
+    setStatusMessage({
+      text:
+        targetLanguage === 'vi'
+          ? 'Đang kết nối AI để dịch toàn bộ phụ đề sang Tiếng Việt tự nhiên chuẩn điện ảnh...'
+          : `Đang kết nối AI để dịch toàn bộ phụ đề sang ${targetLangShortName}...`,
+      type: 'success',
+    });
+
+    try {
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceLanguage: sourceLanguage === 'auto' ? 'auto' : sourceLanguage,
+          targetLanguage,
+          tone: subtitleTone,
+          cues: parsedData.cues.map(({ id, text, speaker, startTime, endTime }) => ({
+            id,
+            text,
+            speaker,
+            startTime,
+            endTime,
+          })),
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Dịch phụ đề thất bại.');
+      }
+
+      const translatedCues: SubtitleCue[] = data.cues.map((c: any, index: number) => ({
+        ...parsedData.cues[index],
+        text: c.text || parsedData.cues[index].text,
+      }));
+
+      const newSrt = cuesToSRT(translatedCues);
+      setSrtInput(newSrt);
+      setParsedData((prev) =>
+        prev
+          ? {
+              ...prev,
+              cues: translatedCues,
+            }
+          : prev
+      );
+
+      setStatusMessage({
+        text:
+          targetLanguage === 'vi'
+            ? `Đã dịch hoàn tất ${translatedCues.length} câu sang Tiếng Việt chuẩn điện ảnh (${toneOptions.find(([val]) => val === subtitleTone)?.[1]})!`
+            : `Đã dịch hoàn tất ${translatedCues.length} câu sang ${targetLangShortName}!`,
+        type: 'success',
+      });
+      setIsTranslatePanelOpen(false);
+    } catch (err: any) {
+      console.error('Translate error:', err);
+      setStatusMessage({
+        text: err?.message || 'Lỗi khi dịch phụ đề.',
+        type: 'error',
+      });
+    } finally {
+      setIsTranslating(false);
     }
   };
 
@@ -381,7 +619,7 @@ export default function DubbingWorkspacePage() {
                     <label className="text-primary-container hover:underline font-bold cursor-pointer flex items-center gap-1 shrink-0 ml-2">
                       <span className="material-symbols-outlined text-[15px]">sync</span>
                       <span>Đổi video</span>
-                      <input type="file" accept="video/*" onChange={handleVideoUpload} className="hidden" />
+                      <input type="file" accept="video/*" ref={videoFileInputRef} onChange={handleVideoUpload} className="hidden" />
                     </label>
                   </div>
                 )}
@@ -393,11 +631,106 @@ export default function DubbingWorkspacePage() {
                   Nhấp để tải lên Video (MP4, MKV, MOV)
                 </span>
                 <span className="font-body-xs text-[11px] text-text-muted">
-                  Tùy chọn: Bạn có thể lồng tiếng mà không cần video gốc
+                  Tùy chọn: Tải lên video để AI tự động bóc lời thoại và lồng tiếng chuẩn xác
                 </span>
-                <input type="file" accept="video/*" onChange={handleVideoUpload} className="hidden" />
+                <input type="file" accept="video/*" ref={videoFileInputRef} onChange={handleVideoUpload} className="hidden" />
               </label>
             )}
+
+            {/* AI Auto-Transcribe Panel (Whisper AI) */}
+            <div className="rounded-xl border border-primary-container/30 bg-primary-container/5 p-3.5 flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary-container text-[20px]">psychology</span>
+                  <span className="font-bold text-[13px] text-text-primary">Tự động bóc phụ đề từ Video (AI Whisper)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsTranscribePanelOpen(!isTranscribePanelOpen)}
+                  className="text-primary-container hover:underline text-[11px] font-bold flex items-center gap-1"
+                >
+                  <span>{isTranscribePanelOpen ? 'Thu gọn' : 'Cấu hình & Bóc sub'}</span>
+                  <span className="material-symbols-outlined text-[14px]">
+                    {isTranscribePanelOpen ? 'expand_less' : 'expand_more'}
+                  </span>
+                </button>
+              </div>
+
+              {isTranscribePanelOpen && (
+                <div className="flex flex-col gap-2.5 pt-1 border-t border-border-glass">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-text-muted uppercase font-bold block mb-1">Ngôn ngữ thoại gốc</label>
+                      <select
+                        value={sourceLanguage}
+                        onChange={(e) => setSourceLanguage(e.target.value)}
+                        disabled={isTranscribing}
+                        className="w-full bg-surface-container border border-border-glass rounded-lg px-2.5 py-1.5 text-[12px] text-text-primary focus:outline-none focus:border-primary-container"
+                      >
+                        {languageOptions.map(([val, label]) => (
+                          <option key={val} value={val}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-text-muted uppercase font-bold block mb-1">Mô hình AI Whisper</label>
+                      <select
+                        value={whisperModel}
+                        onChange={(e) => setWhisperModel(e.target.value as WhisperModelLevel)}
+                        disabled={isTranscribing}
+                        className="w-full bg-surface-container border border-border-glass rounded-lg px-2.5 py-1.5 text-[12px] text-text-primary focus:outline-none focus:border-primary-container"
+                      >
+                        {whisperModelOptions.map(([val, label]) => (
+                          <option key={val} value={val}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1">
+                    <label className="flex items-center gap-2 cursor-pointer text-[12px] text-text-secondary select-none">
+                      <input
+                        type="checkbox"
+                        checked={autoDiarizeSpeakers}
+                        onChange={(e) => setAutoDiarizeSpeakers(e.target.checked)}
+                        disabled={isTranscribing}
+                        className="rounded border-border-glass text-primary-container focus:ring-0 w-4 h-4 cursor-pointer"
+                      />
+                      <span>Tự động phân tách nhân vật (Speaker Diarization)</span>
+                    </label>
+                  </div>
+
+                  {isTranscribing && (
+                    <div className="p-2.5 rounded-lg bg-surface-container flex flex-col gap-1.5 border border-primary-container/30">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-primary-container font-semibold flex items-center gap-1.5">
+                          <span className="inline-block w-3 h-3 border-2 border-primary-container border-t-transparent rounded-full animate-spin" />
+                          Đang bóc tách phụ đề bằng Whisper AI...
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-text-muted">{transcribeProgress}</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleAutoTranscribeFromVideo}
+                    disabled={isTranscribing}
+                    className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-primary-container to-secondary-container text-canvas-base font-bold text-[12px] hover:opacity-95 transition-opacity flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">
+                      {isTranscribing ? 'hourglass_top' : 'auto_awesome'}
+                    </span>
+                    <span>{isTranscribing ? 'Đang tự bóc phụ đề...' : 'Bắt đầu tự bóc phụ đề AI'}</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Subtitle Input Card */}
@@ -409,6 +742,39 @@ export default function DubbingWorkspacePage() {
               </h3>
 
               <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!videoFile) {
+                      videoFileInputRef.current?.click();
+                    } else {
+                      setIsTranscribePanelOpen(true);
+                      handleAutoTranscribeFromVideo();
+                    }
+                  }}
+                  disabled={isTranscribing}
+                  className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-primary-container/20 to-secondary-container/20 text-primary-container border border-primary-container/40 hover:bg-primary-container hover:text-canvas-base font-label-sm text-[11px] font-bold transition-all flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+                  title="Tự động bóc toàn bộ lời thoại từ tệp video bằng AI Whisper và chia timeline phụ đề chuẩn xác"
+                >
+                  <span className="material-symbols-outlined text-[14px]">auto_awesome</span>
+                  <span>Tự bóc sub từ Video</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsTranslatePanelOpen(!isTranslatePanelOpen)}
+                  disabled={isTranslating}
+                  className={`px-2.5 py-1 rounded-lg border font-label-sm text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                    isTranslatePanelOpen
+                      ? 'bg-secondary-container text-canvas-base border-secondary-container shadow-sm'
+                      : 'bg-secondary-container/20 text-secondary-container border-secondary-container/40 hover:bg-secondary-container hover:text-canvas-base'
+                  }`}
+                  title="Tự động dịch toàn bộ phụ đề sang Tiếng Việt chuẩn điện ảnh hoặc các ngôn ngữ khác"
+                >
+                  <span className="material-symbols-outlined text-[14px]">translate</span>
+                  <span>Tự động dịch AI</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={handleCleanAndAlignSubtitle}
@@ -427,6 +793,120 @@ export default function DubbingWorkspacePage() {
                 </label>
               </div>
             </div>
+
+            {/* AI Auto-Translation Panel */}
+            {isTranslatePanelOpen && (
+              <div className="rounded-xl border border-secondary-container/40 bg-secondary-container/5 p-3.5 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-secondary-container text-[20px]">translate</span>
+                    <span className="font-bold text-[13px] text-text-primary">Dịch phụ đề bằng AI chuẩn điện ảnh</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsTranslatePanelOpen(false)}
+                    className="text-text-muted hover:text-text-primary text-[11px] font-semibold flex items-center gap-0.5 cursor-pointer"
+                  >
+                    <span>Đóng</span>
+                    <span className="material-symbols-outlined text-[14px]">close</span>
+                  </button>
+                </div>
+
+                {/* Quick Target Language Pills & Select */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-semibold text-text-muted flex items-center gap-1">
+                      <span className="material-symbols-outlined text-secondary-container text-[14px]">language</span>
+                      <span>Dịch sang ngôn ngữ (Đích):</span>
+                    </label>
+                    <span className="text-[10px] text-secondary-container font-semibold px-1.5 py-0.5 bg-secondary-container/15 rounded border border-secondary-container/30">
+                      Mặc định: Tiếng Việt
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {[
+                      ['vi', '🇻🇳 Tiếng Việt'],
+                      ['en', '🇺🇸 Tiếng Anh'],
+                      ['zh', '🇨🇳 Tiếng Trung'],
+                      ['ja', '🇯🇵 Tiếng Nhật'],
+                      ['ko', '🇰🇷 Tiếng Hàn'],
+                      ['fr', '🇫🇷 Tiếng Pháp'],
+                    ].map(([code, label]) => (
+                      <button
+                        key={code}
+                        type="button"
+                        onClick={() => setTargetLanguage(code)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all border cursor-pointer ${
+                          targetLanguage === code
+                            ? 'bg-secondary-container/25 text-secondary-container border-secondary-container font-bold shadow-sm'
+                            : 'bg-surface-container/60 text-text-muted border-border-glass hover:text-text-primary hover:bg-surface-container'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <select
+                    value={targetLanguage}
+                    onChange={(e) => setTargetLanguage(e.target.value)}
+                    disabled={isTranslating}
+                    className="w-full mt-1 px-3 py-1.5 rounded-lg bg-surface-container border border-border-glass text-text-primary text-[12px] focus:outline-none focus:border-secondary-container"
+                  >
+                    {targetLanguageOptions.map(([val, label]) => (
+                      <option key={val} value={val} className="bg-surface-card">
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Phong cách dịch thuật & xưng hô theo bối cảnh */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-semibold text-text-muted flex items-center gap-1">
+                    <span className="material-symbols-outlined text-secondary-container text-[14px]">psychology</span>
+                    <span>Phong cách dịch & Xưng hô:</span>
+                  </label>
+                  <select
+                    value={subtitleTone}
+                    onChange={(e) => setSubtitleTone(e.target.value as SubtitleTone)}
+                    disabled={isTranslating}
+                    className="w-full px-3 py-1.5 rounded-lg bg-surface-container border border-border-glass text-text-primary text-[12px] focus:outline-none focus:border-secondary-container"
+                  >
+                    {toneOptions.map(([val, label]) => (
+                      <option key={val} value={val} className="bg-surface-card">
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-text-muted leading-tight italic">
+                    {toneOptions.find(([val]) => val === subtitleTone)?.[2]}
+                  </p>
+                </div>
+
+                {/* Nút thực hiện dịch */}
+                <button
+                  type="button"
+                  onClick={handleTranslateSubtitles}
+                  disabled={isTranslating || !parsedData || parsedData.cues.length === 0}
+                  className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-secondary-container to-primary-container text-canvas-base font-bold text-[12px] hover:opacity-95 transition-opacity flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px]">
+                    {isTranslating ? 'hourglass_top' : 'g_translate'}
+                  </span>
+                  <span>
+                    {isTranslating
+                      ? targetLanguage === 'vi'
+                        ? 'Đang dịch sang Tiếng Việt...'
+                        : `Đang dịch sang ${targetLangShortName}...`
+                      : targetLanguage === 'vi'
+                        ? 'Dịch toàn bộ phụ đề sang Tiếng Việt chuẩn điện ảnh'
+                        : `Dịch toàn bộ phụ đề sang ${targetLangShortName}`}
+                  </span>
+                </button>
+              </div>
+            )}
 
             <textarea
               rows={11}

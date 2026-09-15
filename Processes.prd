@@ -41,7 +41,7 @@
 | **Phase 0** | Foundation, Token Design, Glassmorphism UI & Prisma Schema | **100%** | ✅ **Hoàn thành 100%** |
 | **Phase 1** | Authentication, Onboarding 50.000 Credits, OTP & Dashboard Shell | **95%** | 🟡 **Hoàn thành** *(Cần cấu hình SMTP trên production để gửi mail thật)* |
 | **Phase 2** | Core TTS: Microsoft Neural, CapCut TikTok, SSML, Audio Stream | **100%** | ✅ **Hoàn thành 100%** *(Nhiều provider hoạt động thực tế)* |
-| **Phase 3** | Core Dubbing: Subtitle Parser, Multi-Speaker, FFmpeg Audio Ducking | **95%** | ✅ **Hoàn thành 95%** *(Xử lý render FFmpeg server-side ổn định)* |
+| **Phase 3** | Core Dubbing: Subtitle Parser, Multi-Speaker, FFmpeg Audio Ducking | **100%** | ✅ **Hoàn thành 100%** *(Xử lý render FFmpeg server-side ổn định, tích hợp Whisper Auto-Transcription)* |
 | **Phase 4** | Core STT (Whisper WebGPU) & Custom Voice Cloning (Coqui XTTS-v2) | **100%** | ✅ **Hoàn thành 100%** *(STT WebGPU 100%; XTTS-v2 Đa mẫu, Latents .pth Caching & 3-Tier Synthesis 100%)* |
 | **Phase 5** | 22 Client-Side WASM Audio Tools Suite | **100%** | ✅ **Hoàn thành 100%** *(22/22 tools DSP Web Audio API & FFmpeg WASM)* |
 | **Phase 6** | Unified Credit Economy, Pricing & Thanh Toán (VietQR + Stripe) | **100%** | ✅ **Hoàn thành 100%** *(VietQR + SePay tự động & Stripe Checkout Quốc tế)* |
@@ -186,13 +186,15 @@
 
 ### PHASE 3: CORE AI SERVICE — SUBTITLE VIDEO DUBBING PIPELINE
 > **Mục tiêu**: Lồng tiếng video tự động từ phụ đề, hỗ trợ đa nhân vật và bảo toàn âm thanh nền.
-> **Tiến độ**: 95% | **Trạng thái**: ✅ Hoàn thành 95%
+> **Tiến độ**: 100% | **Trạng thái**: ✅ Hoàn thành 100%
 
 - [x] `P3-01`: **Subtitle Parser đa định dạng** (`src/lib/subtitleParser.ts`): Hỗ trợ `.srt`, `.vtt`, `.ass`. Tự động khử câu lặp do Whisper stride overlap và căn chỉnh timeline video.
 - [x] `P3-02`: Giao diện gán giọng đa nhân vật (**Multi-Speaker Voice Assignment**) tại `/dashboard/dubbing`.
 - [x] `P3-03`: API Lồng tiếng video server-side (`/api/dubbing/generate`) sử dụng FFmpeg.
 - [x] `P3-04`: **Movie Ambient & SFX Preservation**: Giữ nguyên âm thanh gốc ở đoạn không thoại; tự động hạ âm nền (Smart Audio Ducking 15% - 30%) ở đoạn có thoại AI.
 - [x] `P3-05`: Tự động co giãn tốc độ đọc (Time-Stretching) khớp thời lượng khoảng trống phụ đề.
+- [x] `P3-06`: **AI Auto-Transcription trực tiếp trong Dubbing Studio** (`/dashboard/dubbing`): Người dùng chỉ cần tải lên video gốc, hệ thống tự động trích xuất âm thanh 16kHz PCM, bóc tách toàn bộ lời thoại bằng Whisper AI (tự động nhận diện hoặc chọn ngôn ngữ), tối ưu hóa khẩu hình miệng với lead-in offset (-0.15s), tự động phân tách nhân vật (Speaker Diarization) và tạo timeline phụ đề chuẩn xác sẵn sàng lồng tiếng ngay lập tức.
+- [x] `P3-07`: **AI Auto-Translation trực tiếp trong Dubbing Studio** (`/dashboard/dubbing`): Tích hợp tính năng tự động dịch phụ đề AI tương tự như VietSub Video Studio, hỗ trợ chọn ngôn ngữ đích (mặc định Tiếng Việt, Anh, Trung, Nhật, Hàn, Pháp...), tùy chọn phong cách dịch và đại từ xưng hô theo ngữ cảnh điện ảnh (mày-tao, anh-em, cậu-tớ, ngươi-ta...), bảo toàn 100% timeline mili-giây và phân vai nhân vật.
 
 ---
 
