@@ -97,7 +97,7 @@ export async function POST(req: Request) {
       voiceName: voice.name,
       durationSec: parseFloat(durationSec.toFixed(2)),
       fileSize: audioBuffer.length,
-      message: 'Đã tổng hợp giọng nói thành công qua mô hình Coqui XTTS-v2.',
+      message: 'Đã tổng hợp giọng nói thành công qua mô hình Neural Timbre Transfer & XTTS.',
     });
   } catch (error: any) {
     console.error('Custom voice synthesis error:', error);

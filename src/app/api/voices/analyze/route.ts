@@ -312,16 +312,32 @@ export async function POST(req: Request) {
       else vocalType = 'Nữ Cao Trong Trẻo (Soprano)';
     }
 
-    // Recommended offsets
+    // Recommended offsets & model selection from diverse human base voice palette:
     let recommendedPitchOffset = 0;
     let recommendedBaseModel = 'vi-VN-NamMinhNeural';
 
     if (detectedGender === 'female') {
-      recommendedBaseModel = 'vi-VN-HoaiMyNeural';
-      recommendedPitchOffset = Math.round(Math.max(-50, Math.min(50, (avgPitch - 210) * 0.8)));
+      if (avgBrightness > 15 || avgPitch > 225) {
+        recommendedBaseModel = 'capcut-nu-sweet';
+        recommendedPitchOffset = Math.round(Math.max(-35, Math.min(35, (avgPitch - 238) * 0.75)));
+      } else if (avgWarmth > 10 || avgPitch < 205) {
+        recommendedBaseModel = 'capcut-nu-story';
+        recommendedPitchOffset = Math.round(Math.max(-35, Math.min(35, (avgPitch - 204) * 0.75)));
+      } else {
+        recommendedBaseModel = 'vi-VN-HoaiMyNeural';
+        recommendedPitchOffset = Math.round(Math.max(-35, Math.min(35, (avgPitch - 218) * 0.75)));
+      }
     } else {
-      recommendedBaseModel = 'vi-VN-NamMinhNeural';
-      recommendedPitchOffset = Math.round(Math.max(-50, Math.min(50, (avgPitch - 120) * 0.8)));
+      if (avgPitch < 118 || (avgWarmth > 18 && avgBrightness < 5)) {
+        recommendedBaseModel = 'capcut-nam-film';
+        recommendedPitchOffset = Math.round(Math.max(-35, Math.min(35, (avgPitch - 112) * 0.75)));
+      } else if (avgBrightness > 15 || avgPitch > 140) {
+        recommendedBaseModel = 'capcut-nam-reviewer';
+        recommendedPitchOffset = Math.round(Math.max(-35, Math.min(35, (avgPitch - 146) * 0.75)));
+      } else {
+        recommendedBaseModel = 'vi-VN-NamMinhNeural';
+        recommendedPitchOffset = Math.round(Math.max(-35, Math.min(35, (avgPitch - 128) * 0.75)));
+      }
     }
 
     const recommendedRatePercent = Math.round(

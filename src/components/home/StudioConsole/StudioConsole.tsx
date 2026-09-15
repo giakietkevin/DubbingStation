@@ -40,7 +40,14 @@ export const StudioConsole: React.FC = () => {
 
   const handleSelectVoice = (voice: Voice) => {
     setSelectedVoice(voice);
-    if (voice.id.startsWith('custom-')) {
+    const isCustomVoice =
+      voice.id.startsWith('custom-') ||
+      voice.provider === 'xtts' ||
+      voice.tags.includes('Custom Voice') ||
+      voice.tags.includes('Deep Clone') ||
+      voice.tags.includes('XTTS Clone');
+
+    if (isCustomVoice) {
       setProvider('xtts');
     } else if (voice.provider) {
       setProvider(voice.provider);
@@ -81,58 +88,62 @@ export const StudioConsole: React.FC = () => {
     setAudioUrl('');
   };
 
-  // Sync voice from URL query param if present (e.g. ?voice=mai-anh or custom-123)
+  // Sync voice from URL query param if present (e.g. ?voice=mai-anh or custom-123 or raw database ID)
   useEffect(() => {
     const voiceParam = searchParams.get('voice');
     if (!voiceParam) return;
 
-    const found = voices.find((v) => v.id === voiceParam);
+    const found = voices.find((v) => v.id === voiceParam || v.id === `custom-${voiceParam}`);
     if (found) {
       handleSelectVoice(found);
       return;
     }
 
-    if (voiceParam.startsWith('custom-')) {
-      fetch('/api/clone')
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (Array.isArray(data?.voices)) {
-            const rawId = voiceParam.replace(/^custom-/, '');
-            const match = data.voices.find(
-              (v: any) => v.id === voiceParam || v.id === rawId || `custom-${v.id}` === voiceParam
-            );
-            if (match) {
-              const customVoiceObj: Voice = {
-                id: match.id.startsWith('custom-') ? match.id : `custom-${match.id}`,
-                name: match.name,
-                country: match.language || 'VIỆT NAM',
-                countryCode: match.language || 'vi-VN',
-                avatarInitials: match.name.slice(0, 2).toUpperCase(),
-                gender: match.gender === 'male' ? 'male' : 'female',
-                style: 'Giọng clone từ audio của bạn (Coqui XTTS)',
-                tags: ['Custom Voice', 'XTTS Clone'],
-                provider: 'xtts',
-                previewUrl: match.sampleUrl,
-              };
-              handleSelectVoice(customVoiceObj);
-              return;
-            }
+    // Luôn tra cứu /api/clone để hỗ trợ cả ID có hoặc không có tiền tố custom-
+    fetch('/api/clone')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data?.voices)) {
+          const rawId = voiceParam.replace(/^custom-/, '');
+          const match = data.voices.find(
+            (v: any) =>
+              v.id === voiceParam ||
+              v.id === rawId ||
+              `custom-${v.id}` === voiceParam ||
+              v.id === `custom-${rawId}`
+          );
+          if (match) {
+            const customVoiceObj: Voice = {
+              id: match.id.startsWith('custom-') ? match.id : `custom-${match.id}`,
+              name: match.name,
+              country: match.language || 'VIỆT NAM',
+              countryCode: match.language || 'vi-VN',
+              avatarInitials: match.name.slice(0, 2).toUpperCase(),
+              gender: match.gender === 'male' ? 'male' : 'female',
+              style: 'Giọng nhân bản chính xác (Acoustic Neural Timbre)',
+              tags: ['Custom Voice', 'Deep Clone', 'XTTS Clone'],
+              provider: 'xtts',
+              previewUrl: match.sampleUrl,
+            };
+            handleSelectVoice(customVoiceObj);
+            return;
           }
-          tryLocalCustomVoice(voiceParam);
-        })
-        .catch(() => {
-          tryLocalCustomVoice(voiceParam);
-        });
-    } else {
-      tryLocalCustomVoice(voiceParam);
-    }
+        }
+        tryLocalCustomVoice(voiceParam);
+      })
+      .catch(() => {
+        tryLocalCustomVoice(voiceParam);
+      });
 
     function tryLocalCustomVoice(id: string) {
       try {
         const saved = localStorage.getItem('dubbing_custom_voices');
         if (saved) {
           const parsed = JSON.parse(saved);
-          const customFound = parsed.find((v: any) => v.id === id);
+          const rawId = id.replace(/^custom-/, '');
+          const customFound = parsed.find(
+            (v: any) => v.id === id || v.id === rawId || `custom-${v.id}` === id
+          );
           if (customFound) {
             handleSelectVoice(customFound);
           }

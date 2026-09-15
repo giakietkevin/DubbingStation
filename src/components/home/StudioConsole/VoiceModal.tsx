@@ -60,6 +60,38 @@ const categories = [
 
 const manualBaseOptions = [
   {
+    id: 'capcut-nam-film',
+    name: 'CapCut Nam Điện Ảnh (Trầm ấm)',
+    gender: 'male' as const,
+    country: 'VIỆT NAM',
+    provider: 'capcut' as const,
+    description: 'Chất giọng nam trầm ấm điện ảnh, lôi cuốn, dày lồng ngực',
+  },
+  {
+    id: 'capcut-nam-reviewer',
+    name: 'CapCut Nam Hoạt Ngôn (Năng động)',
+    gender: 'male' as const,
+    country: 'VIỆT NAM',
+    provider: 'capcut' as const,
+    description: 'Chất giọng nam trẻ trung, nhanh nhẹn, sắc nét',
+  },
+  {
+    id: 'capcut-nu-sweet',
+    name: 'CapCut Nữ Ngọt Ngào (Trẻ trung)',
+    gender: 'female' as const,
+    country: 'VIỆT NAM',
+    provider: 'capcut' as const,
+    description: 'Chất giọng nữ trẻ trung, ngọt ngào, tươi vui',
+  },
+  {
+    id: 'capcut-nu-story',
+    name: 'CapCut Nữ Truyền Cảm (Kể chuyện)',
+    gender: 'female' as const,
+    country: 'VIỆT NAM',
+    provider: 'capcut' as const,
+    description: 'Chất giọng nữ truyền cảm, dịu dàng, sâu lắng',
+  },
+  {
     id: 'vi-VN-NamMinhNeural',
     name: 'Nam Minh (Bắc Bộ - Trầm ấm)',
     gender: 'male' as const,
@@ -144,14 +176,14 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
       .then((data) => {
         if (cancelled || !Array.isArray(data?.voices)) return;
         const apiVoices: Voice[] = data.voices.map((voice: any) => ({
-          id: voice.id,
+          id: voice.id.startsWith('custom-') ? voice.id : `custom-${voice.id}`,
           name: voice.name,
           country: voice.language || 'CUSTOM',
           countryCode: voice.language || 'custom',
           avatarInitials: voice.name.slice(0, 2).toUpperCase(),
           gender: voice.gender === 'male' ? 'male' : 'female',
-          style: 'Giọng clone từ audio của bạn',
-          tags: ['Custom Voice', 'XTTS Clone'],
+          style: 'Giọng nhân bản chính xác (Acoustic Neural Timbre)',
+          tags: ['Custom Voice', 'Deep Clone', 'XTTS Clone'],
           provider: 'xtts',
           previewUrl: voice.sampleUrl,
         }));
@@ -221,11 +253,15 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
 
     const pitchStr = `${customPitchNum >= 0 ? '+' : ''}${customPitchNum}Hz`;
     const rateStr = `${customRateNum >= 0 ? '+' : ''}${customRateNum}%`;
-    const isClonedFromAudio = uploadedSamples.length > 0;
-    const provider = isClonedFromAudio ? 'piper' : (customBaseModel.includes('onnx') ? 'piper' : 'microsoft');
-    const model = isClonedFromAudio
-      ? (customGender === 'female' ? 'vi_VN-vivos-x_low.onnx' : 'vi_VN-25hours_single-low.onnx')
-      : customBaseModel;
+    const selectedBase = manualBaseOptions.find((opt) => opt.id === customBaseModel);
+    const provider = selectedBase
+      ? selectedBase.provider
+      : customBaseModel.includes('onnx')
+        ? 'piper'
+        : customBaseModel.startsWith('capcut-')
+          ? 'capcut'
+          : 'microsoft';
+    const model = customBaseModel;
 
     const params = new URLSearchParams({
       voiceId: 'custom',
@@ -405,13 +441,18 @@ export const VoiceModal: React.FC<VoiceModalProps> = ({
     }
     setFormError(null);
 
+    const isClonedFromAudio = uploadedSamples.length > 0;
     const pitchStr = `${customPitchNum >= 0 ? '+' : ''}${customPitchNum}Hz`;
     const rateStr = `${customRateNum >= 0 ? '+' : ''}${customRateNum}%`;
-    const isClonedFromAudio = uploadedSamples.length > 0;
-    const provider = isClonedFromAudio ? 'piper' : (customBaseModel.includes('onnx') ? 'piper' : 'microsoft');
-    const model = isClonedFromAudio
-      ? (customGender === 'female' ? 'vi_VN-vivos-x_low.onnx' : 'vi_VN-25hours_single-low.onnx')
-      : customBaseModel;
+    const selectedBase = manualBaseOptions.find((opt) => opt.id === customBaseModel);
+    const provider = selectedBase
+      ? selectedBase.provider
+      : customBaseModel.includes('onnx')
+        ? 'piper'
+        : customBaseModel.startsWith('capcut-')
+          ? 'capcut'
+          : 'microsoft';
+    const model = customBaseModel;
 
     const initials = customName
       .trim()

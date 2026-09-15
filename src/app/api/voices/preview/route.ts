@@ -40,6 +40,18 @@ export async function GET(req: Request) {
       piperModel: customModel?.includes('onnx') ? customModel : undefined,
     };
 
+    const capcutSpeakerMap: Record<string, string> = {
+      'capcut-nam-film': 'vi_male_01',
+      'capcut-nam-reviewer': 'vi_male_02',
+      'capcut-nu-sweet': 'vi_female_01',
+      'capcut-nu-story': 'vi_female_02',
+    };
+
+    const resolvedCapcutSpeaker =
+      capcutSpeakerMap[customModel || ''] ||
+      capcutSpeakerMap[voiceId || ''] ||
+      baseProfile.capcutSpeaker;
+
     const profile = {
       ...baseProfile,
       neuralModel: customModel || baseProfile.neuralModel,
@@ -48,6 +60,7 @@ export async function GET(req: Request) {
       volume: customVolume !== null && customVolume !== undefined ? customVolume : baseProfile.volume,
       provider: customProvider || baseProfile.provider,
       piperModel: customModel?.includes('onnx') ? customModel : baseProfile.piperModel,
+      capcutSpeaker: resolvedCapcutSpeaker || baseProfile.capcutSpeaker,
     };
 
     const sampleText = customText || profile.samplePhrase;

@@ -18,7 +18,7 @@ import { join, isAbsolute, basename } from 'path';
 
 export const dynamic = 'force-dynamic';
 
-type TTSProvider = 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface' | 'capcut';
+type TTSProvider = 'microsoft' | 'openai' | 'piper' | 'google' | 'huggingface' | 'capcut' | 'xtts';
 
 const MODELS_DIR = join(process.cwd(), 'models', 'piper');
 
@@ -415,19 +415,37 @@ export async function GET(req: Request) {
     const customF2 = searchParams.get('f2') ? parseInt(searchParams.get('f2')!, 10) : undefined;
     const providerParam = searchParams.get('provider') as TTSProvider | null;
 
-    if (voiceId.startsWith('custom-')) {
-      const customVoiceId = voiceId.slice('custom-'.length);
+    // Nhận diện mọi định dạng voice ID của voice clone (có hoặc không có tiền tố custom-, hoặc provider=xtts, hoặc CUID/UUID)
+    const isExplicitCustom =
+      voiceId.startsWith('custom-') ||
+      providerParam === 'xtts' ||
+      (!voicePersonaProfiles[voiceId] &&
+        !voiceId.startsWith('capcut-') &&
+        !voiceId.startsWith('openai-') &&
+        !voiceId.startsWith('piper-') &&
+        !voiceId.startsWith('vivos-') &&
+        !voiceId.startsWith('cv-') &&
+        !voiceId.startsWith('openslr-') &&
+        voiceId !== 'chi-google');
+
+    if (isExplicitCustom) {
+      const cleanVoiceId = voiceId.replace(/^custom-/, '');
       let customVoice = null;
       try {
         const session = await getServerSession(authOptions);
         if (session?.user?.email) {
           customVoice = await prisma.customVoice.findFirst({
-            where: { id: customVoiceId, user: { email: session.user.email } },
+            where: {
+              OR: [{ id: cleanVoiceId }, { id: voiceId }],
+              user: { email: session.user.email },
+            },
           });
         }
         if (!customVoice) {
-          customVoice = await prisma.customVoice.findUnique({
-            where: { id: customVoiceId },
+          customVoice = await prisma.customVoice.findFirst({
+            where: {
+              OR: [{ id: cleanVoiceId }, { id: voiceId }],
+            },
           });
         }
       } catch (e) {
@@ -455,12 +473,12 @@ export async function GET(req: Request) {
                 'Cache-Control': 'no-store',
                 'X-Voice-Profile': voiceId,
                 'X-Provider': 'xtts',
-                'X-Engine': 'Coqui-XTTS-v2',
+                'X-Engine': 'Neural-Acoustic-Timbre-Transfer',
               },
             });
           }
         } catch (synthErr) {
-          console.warn('[TTS Stream] Lỗi tổng hợp XTTS, kích hoạt fallback DSP:', synthErr);
+          console.warn('[TTS Stream] Lỗi tổng hợp Voice Clone, kích hoạt fallback DSP:', synthErr);
         }
       }
 
@@ -470,14 +488,30 @@ export async function GET(req: Request) {
       console.log(`[TTS Stream] Voice ${voiceId} chuyển tiếp sang bộ lọc âm sắc Neural DSP.`);
     }
 
+    const capcutSpeakerMap: Record<string, string> = {
+      'capcut-nam-film': 'vi_male_01',
+      'capcut-nam-reviewer': 'vi_male_02',
+      'capcut-nu-sweet': 'vi_female_01',
+      'capcut-nu-story': 'vi_female_02',
+    };
+
+    const resolvedCapcutSpeaker =
+      capcutSpeakerMap[customModel || ''] ||
+      capcutSpeakerMap[voiceId || ''];
+
+    const resolvedProvider =
+      providerParam ||
+      (resolvedCapcutSpeaker ? 'capcut' : customModel?.includes('onnx') ? 'piper' : undefined);
+
     const baseProfile = voicePersonaProfiles[voiceId] || {
       neuralModel: customModel || (voiceId.includes('female') ? 'vi-VN-HoaiMyNeural' : 'vi-VN-NamMinhNeural'),
       pitch: '+0Hz',
       rate: '+0%',
       volume: '+0%',
       samplePhrase: '',
-      provider: (providerParam || (customModel?.includes('onnx') ? 'piper' : 'microsoft')) as TTSProvider,
+      provider: (resolvedProvider || 'microsoft') as TTSProvider,
       piperModel: customModel?.includes('onnx') ? customModel : undefined,
+      capcutSpeaker: resolvedCapcutSpeaker,
     };
 
     const profile = {
@@ -486,8 +520,9 @@ export async function GET(req: Request) {
       pitch: customPitch !== null && customPitch !== undefined ? customPitch : baseProfile.pitch,
       rate: customRate !== null && customRate !== undefined ? customRate : baseProfile.rate,
       volume: customVolume !== null && customVolume !== undefined ? customVolume : baseProfile.volume,
-      provider: providerParam || baseProfile.provider,
+      provider: (resolvedProvider || baseProfile.provider) as TTSProvider,
       piperModel: customModel?.includes('onnx') ? customModel : baseProfile.piperModel,
+      capcutSpeaker: resolvedCapcutSpeaker || baseProfile.capcutSpeaker,
     };
 
     const provider = providerParam || getProvider(voiceId, profile);
