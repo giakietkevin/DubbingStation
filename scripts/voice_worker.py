@@ -18,6 +18,111 @@ import re
 from typing import List, Optional, Dict, Any
 from pathlib import Path
 
+# Fix tương thích Python 3.10+ & 3.12 cho thư viện coqpit và coqui-tts
+import builtins
+import types
+import typing
+from typing import get_origin, Union
+from contextlib import asynccontextmanager
+
+_orig_issubclass = builtins.issubclass
+def _safe_builtin_issubclass(cls, classinfo):
+    try:
+        if not isinstance(cls, type):
+            return False
+        return _orig_issubclass(cls, classinfo)
+    except Exception:
+        return False
+builtins.issubclass = _safe_builtin_issubclass
+
+try:
+    import coqpit
+    import coqpit.coqpit
+
+    def _patched_is_union(arg_type: typing.Any) -> bool:
+        if arg_type is Union:
+            return True
+        origin = get_origin(arg_type)
+        if origin is Union:
+            return True
+        if hasattr(types, "UnionType") and (origin is types.UnionType or isinstance(arg_type, types.UnionType) or arg_type is types.UnionType):
+            return True
+        try:
+            return coqpit.coqpit.safe_issubclass(arg_type.__origin__, Union)
+        except Exception:
+            return False
+
+    def _patched_is_list(arg_type: typing.Any) -> bool:
+        if arg_type is list or arg_type is typing.List:
+            return True
+        origin = get_origin(arg_type)
+        if origin is list or origin is typing.List:
+            return True
+        try:
+            return arg_type.__origin__ is list or arg_type.__origin__ is typing.List
+        except AttributeError:
+            return False
+
+    def _patched_is_dict(arg_type: typing.Any) -> bool:
+        if arg_type is dict or arg_type is typing.Dict:
+            return True
+        origin = get_origin(arg_type)
+        if origin is dict or origin is typing.Dict:
+            return True
+        try:
+            return arg_type.__origin__ is dict or arg_type.__origin__ is typing.Dict
+        except AttributeError:
+            return False
+
+    coqpit.coqpit.is_union = _patched_is_union
+    coqpit.is_union = _patched_is_union
+    coqpit.coqpit.is_list = _patched_is_list
+    coqpit.is_list = _patched_is_list
+    coqpit.coqpit.is_dict = _patched_is_dict
+    coqpit.is_dict = _patched_is_dict
+    coqpit.coqpit.safe_issubclass = _safe_builtin_issubclass
+    coqpit.safe_issubclass = _safe_builtin_issubclass
+    coqpit.coqpit.issubclass = _safe_builtin_issubclass
+
+    _orig_deserialize = coqpit.coqpit._deserialize
+    def _safe_deserialize(x: typing.Any, field_type: typing.Any) -> typing.Any:
+        try:
+            return _orig_deserialize(x, field_type)
+        except ValueError:
+            # Fallback nếu type deserialization gặp lỗi do format union của Python 3.12
+            if _patched_is_union(field_type):
+                for arg in getattr(field_type, "__args__", []):
+                    try:
+                        return _safe_deserialize(x, arg)
+                    except Exception:
+                        pass
+            try:
+                if isinstance(x, field_type):
+                    return x
+            except TypeError:
+                pass
+            return x
+
+    coqpit.coqpit._deserialize = _safe_deserialize
+except Exception as patch_err:
+    print(f"[Worker Warning] Không thể patch coqpit: {patch_err}")
+
+# Fix tương thích PyTorch 2.6+ (weights_only=False mặc định khi nạp Coqui checkpoints)
+try:
+    import torch
+    import torch.serialization
+
+    _orig_torch_load = torch.load
+    def _safe_torch_load(*args, **kwargs):
+        if "weights_only" not in kwargs:
+            kwargs["weights_only"] = False
+        return _orig_torch_load(*args, **kwargs)
+
+    torch.load = _safe_torch_load
+    torch.serialization.load = _safe_torch_load
+except Exception as torch_patch_err:
+    print(f"[Worker Warning] Không thể patch torch.load: {torch_patch_err}")
+
 # Đảm bảo đồng ý điều khoản CPML cho Coqui
 os.environ['COQUI_TOS_AGREED'] = '1'
 
@@ -27,10 +132,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
 from pydantic import BaseModel
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("[Worker] Đang kiểm tra và nạp trước mô hình Coqui XTTS vào VRAM...")
+    load_xtts_engine()
+    yield
+
 app = FastAPI(
     title="DubbingStation Voice Worker",
     version="3.0.0",
-    description="Hybrid Voice Synthesis & Cloning Worker for Vietnamese and Multilingual Speech"
+    description="Hybrid Voice Synthesis & Cloning Worker for Vietnamese and Multilingual Speech",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -136,11 +248,13 @@ def load_xtts_engine():
 
         model_name = os.getenv("XTTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2")
         print(f"[Worker] Đang nạp mô hình Coqui XTTS ({model_name}) trên {device_str.upper()}...")
-        loaded_models["xtts"] = TTS(model_name=model_name, progress_bar=False, gpu=use_gpu)
+        loaded_models["xtts"] = TTS(model_name=model_name, progress_bar=True, gpu=use_gpu)
         print("[Worker] Nạp Coqui XTTS thành công!")
         return loaded_models["xtts"]
     except Exception as e:
         print(f"[Worker Warning] Không thể nạp Coqui XTTS: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
